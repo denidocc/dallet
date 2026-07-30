@@ -232,6 +232,44 @@ class Ledger(
         operationRepository.delete(operationId)
     }
 
+    suspend fun createAccount(name: String, openingBalanceMinor: Long): Long {
+        val trimmed = name.trim()
+        require(trimmed.isNotEmpty()) { "name required" }
+        require(openingBalanceMinor >= 0) { "opening balance must be non-negative" }
+        val nextId = (accountRepository.getAll().maxOfOrNull { it.id } ?: 0L) + 1L
+        return accountRepository.insert(
+            Account(id = nextId, name = trimmed, openingBalanceMinor = openingBalanceMinor)
+        )
+    }
+
+    suspend fun updateAccount(
+        accountId: Long,
+        name: String,
+        openingBalanceMinor: Long
+    ) {
+        val trimmed = name.trim()
+        require(trimmed.isNotEmpty()) { "name required" }
+        require(openingBalanceMinor >= 0) { "opening balance must be non-negative" }
+        val existing = accountRepository.getAll().firstOrNull { it.id == accountId }
+            ?: error("account not found")
+        accountRepository.update(
+            existing.copy(name = trimmed, openingBalanceMinor = openingBalanceMinor)
+        )
+    }
+
+    suspend fun deleteAccount(accountId: Long) {
+        require(accountRepository.getAll().any { it.id == accountId }) { "account not found" }
+        val used = operationRepository.getAll().any { operation ->
+            operation.accountId == accountId ||
+                operation.fromAccountId == accountId ||
+                operation.toAccountId == accountId
+        }
+        if (used) {
+            throw AccountHasOperationsException()
+        }
+        accountRepository.delete(accountId)
+    }
+
     private suspend fun balanceFor(account: Account): Long {
         var balance = account.openingBalanceMinor
         for (operation in operationRepository.getAll()) {

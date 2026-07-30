@@ -3,6 +3,7 @@ package com.dallet.app.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.dallet.app.ledger.AccountHasOperationsException
 import com.dallet.app.ledger.AccountBalance
 import com.dallet.app.ledger.CategoryKind
 import com.dallet.app.ledger.Ledger
@@ -111,6 +112,27 @@ data class EditOperationUiState(
     val done: Boolean = false
 )
 
+data class AccountsUiState(
+    val rows: List<AccountManageRowUi> = emptyList()
+)
+
+data class AccountManageRowUi(
+    val id: Long,
+    val name: String,
+    val openingBalanceLabel: String,
+    val balanceLabel: String
+)
+
+data class AccountEditorUiState(
+    val isNew: Boolean = true,
+    val accountId: Long? = null,
+    val nameInput: String = "",
+    val openingInput: String = "0.00",
+    val submitting: Boolean = false,
+    val errorMessage: String? = null,
+    val done: Boolean = false
+)
+
 private val DATE_FORMAT: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE
 
 class DalletViewModel(
@@ -131,6 +153,12 @@ class DalletViewModel(
 
     private val _edit = MutableStateFlow(EditOperationUiState())
     val edit: StateFlow<EditOperationUiState> = _edit.asStateFlow()
+
+    private val _accounts = MutableStateFlow(AccountsUiState())
+    val accounts: StateFlow<AccountsUiState> = _accounts.asStateFlow()
+
+    private val _accountEditor = MutableStateFlow(AccountEditorUiState())
+    val accountEditor: StateFlow<AccountEditorUiState> = _accountEditor.asStateFlow()
 
     init {
         refreshHome()
@@ -158,10 +186,112 @@ class DalletViewModel(
                         }
                     )
                     refreshHistoryInternal()
+                    refreshAccountsInternal()
                 }
             } catch (error: Exception) {
                 _home.update {
                     it.copy(loading = false, errorMessage = error.message ?: "Ошибка")
+                }
+            }
+        }
+    }
+
+    fun refreshAccounts() {
+        viewModelScope.launch {
+            try {
+                refreshAccountsInternal()
+            } catch (_: Exception) {
+                _accounts.value = AccountsUiState()
+            }
+        }
+    }
+
+    private suspend fun refreshAccountsInternal() {
+        _accounts.value = AccountsUiState(
+            rows = ledger.accountBalances().map { balance ->
+                AccountManageRowUi(
+                    id = balance.account.id,
+                    name = balance.account.name,
+                    openingBalanceLabel = Money.formatManat(balance.account.openingBalanceMinor),
+                    balanceLabel = Money.formatManat(balance.balanceMinor)
+                )
+            }
+        )
+    }
+
+    fun prepareNewAccount() {
+        _accountEditor.value = AccountEditorUiState(isNew = true)
+    }
+
+    fun prepareEditAccount(accountId: Long) {
+        viewModelScope.launch {
+            val account = ledger.accountBalances().firstOrNull { it.account.id == accountId }?.account
+            if (account == null) {
+                _accountEditor.value = AccountEditorUiState(errorMessage = "Счёт не найден")
+                return@launch
+            }
+            _accountEditor.value = AccountEditorUiState(
+                isNew = false,
+                accountId = account.id,
+                nameInput = account.name,
+                openingInput = Money.formatManat(account.openingBalanceMinor)
+            )
+        }
+    }
+
+    fun onAccountNameChange(value: String) {
+        _accountEditor.update { it.copy(nameInput = value, errorMessage = null) }
+    }
+
+    fun onAccountOpeningChange(value: String) {
+        _accountEditor.update { it.copy(openingInput = value, errorMessage = null) }
+    }
+
+    fun consumeAccountEditorDone() {
+        _accountEditor.update { it.copy(done = false) }
+    }
+
+    fun saveAccount() {
+        viewModelScope.launch {
+            val state = _accountEditor.value
+            _accountEditor.update { it.copy(submitting = true, errorMessage = null, done = false) }
+            try {
+                val opening = Money.parseManat(state.openingInput.ifBlank { "0" })
+                if (state.isNew) {
+                    ledger.createAccount(name = state.nameInput, openingBalanceMinor = opening)
+                } else {
+                    ledger.updateAccount(
+                        accountId = state.accountId ?: error("id"),
+                        name = state.nameInput,
+                        openingBalanceMinor = opening
+                    )
+                }
+                _accountEditor.update { it.copy(submitting = false, done = true) }
+                refreshHome()
+            } catch (error: Exception) {
+                _accountEditor.update {
+                    it.copy(submitting = false, errorMessage = "Проверьте название и сумму")
+                }
+            }
+        }
+    }
+
+    fun deleteAccount() {
+        viewModelScope.launch {
+            val state = _accountEditor.value
+            val accountId = state.accountId ?: return@launch
+            _accountEditor.update { it.copy(submitting = true, errorMessage = null, done = false) }
+            try {
+                ledger.deleteAccount(accountId)
+                _accountEditor.update { it.copy(submitting = false, done = true) }
+                refreshHome()
+            } catch (error: AccountHasOperationsException) {
+                _accountEditor.update {
+                    it.copy(submitting = false, errorMessage = error.message)
+                }
+            } catch (error: Exception) {
+                _accountEditor.update {
+                    it.copy(submitting = false, errorMessage = "Не удалось удалить")
                 }
             }
         }

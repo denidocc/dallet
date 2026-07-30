@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import androidx.room.Update
 
 @Dao
 interface AccountDao {
@@ -16,6 +17,15 @@ interface AccountDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(accounts: List<AccountEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(account: AccountEntity): Long
+
+    @Update
+    suspend fun update(account: AccountEntity)
+
+    @Query("DELETE FROM accounts WHERE id = :accountId")
+    suspend fun delete(accountId: Long)
 
     @Transaction
     suspend fun replaceAll(accounts: List<AccountEntity>) {

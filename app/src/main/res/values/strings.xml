@@ -41,4 +41,13 @@
     <string name="edit_loading">Загрузка…</string>
     <string name="edit_save">Сохранить</string>
     <string name="edit_delete">Удалить</string>
+    <string name="more_title">Ещё</string>
+    <string name="more_accounts">Счета</string>
+    <string name="accounts_title">Счета</string>
+    <string name="accounts_add">Добавить счёт</string>
+    <string name="accounts_opening">Старт: %1$s ТМТ</string>
+    <string name="accounts_new_title">Новый счёт</string>
+    <string name="accounts_edit_title">Счёт</string>
+    <string name="accounts_name_label">Название</string>
+    <string name="accounts_opening_label">Стартовый остаток</string>
 </resources>

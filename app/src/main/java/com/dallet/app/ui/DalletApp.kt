@@ -35,18 +35,23 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.dallet.app.R
 import com.dallet.app.ledger.Ledger
+import com.dallet.app.ui.accounts.AccountEditorScreen
+import com.dallet.app.ui.accounts.AccountsScreen
 import com.dallet.app.ui.add.AddExpenseScreen
 import com.dallet.app.ui.edit.EditOperationScreen
 import com.dallet.app.ui.history.HistoryScreen
 import com.dallet.app.ui.home.HomeScreen
+import com.dallet.app.ui.more.MoreScreen
 import com.dallet.app.ui.navigation.DalletDestination
 import com.dallet.app.ui.onboarding.OnboardingScreen
 
 private const val EDIT_ROUTE = "edit/{operationId}"
+private const val ACCOUNTS_ROUTE = "accounts"
+private const val ACCOUNT_NEW_ROUTE = "account/new"
+private const val ACCOUNT_EDIT_ROUTE = "account/{accountId}"
 
 private val placeholderByRoute = mapOf(
-    DalletDestination.Analytics.route to R.string.placeholder_analytics,
-    DalletDestination.More.route to R.string.placeholder_more
+    DalletDestination.Analytics.route to R.string.placeholder_analytics
 )
 
 @Composable
@@ -59,6 +64,8 @@ fun DalletApp(
     val addExpenseState by viewModel.addExpense.collectAsStateWithLifecycle()
     val historyState by viewModel.history.collectAsStateWithLifecycle()
     val editState by viewModel.edit.collectAsStateWithLifecycle()
+    val accountsState by viewModel.accounts.collectAsStateWithLifecycle()
+    val accountEditorState by viewModel.accountEditor.collectAsStateWithLifecycle()
 
     if (homeState.needsOnboarding) {
         OnboardingScreen(
@@ -102,7 +109,15 @@ fun DalletApp(
         }
     }
 
-    val hideBottomBar = currentRoute?.startsWith("edit/") == true
+    LaunchedEffect(accountEditorState.done) {
+        if (accountEditorState.done) {
+            viewModel.consumeAccountEditorDone()
+            navController.popBackStack()
+        }
+    }
+
+    val hideBottomBar = currentRoute?.startsWith("edit/") == true ||
+        currentRoute?.startsWith("account") == true
 
     Scaffold(
         bottomBar = {
@@ -145,6 +160,48 @@ fun DalletApp(
                     onDateChange = viewModel::onExpenseDateChange,
                     onCommentChange = viewModel::onExpenseCommentChange,
                     onSubmit = viewModel::submitExpense
+                )
+            }
+            composable(DalletDestination.More.route) {
+                MoreScreen(
+                    onAccountsClick = { navController.navigate(ACCOUNTS_ROUTE) }
+                )
+            }
+            composable(ACCOUNTS_ROUTE) {
+                LaunchedEffect(Unit) { viewModel.refreshAccounts() }
+                AccountsScreen(
+                    state = accountsState,
+                    onAddClick = {
+                        viewModel.prepareNewAccount()
+                        navController.navigate(ACCOUNT_NEW_ROUTE)
+                    },
+                    onAccountClick = { accountId ->
+                        viewModel.prepareEditAccount(accountId)
+                        navController.navigate("account/$accountId")
+                    }
+                )
+            }
+            composable(ACCOUNT_NEW_ROUTE) {
+                AccountEditorScreen(
+                    state = accountEditorState,
+                    onNameChange = viewModel::onAccountNameChange,
+                    onOpeningChange = viewModel::onAccountOpeningChange,
+                    onSave = viewModel::saveAccount,
+                    onDelete = viewModel::deleteAccount
+                )
+            }
+            composable(
+                route = ACCOUNT_EDIT_ROUTE,
+                arguments = listOf(navArgument("accountId") { type = NavType.LongType })
+            ) { entry ->
+                val accountId = entry.arguments?.getLong("accountId") ?: return@composable
+                LaunchedEffect(accountId) { viewModel.prepareEditAccount(accountId) }
+                AccountEditorScreen(
+                    state = accountEditorState,
+                    onNameChange = viewModel::onAccountNameChange,
+                    onOpeningChange = viewModel::onAccountOpeningChange,
+                    onSave = viewModel::saveAccount,
+                    onDelete = viewModel::deleteAccount
                 )
             }
             composable(
