@@ -6,9 +6,17 @@
     <string name="nav_add">+</string>
     <string name="nav_analytics">Аналитика</string>
     <string name="nav_more">Ещё</string>
-    <string name="placeholder_home">Главная — скоро здесь будут балансы</string>
     <string name="placeholder_history">История — скоро здесь будут операции</string>
     <string name="placeholder_add">Добавление операции — скоро</string>
     <string name="placeholder_analytics">Аналитика — скоро здесь будут диаграммы</string>
     <string name="placeholder_more">Ещё — счета и категории</string>
+    <string name="currency_tmt">ТМТ</string>
+    <string name="amount_with_currency">%1$s ТМТ</string>
+    <string name="onboarding_title">Сколько сейчас денег?</string>
+    <string name="onboarding_subtitle">Укажите остатки. Суммы в манатах, например 10.50</string>
+    <string name="onboarding_cash_label">Наличные</string>
+    <string name="onboarding_card_label">ЗП карта</string>
+    <string name="onboarding_continue">Продолжить</string>
+    <string name="home_total_label">Общий баланс</string>
+    <string name="home_accounts_label">Счета</string>
 </resources>

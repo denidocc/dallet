@@ -23,16 +23,20 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.dallet.app.R
+import com.dallet.app.ledger.Ledger
+import com.dallet.app.ui.home.HomeScreen
 import com.dallet.app.ui.navigation.DalletDestination
+import com.dallet.app.ui.onboarding.OnboardingScreen
 
 private val placeholderByRoute = mapOf(
-    DalletDestination.Home.route to R.string.placeholder_home,
     DalletDestination.History.route to R.string.placeholder_history,
     DalletDestination.Add.route to R.string.placeholder_add,
     DalletDestination.Analytics.route to R.string.placeholder_analytics,
@@ -40,7 +44,23 @@ private val placeholderByRoute = mapOf(
 )
 
 @Composable
-fun DalletApp() {
+fun DalletApp(
+    ledger: Ledger,
+    viewModel: DalletViewModel = viewModel(factory = DalletViewModel.factory(ledger))
+) {
+    val homeState by viewModel.home.collectAsStateWithLifecycle()
+    val onboardingState by viewModel.onboarding.collectAsStateWithLifecycle()
+
+    if (homeState.needsOnboarding) {
+        OnboardingScreen(
+            state = onboardingState,
+            onCashChange = viewModel::onCashInputChange,
+            onCardChange = viewModel::onCardInputChange,
+            onSubmit = viewModel::submitOnboarding
+        )
+        return
+    }
+
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route ?: DalletDestination.Home.route
@@ -68,6 +88,9 @@ fun DalletApp() {
             startDestination = DalletDestination.Home.route,
             modifier = Modifier.padding(innerPadding)
         ) {
+            composable(DalletDestination.Home.route) {
+                HomeScreen(state = homeState)
+            }
             placeholderByRoute.forEach { (route, stringRes) ->
                 composable(route) {
                     PlaceholderScreen(text = stringResource(stringRes))
