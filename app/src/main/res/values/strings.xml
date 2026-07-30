@@ -21,8 +21,14 @@
     <string name="home_accounts_label">Счета</string>
     <string name="home_recent_expenses">Последние расходы</string>
     <string name="home_recent_empty">Пока нет расходов</string>
+    <string name="add_operation_title">Новая операция</string>
+    <string name="add_kind_expense">Расход</string>
+    <string name="add_kind_income">Доход</string>
+    <string name="add_kind_transfer">Перевод</string>
     <string name="add_expense_title">Новый расход</string>
     <string name="add_account_label">Счёт</string>
+    <string name="add_from_account_label">Откуда</string>
+    <string name="add_to_account_label">Куда</string>
     <string name="add_category_label">Категория</string>
     <string name="add_amount_label">Сумма</string>
     <string name="add_date_label">Дата</string>

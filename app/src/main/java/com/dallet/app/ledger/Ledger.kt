@@ -68,6 +68,63 @@ class Ledger(
         )
     }
 
+    suspend fun addIncome(
+        accountId: Long,
+        categoryId: Long,
+        amountMinor: Long,
+        date: LocalDate,
+        comment: String?
+    ): Long {
+        require(amountMinor > 0) { "amount must be positive" }
+        ensureCategoriesSeeded()
+        require(accountRepository.getAll().any { it.id == accountId }) { "account not found" }
+        val category = categoryRepository.getAll().firstOrNull { it.id == categoryId }
+            ?: error("category not found")
+        require(category.kind == CategoryKind.INCOME) { "category must be income" }
+
+        return operationRepository.insert(
+            Operation(
+                id = 0L,
+                kind = OperationKind.INCOME,
+                amountMinor = amountMinor,
+                date = date,
+                comment = comment?.takeIf { it.isNotBlank() },
+                accountId = accountId,
+                categoryId = categoryId
+            )
+        )
+    }
+
+    suspend fun addTransfer(
+        fromAccountId: Long,
+        toAccountId: Long,
+        amountMinor: Long,
+        date: LocalDate,
+        comment: String?
+    ): Long {
+        require(amountMinor > 0) { "amount must be positive" }
+        if (fromAccountId == toAccountId) {
+            throw SameAccountTransferException()
+        }
+        val accounts = accountRepository.getAll()
+        require(accounts.any { it.id == fromAccountId }) { "from account not found" }
+        require(accounts.any { it.id == toAccountId }) { "to account not found" }
+
+        return operationRepository.insert(
+            Operation(
+                id = 0L,
+                kind = OperationKind.TRANSFER,
+                amountMinor = amountMinor,
+                date = date,
+                comment = comment?.takeIf { it.isNotBlank() },
+                accountId = null,
+                categoryId = null,
+                fromAccountId = fromAccountId,
+                toAccountId = toAccountId
+            )
+        )
+    }
+
     suspend fun recentExpenses(limit: Int): List<Operation> {
         require(limit > 0)
         return operationRepository.getAll()

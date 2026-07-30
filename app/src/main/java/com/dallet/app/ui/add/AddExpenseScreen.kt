@@ -2,6 +2,7 @@ package com.dallet.app.ui.add
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -13,6 +14,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -27,13 +29,17 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.dallet.app.R
 import com.dallet.app.ui.AddExpenseUiState
+import com.dallet.app.ui.AddOperationKind
 import com.dallet.app.ui.SelectableOption
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddExpenseScreen(
     state: AddExpenseUiState,
+    onKindSelected: (AddOperationKind) -> Unit,
     onAccountSelected: (Long) -> Unit,
+    onFromAccountSelected: (Long) -> Unit,
+    onToAccountSelected: (Long) -> Unit,
     onCategorySelected: (Long) -> Unit,
     onAmountChange: (String) -> Unit,
     onDateChange: (String) -> Unit,
@@ -48,21 +54,58 @@ fun AddExpenseScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = stringResource(R.string.add_expense_title),
+            text = stringResource(R.string.add_operation_title),
             style = MaterialTheme.typography.titleLarge
         )
-        OptionDropdown(
-            label = stringResource(R.string.add_account_label),
-            options = state.accounts,
-            selectedId = state.selectedAccountId,
-            onSelected = onAccountSelected
-        )
-        OptionDropdown(
-            label = stringResource(R.string.add_category_label),
-            options = state.categories,
-            selectedId = state.selectedCategoryId,
-            onSelected = onCategorySelected
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = state.kind == AddOperationKind.EXPENSE,
+                onClick = { onKindSelected(AddOperationKind.EXPENSE) },
+                label = { Text(stringResource(R.string.add_kind_expense)) }
+            )
+            FilterChip(
+                selected = state.kind == AddOperationKind.INCOME,
+                onClick = { onKindSelected(AddOperationKind.INCOME) },
+                label = { Text(stringResource(R.string.add_kind_income)) }
+            )
+            FilterChip(
+                selected = state.kind == AddOperationKind.TRANSFER,
+                onClick = { onKindSelected(AddOperationKind.TRANSFER) },
+                label = { Text(stringResource(R.string.add_kind_transfer)) }
+            )
+        }
+
+        when (state.kind) {
+            AddOperationKind.EXPENSE, AddOperationKind.INCOME -> {
+                OptionDropdown(
+                    label = stringResource(R.string.add_account_label),
+                    options = state.accounts,
+                    selectedId = state.selectedAccountId,
+                    onSelected = onAccountSelected
+                )
+                OptionDropdown(
+                    label = stringResource(R.string.add_category_label),
+                    options = state.categories,
+                    selectedId = state.selectedCategoryId,
+                    onSelected = onCategorySelected
+                )
+            }
+            AddOperationKind.TRANSFER -> {
+                OptionDropdown(
+                    label = stringResource(R.string.add_from_account_label),
+                    options = state.accounts,
+                    selectedId = state.selectedFromAccountId,
+                    onSelected = onFromAccountSelected
+                )
+                OptionDropdown(
+                    label = stringResource(R.string.add_to_account_label),
+                    options = state.accounts,
+                    selectedId = state.selectedToAccountId,
+                    onSelected = onToAccountSelected
+                )
+            }
+        }
+
         OutlinedTextField(
             value = state.amountInput,
             onValueChange = onAmountChange,

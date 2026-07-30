@@ -106,7 +106,10 @@ fun DalletApp(
                 }
                 AddExpenseScreen(
                     state = addExpenseState,
+                    onKindSelected = viewModel::onAddKindSelected,
                     onAccountSelected = viewModel::onExpenseAccountSelected,
+                    onFromAccountSelected = viewModel::onFromAccountSelected,
+                    onToAccountSelected = viewModel::onToAccountSelected,
                     onCategorySelected = viewModel::onExpenseCategorySelected,
                     onAmountChange = viewModel::onExpenseAmountChange,
                     onDateChange = viewModel::onExpenseDateChange,
