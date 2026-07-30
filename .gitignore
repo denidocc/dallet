@@ -1,6 +1,7 @@
 # Domain docs kept local only (grill / domain-modeling)
 CONTEXT.md
 CONTEXT-MAP.md
+FUTURE.md
 docs/adr/
 
 # Local agent / skill scratch (to-tickets, drafts)
