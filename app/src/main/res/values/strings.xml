@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Dallet</string>
+    <string name="nav_home">Главная</string>
+    <string name="nav_history">История</string>
+    <string name="nav_add">+</string>
+    <string name="nav_analytics">Аналитика</string>
+    <string name="nav_more">Ещё</string>
+    <string name="placeholder_home">Главная — скоро здесь будут балансы</string>
+    <string name="placeholder_history">История — скоро здесь будут операции</string>
+    <string name="placeholder_add">Добавление операции — скоро</string>
+    <string name="placeholder_analytics">Аналитика — скоро здесь будут диаграммы</string>
+    <string name="placeholder_more">Ещё — счета и категории</string>
+</resources>
