@@ -50,4 +50,12 @@
     <string name="accounts_edit_title">Счёт</string>
     <string name="accounts_name_label">Название</string>
     <string name="accounts_opening_label">Стартовый остаток</string>
+    <string name="more_categories">Категории</string>
+    <string name="categories_title">Категории</string>
+    <string name="categories_add">Добавить категорию</string>
+    <string name="categories_new_title">Новая категория</string>
+    <string name="categories_edit_title">Категория</string>
+    <string name="categories_name_label">Название</string>
+    <string name="categories_color_label">Цвет</string>
+    <string name="categories_icon_label">Иконка</string>
 </resources>

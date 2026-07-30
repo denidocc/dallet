@@ -16,7 +16,8 @@ import com.dallet.app.R
 
 @Composable
 fun MoreScreen(
-    onAccountsClick: () -> Unit
+    onAccountsClick: () -> Unit,
+    onCategoriesClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -34,6 +35,15 @@ fun MoreScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable(onClick = onAccountsClick)
+                .padding(vertical = 14.dp)
+        )
+        HorizontalDivider()
+        Text(
+            text = stringResource(R.string.more_categories),
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onCategoriesClick)
                 .padding(vertical = 14.dp)
         )
         HorizontalDivider()

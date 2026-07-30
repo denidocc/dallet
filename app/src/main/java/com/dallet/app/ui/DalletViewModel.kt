@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.dallet.app.ledger.AccountHasOperationsException
+import com.dallet.app.ledger.CategoryHasOperationsException
 import com.dallet.app.ledger.AccountBalance
+import com.dallet.app.ui.categories.CategoryStyleOptions
 import com.dallet.app.ledger.CategoryKind
 import com.dallet.app.ledger.Ledger
 import com.dallet.app.ledger.Money
@@ -133,6 +135,30 @@ data class AccountEditorUiState(
     val done: Boolean = false
 )
 
+data class CategoriesUiState(
+    val selectedKind: CategoryKind = CategoryKind.EXPENSE,
+    val rows: List<CategoryManageRowUi> = emptyList()
+)
+
+data class CategoryManageRowUi(
+    val id: Long,
+    val name: String,
+    val colorArgb: Int,
+    val iconKey: String
+)
+
+data class CategoryEditorUiState(
+    val isNew: Boolean = true,
+    val categoryId: Long? = null,
+    val kind: CategoryKind = CategoryKind.EXPENSE,
+    val nameInput: String = "",
+    val colorArgb: Int = 0xFFE65100.toInt(),
+    val iconKey: String = "other",
+    val submitting: Boolean = false,
+    val errorMessage: String? = null,
+    val done: Boolean = false
+)
+
 private val DATE_FORMAT: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE
 
 class DalletViewModel(
@@ -159,6 +185,12 @@ class DalletViewModel(
 
     private val _accountEditor = MutableStateFlow(AccountEditorUiState())
     val accountEditor: StateFlow<AccountEditorUiState> = _accountEditor.asStateFlow()
+
+    private val _categories = MutableStateFlow(CategoriesUiState())
+    val categories: StateFlow<CategoriesUiState> = _categories.asStateFlow()
+
+    private val _categoryEditor = MutableStateFlow(CategoryEditorUiState())
+    val categoryEditor: StateFlow<CategoryEditorUiState> = _categoryEditor.asStateFlow()
 
     init {
         refreshHome()
@@ -187,6 +219,7 @@ class DalletViewModel(
                     )
                     refreshHistoryInternal()
                     refreshAccountsInternal()
+                    refreshCategoriesInternal(_categories.value.selectedKind)
                 }
             } catch (error: Exception) {
                 _home.update {
@@ -291,6 +324,133 @@ class DalletViewModel(
                 }
             } catch (error: Exception) {
                 _accountEditor.update {
+                    it.copy(submitting = false, errorMessage = "Не удалось удалить")
+                }
+            }
+        }
+    }
+
+    fun refreshCategories() {
+        viewModelScope.launch {
+            try {
+                refreshCategoriesInternal(_categories.value.selectedKind)
+            } catch (_: Exception) {
+                _categories.value = CategoriesUiState()
+            }
+        }
+    }
+
+    fun onCategoriesKindSelected(kind: CategoryKind) {
+        viewModelScope.launch {
+            refreshCategoriesInternal(kind)
+        }
+    }
+
+    private suspend fun refreshCategoriesInternal(kind: CategoryKind) {
+        _categories.value = CategoriesUiState(
+            selectedKind = kind,
+            rows = ledger.categories(kind).map { category ->
+                CategoryManageRowUi(
+                    id = category.id,
+                    name = category.name,
+                    colorArgb = category.colorArgb,
+                    iconKey = category.iconKey
+                )
+            }
+        )
+    }
+
+    fun prepareNewCategory() {
+        val kind = _categories.value.selectedKind
+        _categoryEditor.value = CategoryEditorUiState(
+            isNew = true,
+            kind = kind,
+            colorArgb = CategoryStyleOptions.colors.first(),
+            iconKey = CategoryStyleOptions.icons.first()
+        )
+    }
+
+    fun prepareEditCategory(categoryId: Long) {
+        viewModelScope.launch {
+            val category = ledger.categories(CategoryKind.EXPENSE)
+                .plus(ledger.categories(CategoryKind.INCOME))
+                .firstOrNull { it.id == categoryId }
+            if (category == null) {
+                _categoryEditor.value = CategoryEditorUiState(errorMessage = "Категория не найдена")
+                return@launch
+            }
+            _categoryEditor.value = CategoryEditorUiState(
+                isNew = false,
+                categoryId = category.id,
+                kind = category.kind,
+                nameInput = category.name,
+                colorArgb = category.colorArgb,
+                iconKey = category.iconKey
+            )
+        }
+    }
+
+    fun onCategoryNameChange(value: String) {
+        _categoryEditor.update { it.copy(nameInput = value, errorMessage = null) }
+    }
+
+    fun onCategoryColorSelected(color: Int) {
+        _categoryEditor.update { it.copy(colorArgb = color, errorMessage = null) }
+    }
+
+    fun onCategoryIconSelected(icon: String) {
+        _categoryEditor.update { it.copy(iconKey = icon, errorMessage = null) }
+    }
+
+    fun consumeCategoryEditorDone() {
+        _categoryEditor.update { it.copy(done = false) }
+    }
+
+    fun saveCategory() {
+        viewModelScope.launch {
+            val state = _categoryEditor.value
+            _categoryEditor.update { it.copy(submitting = true, errorMessage = null, done = false) }
+            try {
+                if (state.isNew) {
+                    ledger.createCategory(
+                        name = state.nameInput,
+                        kind = state.kind,
+                        colorArgb = state.colorArgb,
+                        iconKey = state.iconKey
+                    )
+                } else {
+                    ledger.updateCategory(
+                        categoryId = state.categoryId ?: error("id"),
+                        name = state.nameInput,
+                        colorArgb = state.colorArgb,
+                        iconKey = state.iconKey
+                    )
+                }
+                _categoryEditor.update { it.copy(submitting = false, done = true) }
+                refreshHome()
+            } catch (error: Exception) {
+                _categoryEditor.update {
+                    it.copy(submitting = false, errorMessage = "Проверьте название")
+                }
+            }
+        }
+    }
+
+    fun deleteCategory() {
+        viewModelScope.launch {
+            val state = _categoryEditor.value
+            val categoryId = state.categoryId ?: return@launch
+            _categoryEditor.update { it.copy(submitting = true, errorMessage = null, done = false) }
+            try {
+                ledger.deleteCategory(categoryId)
+                _categoryEditor.update { it.copy(submitting = false, done = true) }
+                refreshHome()
+            } catch (error: CategoryHasOperationsException) {
+                _categoryEditor.update {
+                    it.copy(submitting = false, errorMessage = error.message)
+                }
+            } catch (error: Exception) {
+                _categoryEditor.update {
                     it.copy(submitting = false, errorMessage = "Не удалось удалить")
                 }
             }

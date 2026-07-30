@@ -38,17 +38,23 @@ import com.dallet.app.ledger.Ledger
 import com.dallet.app.ui.accounts.AccountEditorScreen
 import com.dallet.app.ui.accounts.AccountsScreen
 import com.dallet.app.ui.add.AddExpenseScreen
+import com.dallet.app.ui.categories.CategoriesScreen
+import com.dallet.app.ui.categories.CategoryEditorScreen
 import com.dallet.app.ui.edit.EditOperationScreen
 import com.dallet.app.ui.history.HistoryScreen
 import com.dallet.app.ui.home.HomeScreen
 import com.dallet.app.ui.more.MoreScreen
 import com.dallet.app.ui.navigation.DalletDestination
 import com.dallet.app.ui.onboarding.OnboardingScreen
+import com.dallet.app.ledger.CategoryKind
 
 private const val EDIT_ROUTE = "edit/{operationId}"
 private const val ACCOUNTS_ROUTE = "accounts"
 private const val ACCOUNT_NEW_ROUTE = "account/new"
 private const val ACCOUNT_EDIT_ROUTE = "account/{accountId}"
+private const val CATEGORIES_ROUTE = "categories"
+private const val CATEGORY_NEW_ROUTE = "category/new"
+private const val CATEGORY_EDIT_ROUTE = "category/{categoryId}"
 
 private val placeholderByRoute = mapOf(
     DalletDestination.Analytics.route to R.string.placeholder_analytics
@@ -66,6 +72,8 @@ fun DalletApp(
     val editState by viewModel.edit.collectAsStateWithLifecycle()
     val accountsState by viewModel.accounts.collectAsStateWithLifecycle()
     val accountEditorState by viewModel.accountEditor.collectAsStateWithLifecycle()
+    val categoriesState by viewModel.categories.collectAsStateWithLifecycle()
+    val categoryEditorState by viewModel.categoryEditor.collectAsStateWithLifecycle()
 
     if (homeState.needsOnboarding) {
         OnboardingScreen(
@@ -116,8 +124,16 @@ fun DalletApp(
         }
     }
 
+    LaunchedEffect(categoryEditorState.done) {
+        if (categoryEditorState.done) {
+            viewModel.consumeCategoryEditorDone()
+            navController.popBackStack()
+        }
+    }
+
     val hideBottomBar = currentRoute?.startsWith("edit/") == true ||
-        currentRoute?.startsWith("account") == true
+        currentRoute?.startsWith("account") == true ||
+        currentRoute?.startsWith("categor") == true
 
     Scaffold(
         bottomBar = {
@@ -164,7 +180,8 @@ fun DalletApp(
             }
             composable(DalletDestination.More.route) {
                 MoreScreen(
-                    onAccountsClick = { navController.navigate(ACCOUNTS_ROUTE) }
+                    onAccountsClick = { navController.navigate(ACCOUNTS_ROUTE) },
+                    onCategoriesClick = { navController.navigate(CATEGORIES_ROUTE) }
                 )
             }
             composable(ACCOUNTS_ROUTE) {
@@ -202,6 +219,46 @@ fun DalletApp(
                     onOpeningChange = viewModel::onAccountOpeningChange,
                     onSave = viewModel::saveAccount,
                     onDelete = viewModel::deleteAccount
+                )
+            }
+            composable(CATEGORIES_ROUTE) {
+                LaunchedEffect(Unit) { viewModel.refreshCategories() }
+                CategoriesScreen(
+                    state = categoriesState,
+                    onKindSelected = viewModel::onCategoriesKindSelected,
+                    onAddClick = {
+                        viewModel.prepareNewCategory()
+                        navController.navigate(CATEGORY_NEW_ROUTE)
+                    },
+                    onCategoryClick = { categoryId ->
+                        viewModel.prepareEditCategory(categoryId)
+                        navController.navigate("category/$categoryId")
+                    }
+                )
+            }
+            composable(CATEGORY_NEW_ROUTE) {
+                CategoryEditorScreen(
+                    state = categoryEditorState,
+                    onNameChange = viewModel::onCategoryNameChange,
+                    onColorSelected = viewModel::onCategoryColorSelected,
+                    onIconSelected = viewModel::onCategoryIconSelected,
+                    onSave = viewModel::saveCategory,
+                    onDelete = viewModel::deleteCategory
+                )
+            }
+            composable(
+                route = CATEGORY_EDIT_ROUTE,
+                arguments = listOf(navArgument("categoryId") { type = NavType.LongType })
+            ) { entry ->
+                val categoryId = entry.arguments?.getLong("categoryId") ?: return@composable
+                LaunchedEffect(categoryId) { viewModel.prepareEditCategory(categoryId) }
+                CategoryEditorScreen(
+                    state = categoryEditorState,
+                    onNameChange = viewModel::onCategoryNameChange,
+                    onColorSelected = viewModel::onCategoryColorSelected,
+                    onIconSelected = viewModel::onCategoryIconSelected,
+                    onSave = viewModel::saveCategory,
+                    onDelete = viewModel::deleteCategory
                 )
             }
             composable(

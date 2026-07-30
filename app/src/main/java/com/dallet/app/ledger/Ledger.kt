@@ -270,6 +270,59 @@ class Ledger(
         accountRepository.delete(accountId)
     }
 
+    suspend fun createCategory(
+        name: String,
+        kind: CategoryKind,
+        colorArgb: Int,
+        iconKey: String
+    ): Long {
+        ensureCategoriesSeeded()
+        val trimmed = name.trim()
+        require(trimmed.isNotEmpty()) { "name required" }
+        require(iconKey.isNotBlank()) { "icon required" }
+        val nextId = (categoryRepository.getAll().maxOfOrNull { it.id } ?: 0L) + 1L
+        return categoryRepository.insert(
+            Category(
+                id = nextId,
+                name = trimmed,
+                kind = kind,
+                colorArgb = colorArgb,
+                iconKey = iconKey.trim()
+            )
+        )
+    }
+
+    suspend fun updateCategory(
+        categoryId: Long,
+        name: String,
+        colorArgb: Int,
+        iconKey: String
+    ) {
+        ensureCategoriesSeeded()
+        val trimmed = name.trim()
+        require(trimmed.isNotEmpty()) { "name required" }
+        require(iconKey.isNotBlank()) { "icon required" }
+        val existing = categoryRepository.getAll().firstOrNull { it.id == categoryId }
+            ?: error("category not found")
+        categoryRepository.update(
+            existing.copy(
+                name = trimmed,
+                colorArgb = colorArgb,
+                iconKey = iconKey.trim()
+            )
+        )
+    }
+
+    suspend fun deleteCategory(categoryId: Long) {
+        ensureCategoriesSeeded()
+        require(categoryRepository.getAll().any { it.id == categoryId }) { "category not found" }
+        val used = operationRepository.getAll().any { it.categoryId == categoryId }
+        if (used) {
+            throw CategoryHasOperationsException()
+        }
+        categoryRepository.delete(categoryId)
+    }
+
     private suspend fun balanceFor(account: Account): Long {
         var balance = account.openingBalanceMinor
         for (operation in operationRepository.getAll()) {

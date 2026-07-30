@@ -13,6 +13,19 @@ class RoomCategoryRepository(
     override suspend fun replaceAll(categories: List<Category>) {
         dao.replaceAll(categories.map { it.toEntity() })
     }
+
+    override suspend fun insert(category: Category): Long {
+        dao.insert(category.toEntity())
+        return category.id
+    }
+
+    override suspend fun update(category: Category) {
+        dao.update(category.toEntity())
+    }
+
+    override suspend fun delete(categoryId: Long) {
+        dao.delete(categoryId)
+    }
 }
 
 private fun CategoryEntity.toDomain(): Category =
