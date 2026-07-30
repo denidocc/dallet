@@ -1,6 +1,8 @@
 package com.dallet.app.ledger
 
+import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.temporal.TemporalAdjusters
 
 class Ledger(
     private val accountRepository: AccountRepository,
@@ -321,6 +323,57 @@ class Ledger(
             throw CategoryHasOperationsException()
         }
         categoryRepository.delete(categoryId)
+    }
+
+    suspend fun analytics(period: AnalyticsPeriod, asOf: LocalDate): AnalyticsSummary {
+        ensureCategoriesSeeded()
+        val (fromInclusive, toInclusive) = periodBounds(period, asOf)
+        val inPeriod = operationRepository.getAll().filter { operation ->
+            !operation.date.isBefore(fromInclusive) && !operation.date.isAfter(toInclusive)
+        }
+        val incomeTotalMinor = inPeriod
+            .filter { it.kind == OperationKind.INCOME }
+            .sumOf { it.amountMinor }
+        val expenses = inPeriod.filter { it.kind == OperationKind.EXPENSE }
+        val expenseTotalMinor = expenses.sumOf { it.amountMinor }
+        val categoriesById = categoryRepository.getAll().associateBy { it.id }
+        val expensesByCategory = expenses
+            .groupBy { it.categoryId }
+            .mapNotNull { (categoryId, ops) ->
+                val id = categoryId ?: return@mapNotNull null
+                val category = categoriesById[id] ?: return@mapNotNull null
+                CategoryExpenseTotal(
+                    categoryId = id,
+                    categoryName = category.name,
+                    colorArgb = category.colorArgb,
+                    amountMinor = ops.sumOf { it.amountMinor }
+                )
+            }
+            .sortedByDescending { it.amountMinor }
+        return AnalyticsSummary(
+            period = period,
+            fromInclusive = fromInclusive,
+            toInclusive = toInclusive,
+            incomeTotalMinor = incomeTotalMinor,
+            expenseTotalMinor = expenseTotalMinor,
+            expensesByCategory = expensesByCategory
+        )
+    }
+
+    private fun periodBounds(period: AnalyticsPeriod, asOf: LocalDate): Pair<LocalDate, LocalDate> {
+        return when (period) {
+            AnalyticsPeriod.WEEK -> {
+                val from = asOf.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                val to = asOf.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY))
+                from to to
+            }
+            AnalyticsPeriod.MONTH -> {
+                asOf.withDayOfMonth(1) to asOf.with(TemporalAdjusters.lastDayOfMonth())
+            }
+            AnalyticsPeriod.YEAR -> {
+                LocalDate.of(asOf.year, 1, 1) to LocalDate.of(asOf.year, 12, 31)
+            }
+        }
     }
 
     private suspend fun balanceFor(account: Account): Long {

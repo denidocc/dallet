@@ -58,4 +58,12 @@
     <string name="categories_name_label">Название</string>
     <string name="categories_color_label">Цвет</string>
     <string name="categories_icon_label">Иконка</string>
+    <string name="analytics_title">Аналитика</string>
+    <string name="analytics_period_week">Неделя</string>
+    <string name="analytics_period_month">Месяц</string>
+    <string name="analytics_period_year">Год</string>
+    <string name="analytics_income_label">Доходы</string>
+    <string name="analytics_expense_label">Расходы</string>
+    <string name="analytics_by_category">Расходы по категориям</string>
+    <string name="analytics_chart_empty">Нет расходов за период</string>
 </resources>

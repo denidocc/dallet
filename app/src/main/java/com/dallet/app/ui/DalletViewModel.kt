@@ -7,6 +7,7 @@ import com.dallet.app.ledger.AccountHasOperationsException
 import com.dallet.app.ledger.CategoryHasOperationsException
 import com.dallet.app.ledger.AccountBalance
 import com.dallet.app.ui.categories.CategoryStyleOptions
+import com.dallet.app.ledger.AnalyticsPeriod
 import com.dallet.app.ledger.CategoryKind
 import com.dallet.app.ledger.Ledger
 import com.dallet.app.ledger.Money
@@ -159,6 +160,22 @@ data class CategoryEditorUiState(
     val done: Boolean = false
 )
 
+data class AnalyticsUiState(
+    val period: AnalyticsPeriod = AnalyticsPeriod.MONTH,
+    val incomeTotalLabel: String = "0.00",
+    val expenseTotalLabel: String = "0.00",
+    val rangeLabel: String = "",
+    val categoryBars: List<AnalyticsCategoryBarUi> = emptyList()
+)
+
+data class AnalyticsCategoryBarUi(
+    val categoryId: Long,
+    val name: String,
+    val colorArgb: Int,
+    val amountLabel: String,
+    val fraction: Float
+)
+
 private val DATE_FORMAT: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE
 
 class DalletViewModel(
@@ -191,6 +208,9 @@ class DalletViewModel(
 
     private val _categoryEditor = MutableStateFlow(CategoryEditorUiState())
     val categoryEditor: StateFlow<CategoryEditorUiState> = _categoryEditor.asStateFlow()
+
+    private val _analytics = MutableStateFlow(AnalyticsUiState())
+    val analytics: StateFlow<AnalyticsUiState> = _analytics.asStateFlow()
 
     init {
         refreshHome()
@@ -455,6 +475,48 @@ class DalletViewModel(
                 }
             }
         }
+    }
+
+    fun refreshAnalytics() {
+        loadAnalytics(_analytics.value.period)
+    }
+
+    fun onAnalyticsPeriodSelected(period: AnalyticsPeriod) {
+        loadAnalytics(period)
+    }
+
+    private fun loadAnalytics(period: AnalyticsPeriod) {
+        viewModelScope.launch {
+            try {
+                refreshAnalyticsInternal(period)
+            } catch (_: Exception) {
+                _analytics.value = AnalyticsUiState(period = period)
+            }
+        }
+    }
+
+    private suspend fun refreshAnalyticsInternal(period: AnalyticsPeriod) {
+        val summary = ledger.analytics(period, LocalDate.now())
+        val maxAmount = summary.expensesByCategory.maxOfOrNull { it.amountMinor } ?: 0L
+        _analytics.value = AnalyticsUiState(
+            period = period,
+            incomeTotalLabel = Money.formatManat(summary.incomeTotalMinor),
+            expenseTotalLabel = Money.formatManat(summary.expenseTotalMinor),
+            rangeLabel = "${summary.fromInclusive} — ${summary.toInclusive}",
+            categoryBars = summary.expensesByCategory.map { row ->
+                AnalyticsCategoryBarUi(
+                    categoryId = row.categoryId,
+                    name = row.categoryName,
+                    colorArgb = row.colorArgb,
+                    amountLabel = Money.formatManat(row.amountMinor),
+                    fraction = if (maxAmount > 0L) {
+                        row.amountMinor.toFloat() / maxAmount.toFloat()
+                    } else {
+                        0f
+                    }
+                )
+            }
+        )
     }
 
     fun refreshHistory() {

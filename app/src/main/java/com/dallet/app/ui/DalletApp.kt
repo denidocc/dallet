@@ -1,7 +1,5 @@
 package com.dallet.app.ui
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -10,7 +8,6 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -18,12 +15,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -33,11 +27,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.dallet.app.R
 import com.dallet.app.ledger.Ledger
 import com.dallet.app.ui.accounts.AccountEditorScreen
 import com.dallet.app.ui.accounts.AccountsScreen
 import com.dallet.app.ui.add.AddExpenseScreen
+import com.dallet.app.ui.analytics.AnalyticsScreen
 import com.dallet.app.ui.categories.CategoriesScreen
 import com.dallet.app.ui.categories.CategoryEditorScreen
 import com.dallet.app.ui.edit.EditOperationScreen
@@ -46,7 +40,6 @@ import com.dallet.app.ui.home.HomeScreen
 import com.dallet.app.ui.more.MoreScreen
 import com.dallet.app.ui.navigation.DalletDestination
 import com.dallet.app.ui.onboarding.OnboardingScreen
-import com.dallet.app.ledger.CategoryKind
 
 private const val EDIT_ROUTE = "edit/{operationId}"
 private const val ACCOUNTS_ROUTE = "accounts"
@@ -56,9 +49,6 @@ private const val CATEGORIES_ROUTE = "categories"
 private const val CATEGORY_NEW_ROUTE = "category/new"
 private const val CATEGORY_EDIT_ROUTE = "category/{categoryId}"
 
-private val placeholderByRoute = mapOf(
-    DalletDestination.Analytics.route to R.string.placeholder_analytics
-)
 
 @Composable
 fun DalletApp(
@@ -74,6 +64,7 @@ fun DalletApp(
     val accountEditorState by viewModel.accountEditor.collectAsStateWithLifecycle()
     val categoriesState by viewModel.categories.collectAsStateWithLifecycle()
     val categoryEditorState by viewModel.categoryEditor.collectAsStateWithLifecycle()
+    val analyticsState by viewModel.analytics.collectAsStateWithLifecycle()
 
     if (homeState.needsOnboarding) {
         OnboardingScreen(
@@ -178,6 +169,13 @@ fun DalletApp(
                     onSubmit = viewModel::submitExpense
                 )
             }
+            composable(DalletDestination.Analytics.route) {
+                LaunchedEffect(Unit) { viewModel.refreshAnalytics() }
+                AnalyticsScreen(
+                    state = analyticsState,
+                    onPeriodSelected = viewModel::onAnalyticsPeriodSelected
+                )
+            }
             composable(DalletDestination.More.route) {
                 MoreScreen(
                     onAccountsClick = { navController.navigate(ACCOUNTS_ROUTE) },
@@ -280,11 +278,6 @@ fun DalletApp(
                     onDelete = viewModel::deleteEdit
                 )
             }
-            placeholderByRoute.forEach { (route, stringRes) ->
-                composable(route) {
-                    PlaceholderScreen(text = stringResource(stringRes))
-                }
-            }
         }
     }
 }
@@ -320,18 +313,3 @@ private val DalletDestination.icon: ImageVector
         DalletDestination.Analytics -> Icons.Filled.BarChart
         DalletDestination.More -> Icons.Filled.MoreHoriz
     }
-
-@Composable
-private fun PlaceholderScreen(text: String) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(24.dp)
-        )
-    }
-}
