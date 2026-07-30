@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.room.Room
 import com.dallet.app.data.DalletDatabase
 import com.dallet.app.data.RoomAccountRepository
+import com.dallet.app.data.RoomCategoryRepository
+import com.dallet.app.data.RoomOperationRepository
 import com.dallet.app.ledger.Ledger
 
 class DalletApplication : Application() {
@@ -16,7 +18,11 @@ class DalletApplication : Application() {
             this,
             DalletDatabase::class.java,
             "dallet.db"
-        ).build()
-        ledger = Ledger(RoomAccountRepository(database.accountDao()))
+        ).fallbackToDestructiveMigration().build()
+        ledger = Ledger(
+            accountRepository = RoomAccountRepository(database.accountDao()),
+            categoryRepository = RoomCategoryRepository(database.categoryDao()),
+            operationRepository = RoomOperationRepository(database.operationDao())
+        )
     }
 }

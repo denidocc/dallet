@@ -19,4 +19,14 @@
     <string name="onboarding_continue">Продолжить</string>
     <string name="home_total_label">Общий баланс</string>
     <string name="home_accounts_label">Счета</string>
+    <string name="home_recent_expenses">Последние расходы</string>
+    <string name="home_recent_empty">Пока нет расходов</string>
+    <string name="add_expense_title">Новый расход</string>
+    <string name="add_account_label">Счёт</string>
+    <string name="add_category_label">Категория</string>
+    <string name="add_amount_label">Сумма</string>
+    <string name="add_date_label">Дата</string>
+    <string name="add_date_hint">Формат ГГГГ-ММ-ДД</string>
+    <string name="add_comment_label">Комментарий</string>
+    <string name="add_save">Сохранить</string>
 </resources>

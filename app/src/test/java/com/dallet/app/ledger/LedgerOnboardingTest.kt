@@ -8,7 +8,11 @@ class LedgerOnboardingTest {
 
     @Test
     fun afterOnboarding_accountBalancesMatchOpeningAmounts_andTotalSumsThem() = runTest {
-        val ledger = Ledger(InMemoryAccountRepository())
+        val ledger = Ledger(
+            accountRepository = InMemoryAccountRepository(),
+            categoryRepository = InMemoryCategoryRepository(),
+            operationRepository = InMemoryOperationRepository()
+        )
 
         ledger.completeOnboarding(
             cashOpeningMinor = 10_000L, // 100.00 TMT
@@ -26,7 +30,11 @@ class LedgerOnboardingTest {
 
     @Test
     fun beforeOnboarding_hasNoAccounts() = runTest {
-        val ledger = Ledger(InMemoryAccountRepository())
+        val ledger = Ledger(
+            accountRepository = InMemoryAccountRepository(),
+            categoryRepository = InMemoryCategoryRepository(),
+            operationRepository = InMemoryOperationRepository()
+        )
 
         assertThat(ledger.hasCompletedOnboarding()).isFalse()
         assertThat(ledger.accountBalances()).isEmpty()

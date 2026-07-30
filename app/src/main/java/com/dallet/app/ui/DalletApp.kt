@@ -16,6 +16,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,13 +33,13 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.dallet.app.R
 import com.dallet.app.ledger.Ledger
+import com.dallet.app.ui.add.AddExpenseScreen
 import com.dallet.app.ui.home.HomeScreen
 import com.dallet.app.ui.navigation.DalletDestination
 import com.dallet.app.ui.onboarding.OnboardingScreen
 
 private val placeholderByRoute = mapOf(
     DalletDestination.History.route to R.string.placeholder_history,
-    DalletDestination.Add.route to R.string.placeholder_add,
     DalletDestination.Analytics.route to R.string.placeholder_analytics,
     DalletDestination.More.route to R.string.placeholder_more
 )
@@ -50,6 +51,7 @@ fun DalletApp(
 ) {
     val homeState by viewModel.home.collectAsStateWithLifecycle()
     val onboardingState by viewModel.onboarding.collectAsStateWithLifecycle()
+    val addExpenseState by viewModel.addExpense.collectAsStateWithLifecycle()
 
     if (homeState.needsOnboarding) {
         OnboardingScreen(
@@ -75,6 +77,13 @@ fun DalletApp(
         }
     }
 
+    LaunchedEffect(addExpenseState.saved) {
+        if (addExpenseState.saved) {
+            viewModel.consumeExpenseSaved()
+            navigateTo(DalletDestination.Home)
+        }
+    }
+
     Scaffold(
         bottomBar = {
             DalletBottomBar(
@@ -90,6 +99,20 @@ fun DalletApp(
         ) {
             composable(DalletDestination.Home.route) {
                 HomeScreen(state = homeState)
+            }
+            composable(DalletDestination.Add.route) {
+                LaunchedEffect(Unit) {
+                    viewModel.prepareAddExpense()
+                }
+                AddExpenseScreen(
+                    state = addExpenseState,
+                    onAccountSelected = viewModel::onExpenseAccountSelected,
+                    onCategorySelected = viewModel::onExpenseCategorySelected,
+                    onAmountChange = viewModel::onExpenseAmountChange,
+                    onDateChange = viewModel::onExpenseDateChange,
+                    onCommentChange = viewModel::onExpenseCommentChange,
+                    onSubmit = viewModel::submitExpense
+                )
             }
             placeholderByRoute.forEach { (route, stringRes) ->
                 composable(route) {

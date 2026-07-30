@@ -4,19 +4,25 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.dallet.app.ledger.AccountBalance
+import com.dallet.app.ledger.CategoryKind
 import com.dallet.app.ledger.Ledger
 import com.dallet.app.ledger.Money
+import com.dallet.app.ledger.Operation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 
 data class HomeUiState(
     val loading: Boolean = true,
     val needsOnboarding: Boolean = false,
     val totalBalanceLabel: String = "0.00",
     val accountRows: List<AccountRowUi> = emptyList(),
+    val recentExpenses: List<ExpenseRowUi> = emptyList(),
     val errorMessage: String? = null
 )
 
@@ -25,12 +31,38 @@ data class AccountRowUi(
     val balanceLabel: String
 )
 
+data class ExpenseRowUi(
+    val title: String,
+    val subtitle: String,
+    val amountLabel: String
+)
+
 data class OnboardingUiState(
     val cashInput: String = "",
     val cardInput: String = "",
     val submitting: Boolean = false,
     val errorMessage: String? = null
 )
+
+data class SelectableOption(
+    val id: Long,
+    val label: String
+)
+
+data class AddExpenseUiState(
+    val accounts: List<SelectableOption> = emptyList(),
+    val categories: List<SelectableOption> = emptyList(),
+    val selectedAccountId: Long? = null,
+    val selectedCategoryId: Long? = null,
+    val amountInput: String = "",
+    val dateInput: String = LocalDate.now().format(DATE_FORMAT),
+    val commentInput: String = "",
+    val submitting: Boolean = false,
+    val errorMessage: String? = null,
+    val saved: Boolean = false
+)
+
+private val DATE_FORMAT: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE
 
 class DalletViewModel(
     private val ledger: Ledger
@@ -41,6 +73,9 @@ class DalletViewModel(
 
     private val _onboarding = MutableStateFlow(OnboardingUiState())
     val onboarding: StateFlow<OnboardingUiState> = _onboarding.asStateFlow()
+
+    private val _addExpense = MutableStateFlow(AddExpenseUiState())
+    val addExpense: StateFlow<AddExpenseUiState> = _addExpense.asStateFlow()
 
     init {
         refreshHome()
@@ -57,16 +92,47 @@ class DalletViewModel(
                         needsOnboarding = true
                     )
                 } else {
+                    val categoryNames = ledger.categories(CategoryKind.EXPENSE)
+                        .associate { it.id to it.name }
+                    val accountNames = ledger.accountBalances()
+                        .associate { it.account.id to it.account.name }
                     _home.value = HomeUiState(
                         loading = false,
                         needsOnboarding = false,
                         totalBalanceLabel = Money.formatManat(ledger.totalBalanceMinor()),
-                        accountRows = ledger.accountBalances().map { it.toRow() }
+                        accountRows = ledger.accountBalances().map { it.toRow() },
+                        recentExpenses = ledger.recentExpenses(limit = 10).map { operation ->
+                            operation.toExpenseRow(categoryNames, accountNames)
+                        }
                     )
                 }
             } catch (error: Exception) {
                 _home.update {
                     it.copy(loading = false, errorMessage = error.message ?: "Ошибка")
+                }
+            }
+        }
+    }
+
+    fun prepareAddExpense() {
+        viewModelScope.launch {
+            try {
+                val accounts = ledger.accountBalances().map {
+                    SelectableOption(it.account.id, it.account.name)
+                }
+                val categories = ledger.categories(CategoryKind.EXPENSE).map {
+                    SelectableOption(it.id, it.name)
+                }
+                _addExpense.value = AddExpenseUiState(
+                    accounts = accounts,
+                    categories = categories,
+                    selectedAccountId = accounts.firstOrNull()?.id,
+                    selectedCategoryId = categories.firstOrNull()?.id,
+                    dateInput = LocalDate.now().format(DATE_FORMAT)
+                )
+            } catch (error: Exception) {
+                _addExpense.update {
+                    it.copy(errorMessage = error.message ?: "Ошибка")
                 }
             }
         }
@@ -105,11 +171,83 @@ class DalletViewModel(
         }
     }
 
+    fun onExpenseAccountSelected(id: Long) {
+        _addExpense.update { it.copy(selectedAccountId = id, errorMessage = null) }
+    }
+
+    fun onExpenseCategorySelected(id: Long) {
+        _addExpense.update { it.copy(selectedCategoryId = id, errorMessage = null) }
+    }
+
+    fun onExpenseAmountChange(value: String) {
+        _addExpense.update { it.copy(amountInput = value, errorMessage = null) }
+    }
+
+    fun onExpenseDateChange(value: String) {
+        _addExpense.update { it.copy(dateInput = value, errorMessage = null) }
+    }
+
+    fun onExpenseCommentChange(value: String) {
+        _addExpense.update { it.copy(commentInput = value, errorMessage = null) }
+    }
+
+    fun consumeExpenseSaved() {
+        _addExpense.update { it.copy(saved = false) }
+    }
+
+    fun submitExpense() {
+        viewModelScope.launch {
+            val state = _addExpense.value
+            _addExpense.update { it.copy(submitting = true, errorMessage = null, saved = false) }
+            try {
+                val accountId = state.selectedAccountId ?: error("account")
+                val categoryId = state.selectedCategoryId ?: error("category")
+                val amount = Money.parseManat(state.amountInput)
+                val date = LocalDate.parse(state.dateInput.trim(), DATE_FORMAT)
+                ledger.addExpense(
+                    accountId = accountId,
+                    categoryId = categoryId,
+                    amountMinor = amount,
+                    date = date,
+                    comment = state.commentInput
+                )
+                _addExpense.update { it.copy(submitting = false, saved = true, amountInput = "", commentInput = "") }
+                refreshHome()
+            } catch (error: DateTimeParseException) {
+                _addExpense.update {
+                    it.copy(submitting = false, errorMessage = "Дата: ГГГГ-ММ-ДД")
+                }
+            } catch (error: Exception) {
+                _addExpense.update {
+                    it.copy(
+                        submitting = false,
+                        errorMessage = "Проверьте сумму, счёт и категорию"
+                    )
+                }
+            }
+        }
+    }
+
     private fun AccountBalance.toRow(): AccountRowUi =
         AccountRowUi(
             name = account.name,
             balanceLabel = Money.formatManat(balanceMinor)
         )
+
+    private fun Operation.toExpenseRow(
+        categoryNames: Map<Long, String>,
+        accountNames: Map<Long, String>
+    ): ExpenseRowUi {
+        val category = categoryId?.let { categoryNames[it] }.orEmpty()
+        val account = accountId?.let { accountNames[it] }.orEmpty()
+        return ExpenseRowUi(
+            title = category.ifBlank { "Расход" },
+            subtitle = listOf(account, date.toString(), comment.orEmpty())
+                .filter { it.isNotBlank() }
+                .joinToString(" · "),
+            amountLabel = Money.formatManat(amountMinor)
+        )
+    }
 
     companion object {
         fun factory(ledger: Ledger): ViewModelProvider.Factory =
