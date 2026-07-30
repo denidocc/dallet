@@ -8,6 +8,7 @@ import com.dallet.app.ledger.CategoryKind
 import com.dallet.app.ledger.Ledger
 import com.dallet.app.ledger.Money
 import com.dallet.app.ledger.Operation
+import com.dallet.app.ledger.OperationKind
 import com.dallet.app.ledger.SameAccountTransferException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,6 +20,12 @@ import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 
 enum class AddOperationKind {
+    EXPENSE,
+    INCOME,
+    TRANSFER
+}
+
+enum class HistoryKindUi {
     EXPENSE,
     INCOME,
     TRANSFER
@@ -39,6 +46,20 @@ data class AccountRowUi(
 )
 
 data class ExpenseRowUi(
+    val id: Long,
+    val title: String,
+    val subtitle: String,
+    val amountLabel: String
+)
+
+data class HistoryUiState(
+    val rows: List<HistoryRowUi> = emptyList()
+)
+
+data class HistoryRowUi(
+    val id: Long,
+    val kind: HistoryKindUi,
+    val kindLabel: String,
     val title: String,
     val subtitle: String,
     val amountLabel: String
@@ -72,6 +93,24 @@ data class AddExpenseUiState(
     val saved: Boolean = false
 )
 
+data class EditOperationUiState(
+    val loading: Boolean = true,
+    val operationId: Long = 0L,
+    val kind: OperationKind = OperationKind.EXPENSE,
+    val accounts: List<SelectableOption> = emptyList(),
+    val categories: List<SelectableOption> = emptyList(),
+    val selectedAccountId: Long? = null,
+    val selectedFromAccountId: Long? = null,
+    val selectedToAccountId: Long? = null,
+    val selectedCategoryId: Long? = null,
+    val amountInput: String = "",
+    val dateInput: String = "",
+    val commentInput: String = "",
+    val submitting: Boolean = false,
+    val errorMessage: String? = null,
+    val done: Boolean = false
+)
+
 private val DATE_FORMAT: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE
 
 class DalletViewModel(
@@ -87,6 +126,12 @@ class DalletViewModel(
     private val _addExpense = MutableStateFlow(AddExpenseUiState())
     val addExpense: StateFlow<AddExpenseUiState> = _addExpense.asStateFlow()
 
+    private val _history = MutableStateFlow(HistoryUiState())
+    val history: StateFlow<HistoryUiState> = _history.asStateFlow()
+
+    private val _edit = MutableStateFlow(EditOperationUiState())
+    val edit: StateFlow<EditOperationUiState> = _edit.asStateFlow()
+
     init {
         refreshHome()
     }
@@ -97,10 +142,7 @@ class DalletViewModel(
             try {
                 val needsOnboarding = !ledger.hasCompletedOnboarding()
                 if (needsOnboarding) {
-                    _home.value = HomeUiState(
-                        loading = false,
-                        needsOnboarding = true
-                    )
+                    _home.value = HomeUiState(loading = false, needsOnboarding = true)
                 } else {
                     val categoryNames = ledger.categories(CategoryKind.EXPENSE)
                         .associate { it.id to it.name }
@@ -115,6 +157,7 @@ class DalletViewModel(
                             operation.toExpenseRow(categoryNames, accountNames)
                         }
                     )
+                    refreshHistoryInternal()
                 }
             } catch (error: Exception) {
                 _home.update {
@@ -124,16 +167,33 @@ class DalletViewModel(
         }
     }
 
-    fun prepareAddExpense() {
+    fun refreshHistory() {
         viewModelScope.launch {
-            loadAddForm(kind = AddOperationKind.EXPENSE)
+            try {
+                refreshHistoryInternal()
+            } catch (_: Exception) {
+                _history.value = HistoryUiState()
+            }
         }
     }
 
+    private suspend fun refreshHistoryInternal() {
+        val expenseCategories = ledger.categories(CategoryKind.EXPENSE).associate { it.id to it.name }
+        val incomeCategories = ledger.categories(CategoryKind.INCOME).associate { it.id to it.name }
+        val accountNames = ledger.accountBalances().associate { it.account.id to it.account.name }
+        _history.value = HistoryUiState(
+            rows = ledger.allOperations().map { op ->
+                op.toHistoryRow(expenseCategories + incomeCategories, accountNames)
+            }
+        )
+    }
+
+    fun prepareAddExpense() {
+        viewModelScope.launch { loadAddForm(kind = AddOperationKind.EXPENSE) }
+    }
+
     fun onAddKindSelected(kind: AddOperationKind) {
-        viewModelScope.launch {
-            loadAddForm(kind = kind, keepSharedInputs = true)
-        }
+        viewModelScope.launch { loadAddForm(kind = kind, keepSharedInputs = true) }
     }
 
     private suspend fun loadAddForm(
@@ -166,8 +226,46 @@ class DalletViewModel(
                 commentInput = if (keepSharedInputs) previous.commentInput else ""
             )
         } catch (error: Exception) {
-            _addExpense.update {
-                it.copy(errorMessage = error.message ?: "Ошибка")
+            _addExpense.update { it.copy(errorMessage = error.message ?: "Ошибка") }
+        }
+    }
+
+    fun loadEditOperation(operationId: Long) {
+        viewModelScope.launch {
+            _edit.value = EditOperationUiState(loading = true, operationId = operationId)
+            try {
+                val operation = ledger.operation(operationId) ?: error("not found")
+                val accounts = ledger.accountBalances().map {
+                    SelectableOption(it.account.id, it.account.name)
+                }
+                val categoryKind = when (operation.kind) {
+                    OperationKind.EXPENSE -> CategoryKind.EXPENSE
+                    OperationKind.INCOME -> CategoryKind.INCOME
+                    OperationKind.TRANSFER -> null
+                }
+                val categories = categoryKind?.let { ledger.categories(it) }
+                    ?.map { SelectableOption(it.id, it.name) }
+                    .orEmpty()
+                _edit.value = EditOperationUiState(
+                    loading = false,
+                    operationId = operation.id,
+                    kind = operation.kind,
+                    accounts = accounts,
+                    categories = categories,
+                    selectedAccountId = operation.accountId ?: accounts.firstOrNull()?.id,
+                    selectedFromAccountId = operation.fromAccountId ?: accounts.firstOrNull()?.id,
+                    selectedToAccountId = operation.toAccountId
+                        ?: accounts.drop(1).firstOrNull()?.id
+                        ?: accounts.firstOrNull()?.id,
+                    selectedCategoryId = operation.categoryId ?: categories.firstOrNull()?.id,
+                    amountInput = Money.formatManat(operation.amountMinor),
+                    dateInput = operation.date.format(DATE_FORMAT),
+                    commentInput = operation.comment.orEmpty()
+                )
+            } catch (error: Exception) {
+                _edit.update {
+                    it.copy(loading = false, errorMessage = error.message ?: "Ошибка")
+                }
             }
         }
     }
@@ -186,20 +284,15 @@ class DalletViewModel(
             val cardText = _onboarding.value.cardInput
             _onboarding.update { it.copy(submitting = true, errorMessage = null) }
             try {
-                val cash = Money.parseManat(cashText.ifBlank { "0" })
-                val card = Money.parseManat(cardText.ifBlank { "0" })
                 ledger.completeOnboarding(
-                    cashOpeningMinor = cash,
-                    cardOpeningMinor = card
+                    cashOpeningMinor = Money.parseManat(cashText.ifBlank { "0" }),
+                    cardOpeningMinor = Money.parseManat(cardText.ifBlank { "0" })
                 )
                 _onboarding.value = OnboardingUiState()
                 refreshHome()
             } catch (error: Exception) {
                 _onboarding.update {
-                    it.copy(
-                        submitting = false,
-                        errorMessage = "Проверьте суммы. Пример: 10.50"
-                    )
+                    it.copy(submitting = false, errorMessage = "Проверьте суммы. Пример: 10.50")
                 }
             }
         }
@@ -245,62 +338,141 @@ class DalletViewModel(
                 val amount = Money.parseManat(state.amountInput)
                 val date = LocalDate.parse(state.dateInput.trim(), DATE_FORMAT)
                 when (state.kind) {
-                    AddOperationKind.EXPENSE -> {
-                        ledger.addExpense(
-                            accountId = state.selectedAccountId ?: error("account"),
-                            categoryId = state.selectedCategoryId ?: error("category"),
-                            amountMinor = amount,
-                            date = date,
-                            comment = state.commentInput
-                        )
-                    }
-                    AddOperationKind.INCOME -> {
-                        ledger.addIncome(
-                            accountId = state.selectedAccountId ?: error("account"),
-                            categoryId = state.selectedCategoryId ?: error("category"),
-                            amountMinor = amount,
-                            date = date,
-                            comment = state.commentInput
-                        )
-                    }
-                    AddOperationKind.TRANSFER -> {
-                        ledger.addTransfer(
-                            fromAccountId = state.selectedFromAccountId ?: error("from"),
-                            toAccountId = state.selectedToAccountId ?: error("to"),
-                            amountMinor = amount,
-                            date = date,
-                            comment = state.commentInput
-                        )
-                    }
+                    AddOperationKind.EXPENSE -> ledger.addExpense(
+                        accountId = state.selectedAccountId ?: error("account"),
+                        categoryId = state.selectedCategoryId ?: error("category"),
+                        amountMinor = amount,
+                        date = date,
+                        comment = state.commentInput
+                    )
+                    AddOperationKind.INCOME -> ledger.addIncome(
+                        accountId = state.selectedAccountId ?: error("account"),
+                        categoryId = state.selectedCategoryId ?: error("category"),
+                        amountMinor = amount,
+                        date = date,
+                        comment = state.commentInput
+                    )
+                    AddOperationKind.TRANSFER -> ledger.addTransfer(
+                        fromAccountId = state.selectedFromAccountId ?: error("from"),
+                        toAccountId = state.selectedToAccountId ?: error("to"),
+                        amountMinor = amount,
+                        date = date,
+                        comment = state.commentInput
+                    )
                 }
                 _addExpense.update {
                     it.copy(submitting = false, saved = true, amountInput = "", commentInput = "")
                 }
                 refreshHome()
             } catch (error: SameAccountTransferException) {
-                _addExpense.update {
-                    it.copy(submitting = false, errorMessage = error.message)
-                }
+                _addExpense.update { it.copy(submitting = false, errorMessage = error.message) }
             } catch (error: DateTimeParseException) {
-                _addExpense.update {
-                    it.copy(submitting = false, errorMessage = "Дата: ГГГГ-ММ-ДД")
-                }
+                _addExpense.update { it.copy(submitting = false, errorMessage = "Дата: ГГГГ-ММ-ДД") }
             } catch (error: Exception) {
                 _addExpense.update {
-                    it.copy(
-                        submitting = false,
-                        errorMessage = "Проверьте сумму и выбранные поля"
+                    it.copy(submitting = false, errorMessage = "Проверьте сумму и выбранные поля")
+                }
+            }
+        }
+    }
+
+    fun onEditAccountSelected(id: Long) {
+        _edit.update { it.copy(selectedAccountId = id, errorMessage = null) }
+    }
+
+    fun onEditFromAccountSelected(id: Long) {
+        _edit.update { it.copy(selectedFromAccountId = id, errorMessage = null) }
+    }
+
+    fun onEditToAccountSelected(id: Long) {
+        _edit.update { it.copy(selectedToAccountId = id, errorMessage = null) }
+    }
+
+    fun onEditCategorySelected(id: Long) {
+        _edit.update { it.copy(selectedCategoryId = id, errorMessage = null) }
+    }
+
+    fun onEditAmountChange(value: String) {
+        _edit.update { it.copy(amountInput = value, errorMessage = null) }
+    }
+
+    fun onEditDateChange(value: String) {
+        _edit.update { it.copy(dateInput = value, errorMessage = null) }
+    }
+
+    fun onEditCommentChange(value: String) {
+        _edit.update { it.copy(commentInput = value, errorMessage = null) }
+    }
+
+    fun consumeEditDone() {
+        _edit.update { it.copy(done = false) }
+    }
+
+    fun saveEdit() {
+        viewModelScope.launch {
+            val state = _edit.value
+            _edit.update { it.copy(submitting = true, errorMessage = null, done = false) }
+            try {
+                val amount = Money.parseManat(state.amountInput)
+                val date = LocalDate.parse(state.dateInput.trim(), DATE_FORMAT)
+                when (state.kind) {
+                    OperationKind.EXPENSE -> ledger.updateExpense(
+                        operationId = state.operationId,
+                        accountId = state.selectedAccountId ?: error("account"),
+                        categoryId = state.selectedCategoryId ?: error("category"),
+                        amountMinor = amount,
+                        date = date,
+                        comment = state.commentInput
                     )
+                    OperationKind.INCOME -> ledger.updateIncome(
+                        operationId = state.operationId,
+                        accountId = state.selectedAccountId ?: error("account"),
+                        categoryId = state.selectedCategoryId ?: error("category"),
+                        amountMinor = amount,
+                        date = date,
+                        comment = state.commentInput
+                    )
+                    OperationKind.TRANSFER -> ledger.updateTransfer(
+                        operationId = state.operationId,
+                        fromAccountId = state.selectedFromAccountId ?: error("from"),
+                        toAccountId = state.selectedToAccountId ?: error("to"),
+                        amountMinor = amount,
+                        date = date,
+                        comment = state.commentInput
+                    )
+                }
+                _edit.update { it.copy(submitting = false, done = true) }
+                refreshHome()
+            } catch (error: SameAccountTransferException) {
+                _edit.update { it.copy(submitting = false, errorMessage = error.message) }
+            } catch (error: DateTimeParseException) {
+                _edit.update { it.copy(submitting = false, errorMessage = "Дата: ГГГГ-ММ-ДД") }
+            } catch (error: Exception) {
+                _edit.update {
+                    it.copy(submitting = false, errorMessage = "Не удалось сохранить")
+                }
+            }
+        }
+    }
+
+    fun deleteEdit() {
+        viewModelScope.launch {
+            val state = _edit.value
+            _edit.update { it.copy(submitting = true, errorMessage = null, done = false) }
+            try {
+                ledger.deleteOperation(state.operationId)
+                _edit.update { it.copy(submitting = false, done = true) }
+                refreshHome()
+            } catch (error: Exception) {
+                _edit.update {
+                    it.copy(submitting = false, errorMessage = "Не удалось удалить")
                 }
             }
         }
     }
 
     private fun AccountBalance.toRow(): AccountRowUi =
-        AccountRowUi(
-            name = account.name,
-            balanceLabel = Money.formatManat(balanceMinor)
-        )
+        AccountRowUi(name = account.name, balanceLabel = Money.formatManat(balanceMinor))
 
     private fun Operation.toExpenseRow(
         categoryNames: Map<Long, String>,
@@ -309,8 +481,44 @@ class DalletViewModel(
         val category = categoryId?.let { categoryNames[it] }.orEmpty()
         val account = accountId?.let { accountNames[it] }.orEmpty()
         return ExpenseRowUi(
+            id = id,
             title = category.ifBlank { "Расход" },
             subtitle = listOf(account, date.toString(), comment.orEmpty())
+                .filter { it.isNotBlank() }
+                .joinToString(" · "),
+            amountLabel = Money.formatManat(amountMinor)
+        )
+    }
+
+    private fun Operation.toHistoryRow(
+        categoryNames: Map<Long, String>,
+        accountNames: Map<Long, String>
+    ): HistoryRowUi {
+        val kindUi = when (kind) {
+            OperationKind.EXPENSE -> HistoryKindUi.EXPENSE
+            OperationKind.INCOME -> HistoryKindUi.INCOME
+            OperationKind.TRANSFER -> HistoryKindUi.TRANSFER
+        }
+        val kindLabel = when (kind) {
+            OperationKind.EXPENSE -> "Расход"
+            OperationKind.INCOME -> "Доход"
+            OperationKind.TRANSFER -> "Перевод"
+        }
+        val title = when (kind) {
+            OperationKind.TRANSFER -> {
+                val from = fromAccountId?.let { accountNames[it] }.orEmpty()
+                val to = toAccountId?.let { accountNames[it] }.orEmpty()
+                "$from → $to"
+            }
+            else -> categoryId?.let { categoryNames[it] }.orEmpty().ifBlank { kindLabel }
+        }
+        val accountPart = accountId?.let { accountNames[it] }.orEmpty()
+        return HistoryRowUi(
+            id = id,
+            kind = kindUi,
+            kindLabel = kindLabel,
+            title = title,
+            subtitle = listOf(accountPart, date.toString(), comment.orEmpty())
                 .filter { it.isNotBlank() }
                 .joinToString(" · "),
             amountLabel = Money.formatManat(amountMinor)

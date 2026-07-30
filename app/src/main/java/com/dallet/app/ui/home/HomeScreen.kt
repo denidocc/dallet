@@ -1,5 +1,6 @@
 package com.dallet.app.ui.home
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,7 +24,10 @@ import com.dallet.app.ui.ExpenseRowUi
 import com.dallet.app.ui.HomeUiState
 
 @Composable
-fun HomeScreen(state: HomeUiState) {
+fun HomeScreen(
+    state: HomeUiState,
+    onExpenseClick: (Long) -> Unit
+) {
     when {
         state.loading -> {
             Column(
@@ -73,7 +77,7 @@ fun HomeScreen(state: HomeUiState) {
                     )
                 } else {
                     state.recentExpenses.forEach { row ->
-                        ExpenseRow(row)
+                        ExpenseRow(row = row, onClick = { onExpenseClick(row.id) })
                     }
                 }
                 state.errorMessage?.let { message ->
@@ -102,8 +106,15 @@ private fun AccountBalanceRow(row: AccountRowUi) {
 }
 
 @Composable
-private fun ExpenseRow(row: ExpenseRowUi) {
-    Column(modifier = Modifier.fillMaxWidth()) {
+private fun ExpenseRow(
+    row: ExpenseRowUi,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween

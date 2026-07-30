@@ -27,19 +27,24 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.dallet.app.R
 import com.dallet.app.ledger.Ledger
 import com.dallet.app.ui.add.AddExpenseScreen
+import com.dallet.app.ui.edit.EditOperationScreen
+import com.dallet.app.ui.history.HistoryScreen
 import com.dallet.app.ui.home.HomeScreen
 import com.dallet.app.ui.navigation.DalletDestination
 import com.dallet.app.ui.onboarding.OnboardingScreen
 
+private const val EDIT_ROUTE = "edit/{operationId}"
+
 private val placeholderByRoute = mapOf(
-    DalletDestination.History.route to R.string.placeholder_history,
     DalletDestination.Analytics.route to R.string.placeholder_analytics,
     DalletDestination.More.route to R.string.placeholder_more
 )
@@ -52,6 +57,8 @@ fun DalletApp(
     val homeState by viewModel.home.collectAsStateWithLifecycle()
     val onboardingState by viewModel.onboarding.collectAsStateWithLifecycle()
     val addExpenseState by viewModel.addExpense.collectAsStateWithLifecycle()
+    val historyState by viewModel.history.collectAsStateWithLifecycle()
+    val editState by viewModel.edit.collectAsStateWithLifecycle()
 
     if (homeState.needsOnboarding) {
         OnboardingScreen(
@@ -77,6 +84,10 @@ fun DalletApp(
         }
     }
 
+    fun openEdit(operationId: Long) {
+        navController.navigate("edit/$operationId")
+    }
+
     LaunchedEffect(addExpenseState.saved) {
         if (addExpenseState.saved) {
             viewModel.consumeExpenseSaved()
@@ -84,12 +95,23 @@ fun DalletApp(
         }
     }
 
+    LaunchedEffect(editState.done) {
+        if (editState.done) {
+            viewModel.consumeEditDone()
+            navController.popBackStack()
+        }
+    }
+
+    val hideBottomBar = currentRoute?.startsWith("edit/") == true
+
     Scaffold(
         bottomBar = {
-            DalletBottomBar(
-                currentRoute = currentRoute,
-                onNavigate = ::navigateTo
-            )
+            if (!hideBottomBar) {
+                DalletBottomBar(
+                    currentRoute = currentRoute ?: DalletDestination.Home.route,
+                    onNavigate = ::navigateTo
+                )
+            }
         }
     ) { innerPadding ->
         NavHost(
@@ -98,12 +120,20 @@ fun DalletApp(
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(DalletDestination.Home.route) {
-                HomeScreen(state = homeState)
+                HomeScreen(
+                    state = homeState,
+                    onExpenseClick = ::openEdit
+                )
+            }
+            composable(DalletDestination.History.route) {
+                LaunchedEffect(Unit) { viewModel.refreshHistory() }
+                HistoryScreen(
+                    state = historyState,
+                    onOperationClick = ::openEdit
+                )
             }
             composable(DalletDestination.Add.route) {
-                LaunchedEffect(Unit) {
-                    viewModel.prepareAddExpense()
-                }
+                LaunchedEffect(Unit) { viewModel.prepareAddExpense() }
                 AddExpenseScreen(
                     state = addExpenseState,
                     onKindSelected = viewModel::onAddKindSelected,
@@ -115,6 +145,25 @@ fun DalletApp(
                     onDateChange = viewModel::onExpenseDateChange,
                     onCommentChange = viewModel::onExpenseCommentChange,
                     onSubmit = viewModel::submitExpense
+                )
+            }
+            composable(
+                route = EDIT_ROUTE,
+                arguments = listOf(navArgument("operationId") { type = NavType.LongType })
+            ) { entry ->
+                val operationId = entry.arguments?.getLong("operationId") ?: return@composable
+                LaunchedEffect(operationId) { viewModel.loadEditOperation(operationId) }
+                EditOperationScreen(
+                    state = editState,
+                    onAccountSelected = viewModel::onEditAccountSelected,
+                    onFromAccountSelected = viewModel::onEditFromAccountSelected,
+                    onToAccountSelected = viewModel::onEditToAccountSelected,
+                    onCategorySelected = viewModel::onEditCategorySelected,
+                    onAmountChange = viewModel::onEditAmountChange,
+                    onDateChange = viewModel::onEditDateChange,
+                    onCommentChange = viewModel::onEditCommentChange,
+                    onSave = viewModel::saveEdit,
+                    onDelete = viewModel::deleteEdit
                 )
             }
             placeholderByRoute.forEach { (route, stringRes) ->
@@ -134,7 +183,8 @@ private fun DalletBottomBar(
     NavigationBar {
         DalletDestination.bottomBarItems.forEach { destination ->
             NavigationBarItem(
-                selected = currentRoute == destination.route,
+                selected = currentRoute == destination.route ||
+                    (destination == DalletDestination.History && currentRoute.startsWith("edit/")),
                 onClick = { onNavigate(destination) },
                 icon = {
                     Icon(

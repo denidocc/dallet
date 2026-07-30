@@ -13,6 +13,14 @@ class RoomOperationRepository(
 
     override suspend fun insert(operation: Operation): Long =
         dao.insert(operation.toEntity())
+
+    override suspend fun update(operation: Operation) {
+        dao.update(operation.toEntity())
+    }
+
+    override suspend fun delete(operationId: Long) {
+        dao.delete(operationId)
+    }
 }
 
 private fun OperationEntity.toDomain(): Operation =

@@ -133,6 +133,105 @@ class Ledger(
             .take(limit)
     }
 
+    suspend fun allOperations(): List<Operation> =
+        operationRepository.getAll()
+            .sortedWith(compareByDescending<Operation> { it.date }.thenByDescending { it.id })
+
+    suspend fun operation(operationId: Long): Operation? =
+        operationRepository.getAll().firstOrNull { it.id == operationId }
+
+    suspend fun updateExpense(
+        operationId: Long,
+        accountId: Long,
+        categoryId: Long,
+        amountMinor: Long,
+        date: LocalDate,
+        comment: String?
+    ) {
+        require(amountMinor > 0) { "amount must be positive" }
+        val existing = operation(operationId) ?: error("operation not found")
+        require(existing.kind == OperationKind.EXPENSE) { "not an expense" }
+        ensureCategoriesSeeded()
+        require(accountRepository.getAll().any { it.id == accountId }) { "account not found" }
+        val category = categoryRepository.getAll().firstOrNull { it.id == categoryId }
+            ?: error("category not found")
+        require(category.kind == CategoryKind.EXPENSE) { "category must be expense" }
+
+        operationRepository.update(
+            existing.copy(
+                amountMinor = amountMinor,
+                date = date,
+                comment = comment?.takeIf { it.isNotBlank() },
+                accountId = accountId,
+                categoryId = categoryId
+            )
+        )
+    }
+
+    suspend fun updateIncome(
+        operationId: Long,
+        accountId: Long,
+        categoryId: Long,
+        amountMinor: Long,
+        date: LocalDate,
+        comment: String?
+    ) {
+        require(amountMinor > 0) { "amount must be positive" }
+        val existing = operation(operationId) ?: error("operation not found")
+        require(existing.kind == OperationKind.INCOME) { "not an income" }
+        ensureCategoriesSeeded()
+        require(accountRepository.getAll().any { it.id == accountId }) { "account not found" }
+        val category = categoryRepository.getAll().firstOrNull { it.id == categoryId }
+            ?: error("category not found")
+        require(category.kind == CategoryKind.INCOME) { "category must be income" }
+
+        operationRepository.update(
+            existing.copy(
+                amountMinor = amountMinor,
+                date = date,
+                comment = comment?.takeIf { it.isNotBlank() },
+                accountId = accountId,
+                categoryId = categoryId
+            )
+        )
+    }
+
+    suspend fun updateTransfer(
+        operationId: Long,
+        fromAccountId: Long,
+        toAccountId: Long,
+        amountMinor: Long,
+        date: LocalDate,
+        comment: String?
+    ) {
+        require(amountMinor > 0) { "amount must be positive" }
+        val existing = operation(operationId) ?: error("operation not found")
+        require(existing.kind == OperationKind.TRANSFER) { "not a transfer" }
+        if (fromAccountId == toAccountId) {
+            throw SameAccountTransferException()
+        }
+        val accounts = accountRepository.getAll()
+        require(accounts.any { it.id == fromAccountId }) { "from account not found" }
+        require(accounts.any { it.id == toAccountId }) { "to account not found" }
+
+        operationRepository.update(
+            existing.copy(
+                amountMinor = amountMinor,
+                date = date,
+                comment = comment?.takeIf { it.isNotBlank() },
+                fromAccountId = fromAccountId,
+                toAccountId = toAccountId,
+                accountId = null,
+                categoryId = null
+            )
+        )
+    }
+
+    suspend fun deleteOperation(operationId: Long) {
+        require(operation(operationId) != null) { "operation not found" }
+        operationRepository.delete(operationId)
+    }
+
     private suspend fun balanceFor(account: Account): Long {
         var balance = account.openingBalanceMinor
         for (operation in operationRepository.getAll()) {

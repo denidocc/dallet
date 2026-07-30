@@ -35,4 +35,10 @@
     <string name="add_date_hint">Формат ГГГГ-ММ-ДД</string>
     <string name="add_comment_label">Комментарий</string>
     <string name="add_save">Сохранить</string>
+    <string name="history_title">История</string>
+    <string name="history_empty">Пока нет операций</string>
+    <string name="edit_title">Изменить операцию</string>
+    <string name="edit_loading">Загрузка…</string>
+    <string name="edit_save">Сохранить</string>
+    <string name="edit_delete">Удалить</string>
 </resources>

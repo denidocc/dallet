@@ -11,4 +11,14 @@ class InMemoryOperationRepository : OperationRepository {
         operations.add(operation.copy(id = id))
         return id
     }
+
+    override suspend fun update(operation: Operation) {
+        val index = operations.indexOfFirst { it.id == operation.id }
+        require(index >= 0) { "operation not found" }
+        operations[index] = operation
+    }
+
+    override suspend fun delete(operationId: Long) {
+        operations.removeAll { it.id == operationId }
+    }
 }
