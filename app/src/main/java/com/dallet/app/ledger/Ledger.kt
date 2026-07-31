@@ -2,7 +2,10 @@ package com.dallet.app.ledger
 
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.YearMonth
+import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
+import java.util.Locale
 
 class Ledger(
     private val accountRepository: AccountRepository,
@@ -350,14 +353,54 @@ class Ledger(
                 )
             }
             .sortedByDescending { it.amountMinor }
+        val expenseFlow = expenseFlowSeries(period, fromInclusive, toInclusive, expenses)
         return AnalyticsSummary(
             period = period,
             fromInclusive = fromInclusive,
             toInclusive = toInclusive,
             incomeTotalMinor = incomeTotalMinor,
             expenseTotalMinor = expenseTotalMinor,
-            expensesByCategory = expensesByCategory
+            expensesByCategory = expensesByCategory,
+            expenseFlow = expenseFlow
         )
+    }
+
+    private fun expenseFlowSeries(
+        period: AnalyticsPeriod,
+        fromInclusive: LocalDate,
+        toInclusive: LocalDate,
+        expenses: List<Operation>
+    ): List<ExpenseFlowPoint> {
+        return when (period) {
+            AnalyticsPeriod.WEEK, AnalyticsPeriod.MONTH -> {
+                val byDay = expenses.groupBy { it.date }.mapValues { (_, ops) ->
+                    ops.sumOf { it.amountMinor }
+                }
+                generateSequence(fromInclusive) { date ->
+                    val next = date.plusDays(1)
+                    if (next.isAfter(toInclusive)) null else next
+                }.map { day ->
+                    ExpenseFlowPoint(
+                        bucketStart = day,
+                        label = day.format(DAY_FLOW_LABEL),
+                        amountMinor = byDay[day] ?: 0L
+                    )
+                }.toList()
+            }
+            AnalyticsPeriod.YEAR -> {
+                val byMonth = expenses.groupBy { YearMonth.from(it.date) }
+                    .mapValues { (_, ops) -> ops.sumOf { it.amountMinor } }
+                val year = fromInclusive.year
+                (1..12).map { month ->
+                    val ym = YearMonth.of(year, month)
+                    ExpenseFlowPoint(
+                        bucketStart = ym.atDay(1),
+                        label = ym.format(MONTH_FLOW_LABEL),
+                        amountMinor = byMonth[ym] ?: 0L
+                    )
+                }
+            }
+        }
     }
 
     private fun periodBounds(period: AnalyticsPeriod, asOf: LocalDate): Pair<LocalDate, LocalDate> {
@@ -412,5 +455,9 @@ class Ledger(
     companion object {
         const val CASH_NAME = "Наличные"
         const val CARD_NAME = "ЗП карта"
+        private val DAY_FLOW_LABEL: DateTimeFormatter =
+            DateTimeFormatter.ofPattern("d.M")
+        private val MONTH_FLOW_LABEL: DateTimeFormatter =
+            DateTimeFormatter.ofPattern("LLL", Locale.forLanguageTag("ru"))
     }
 }

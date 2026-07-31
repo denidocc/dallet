@@ -1,29 +1,43 @@
 package com.dallet.app.ui.analytics
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.dallet.app.R
 import com.dallet.app.ledger.AnalyticsPeriod
+import com.dallet.app.ui.AnalyticsCategorySliceUi
+import com.dallet.app.ui.AnalyticsFlowPointUi
 import com.dallet.app.ui.AnalyticsUiState
 import com.dallet.app.ui.common.SurfaceCard
 import com.dallet.app.ui.theme.expenseAmountColor
@@ -100,11 +114,12 @@ fun AnalyticsScreen(
                 )
             }
         }
+
         Text(
             text = stringResource(R.string.analytics_by_category),
             style = MaterialTheme.typography.titleMedium
         )
-        if (state.categoryBars.isEmpty()) {
+        if (state.categorySlices.isEmpty()) {
             SurfaceCard {
                 Text(
                     text = stringResource(R.string.analytics_chart_empty),
@@ -114,39 +129,155 @@ fun AnalyticsScreen(
             }
         } else {
             SurfaceCard {
-                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    state.categoryBars.forEach { bar ->
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(text = bar.name, style = MaterialTheme.typography.bodyLarge)
-                                Text(
-                                    text = stringResource(
-                                        R.string.amount_with_currency,
-                                        bar.amountLabel
-                                    ),
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                            }
+                ExpenseDonut(slices = state.categorySlices)
+                Spacer(modifier = Modifier.height(16.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    state.categorySlices.forEach { slice ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
                             Box(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(10.dp)
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth(bar.fraction.coerceIn(0.02f, 1f))
-                                        .fillMaxHeight()
-                                        .background(Color(bar.colorArgb))
-                                )
-                            }
+                                    .size(12.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(slice.colorArgb))
+                            )
+                            Text(
+                                text = slice.name,
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                text = stringResource(
+                                    R.string.amount_with_currency,
+                                    slice.amountLabel
+                                ),
+                                style = MaterialTheme.typography.titleMedium
+                            )
                         }
                     }
                 }
+            }
+        }
+
+        Text(
+            text = stringResource(R.string.analytics_expense_flow),
+            style = MaterialTheme.typography.titleMedium
+        )
+        if (state.flowPoints.all { it.fraction <= 0f }) {
+            SurfaceCard {
+                Text(
+                    text = stringResource(R.string.analytics_chart_empty),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else {
+            SurfaceCard {
+                ExpenseFlowChart(points = state.flowPoints)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExpenseDonut(slices: List<AnalyticsCategorySliceUi>) {
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.size(180.dp)) {
+            val stroke = Stroke(width = size.minDimension * 0.22f, cap = StrokeCap.Butt)
+            val diameter = size.minDimension
+            val topLeft = Offset(
+                (size.width - diameter) / 2f,
+                (size.height - diameter) / 2f
+            )
+            val arcSize = Size(diameter, diameter)
+            if (slices.isEmpty()) {
+                drawArc(
+                    color = trackColor,
+                    startAngle = 0f,
+                    sweepAngle = 360f,
+                    useCenter = false,
+                    topLeft = topLeft,
+                    size = arcSize,
+                    style = stroke
+                )
+                return@Canvas
+            }
+            var start = -90f
+            slices.forEach { slice ->
+                val sweep = 360f * slice.fraction
+                drawArc(
+                    color = Color(slice.colorArgb),
+                    startAngle = start,
+                    sweepAngle = sweep.coerceAtLeast(0.5f),
+                    useCenter = false,
+                    topLeft = topLeft,
+                    size = arcSize,
+                    style = stroke
+                )
+                start += sweep
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExpenseFlowChart(points: List<AnalyticsFlowPointUi>) {
+    val barColor = MaterialTheme.colorScheme.primary
+    val scroll = rememberScrollState()
+    val barWidth = when {
+        points.size <= 7 -> 36.dp
+        points.size <= 12 -> 28.dp
+        else -> 18.dp
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(scroll)
+            .height(160.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.Bottom
+    ) {
+        points.forEach { point ->
+            Column(
+                modifier = Modifier.width(barWidth),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Bottom
+            ) {
+                val heightFraction =
+                    if (point.fraction > 0f) point.fraction.coerceIn(0.02f, 1f) else 0.02f
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp),
+                    contentAlignment = Alignment.BottomCenter
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(0.7f)
+                            .fillMaxHeight(heightFraction)
+                            .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
+                            .background(
+                                if (point.fraction > 0f) barColor
+                                else MaterialTheme.colorScheme.surfaceVariant
+                            )
+                    )
+                }
+                Text(
+                    text = point.label,
+                    style = MaterialTheme.typography.labelMedium,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    modifier = Modifier.padding(top = 6.dp)
+                )
             }
         }
     }

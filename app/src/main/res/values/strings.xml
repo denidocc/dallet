@@ -67,5 +67,6 @@
     <string name="analytics_income_label">Доходы</string>
     <string name="analytics_expense_label">Расходы</string>
     <string name="analytics_by_category">Расходы по категориям</string>
+    <string name="analytics_expense_flow">Расходы по времени</string>
     <string name="analytics_chart_empty">Нет расходов за период</string>
 </resources>

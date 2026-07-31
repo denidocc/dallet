@@ -15,11 +15,18 @@ data class CategoryExpenseTotal(
     val amountMinor: Long
 )
 
+data class ExpenseFlowPoint(
+    val bucketStart: LocalDate,
+    val label: String,
+    val amountMinor: Long
+)
+
 data class AnalyticsSummary(
     val period: AnalyticsPeriod,
     val fromInclusive: LocalDate,
     val toInclusive: LocalDate,
     val incomeTotalMinor: Long,
     val expenseTotalMinor: Long,
-    val expensesByCategory: List<CategoryExpenseTotal>
+    val expensesByCategory: List<CategoryExpenseTotal>,
+    val expenseFlow: List<ExpenseFlowPoint>
 )

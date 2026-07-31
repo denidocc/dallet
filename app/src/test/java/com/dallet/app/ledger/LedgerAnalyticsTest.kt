@@ -107,4 +107,61 @@ class LedgerAnalyticsTest {
         assertThat(year.expenseTotalMinor).isEqualTo(350L) // 100+200+50 in 2026, not 400 from 2025
         assertThat(year.incomeTotalMinor).isEqualTo(6_000L)
     }
+
+    @Test
+    fun analytics_monthFlow_bucketsByDay_ignoresTransfers_sumsToExpenseTotal() = runTest {
+        val ledger = newLedger()
+        ledger.completeOnboarding(cashOpeningMinor = 100_000L, cardOpeningMinor = 50_000L)
+        val cash = ledger.accountBalances().first { it.account.name == Ledger.CASH_NAME }.account
+        val card = ledger.accountBalances().first { it.account.name == Ledger.CARD_NAME }.account
+        val food = ledger.categories(CategoryKind.EXPENSE).first { it.name == "Еда" }
+
+        ledger.addExpense(cash.id, food.id, 100L, LocalDate.of(2026, 7, 1), null)
+        ledger.addExpense(cash.id, food.id, 250L, LocalDate.of(2026, 7, 1), null)
+        ledger.addExpense(cash.id, food.id, 400L, LocalDate.of(2026, 7, 15), null)
+        ledger.addTransfer(card.id, cash.id, 999L, LocalDate.of(2026, 7, 15), null)
+        ledger.addExpense(cash.id, food.id, 50L, LocalDate.of(2026, 6, 30), null)
+
+        val summary = ledger.analytics(AnalyticsPeriod.MONTH, asOf = LocalDate.of(2026, 7, 15))
+
+        assertThat(summary.expenseFlow).hasSize(31)
+        assertThat(summary.expenseFlow.first().bucketStart).isEqualTo(LocalDate.of(2026, 7, 1))
+        assertThat(summary.expenseFlow.last().bucketStart).isEqualTo(LocalDate.of(2026, 7, 31))
+        assertThat(summary.expenseFlow[0].amountMinor).isEqualTo(350L)
+        assertThat(summary.expenseFlow[14].amountMinor).isEqualTo(400L)
+        assertThat(summary.expenseFlow.sumOf { it.amountMinor }).isEqualTo(summary.expenseTotalMinor)
+        assertThat(summary.expenseTotalMinor).isEqualTo(750L)
+    }
+
+    @Test
+    fun analytics_weekFlow_hasSevenDays_yearFlow_hasTwelveMonths() = runTest {
+        val ledger = newLedger()
+        ledger.completeOnboarding(cashOpeningMinor = 100_000L, cardOpeningMinor = 0L)
+        val cash = ledger.accountBalances().first().account
+        val food = ledger.categories(CategoryKind.EXPENSE).first { it.name == "Еда" }
+
+        ledger.addExpense(cash.id, food.id, 100L, LocalDate.of(2026, 7, 13), null)
+        ledger.addExpense(cash.id, food.id, 200L, LocalDate.of(2026, 3, 10), null)
+
+        val week = ledger.analytics(AnalyticsPeriod.WEEK, asOf = LocalDate.of(2026, 7, 15))
+        assertThat(week.expenseFlow).hasSize(7)
+        assertThat(week.expenseFlow.map { it.bucketStart }).containsExactly(
+            LocalDate.of(2026, 7, 13),
+            LocalDate.of(2026, 7, 14),
+            LocalDate.of(2026, 7, 15),
+            LocalDate.of(2026, 7, 16),
+            LocalDate.of(2026, 7, 17),
+            LocalDate.of(2026, 7, 18),
+            LocalDate.of(2026, 7, 19)
+        ).inOrder()
+        assertThat(week.expenseFlow[0].amountMinor).isEqualTo(100L)
+        assertThat(week.expenseFlow.sumOf { it.amountMinor }).isEqualTo(100L)
+
+        val year = ledger.analytics(AnalyticsPeriod.YEAR, asOf = LocalDate.of(2026, 7, 15))
+        assertThat(year.expenseFlow).hasSize(12)
+        assertThat(year.expenseFlow[2].bucketStart).isEqualTo(LocalDate.of(2026, 3, 1))
+        assertThat(year.expenseFlow[2].amountMinor).isEqualTo(200L)
+        assertThat(year.expenseFlow[6].amountMinor).isEqualTo(100L)
+        assertThat(year.expenseFlow.sumOf { it.amountMinor }).isEqualTo(300L)
+    }
 }
