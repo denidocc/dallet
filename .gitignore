@@ -7,6 +7,11 @@ docs/adr/
 # Local agent / skill scratch (to-tickets, drafts)
 .scratch/
 
+# Signing keystore (never commit)
+keystore/
+*.jks
+*.keystore
+
 # Built application files
 *.apk
 *.aap

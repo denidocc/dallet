@@ -17,6 +17,18 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("ciDebug") {
+            val storeFilePath = System.getenv("DALLET_DEBUG_STORE_FILE")
+            if (!storeFilePath.isNullOrBlank()) {
+                storeFile = file(storeFilePath)
+                storePassword = System.getenv("DALLET_DEBUG_STORE_PASSWORD")
+                keyAlias = System.getenv("DALLET_DEBUG_KEY_ALIAS")
+                keyPassword = System.getenv("DALLET_DEBUG_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         getByName("release") {
             isMinifyEnabled = false
@@ -27,6 +39,10 @@ android {
         }
         getByName("debug") {
             isDebuggable = true
+            val ciDebug = signingConfigs.findByName("ciDebug")
+            if (ciDebug?.storeFile != null && ciDebug.storeFile!!.exists()) {
+                signingConfig = ciDebug
+            }
         }
     }
 
