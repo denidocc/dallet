@@ -68,19 +68,36 @@ jobs:
           DALLET_DEBUG_KEY_ALIAS: ${{ secrets.DALLET_DEBUG_KEY_ALIAS }}
         run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
 
-      - name: List built APKs
-        run: find app/build/outputs/apk -type f -name '*.apk' -print
+      - name: Name APK with version
+        id: apk
+        run: |
+          VERSION_NAME=$(sed -n 's/.*versionName[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' app/build.gradle.kts | head -n1)
+          if [ -z "$VERSION_NAME" ]; then
+            echo "Could not read versionName from app/build.gradle.kts"
+            exit 1
+          fi
+          mkdir -p dist
+          SRC=$(find app/build/outputs/apk/debug -type f -name '*.apk' | head -n1)
+          if [ -z "$SRC" ]; then
+            echo "No debug APK found"
+            exit 1
+          fi
+          DEST="dist/Dallet-${VERSION_NAME}.apk"
+          cp "$SRC" "$DEST"
+          echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "apk_path=$DEST" >> "$GITHUB_OUTPUT"
+          ls -la dist/
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: dallet-debug
-          path: app/build/outputs/apk/debug/*.apk
+          name: Dallet-${{ steps.apk.outputs.version_name }}
+          path: ${{ steps.apk.outputs.apk_path }}
           if-no-files-found: error
 
       - name: Create GitHub Release (on git tag v*)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: app/build/outputs/apk/debug/*.apk
+          files: ${{ steps.apk.outputs.apk_path }}
           generate_release_notes: true

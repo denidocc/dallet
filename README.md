@@ -4,7 +4,7 @@
 
 ## Сборка APK (GitHub Actions)
 
-После push в `main` откройте **Actions → Build Dallet APK → Artifacts → `dallet-debug`**.
+После push в `main` откройте **Actions → Build Dallet APK → Artifacts → `Dallet-<versionName>`** (файл `Dallet-0.0.2.apk` и т.п.). Версию бампите вручную в `app/build.gradle.kts` (`versionName` / `versionCode`) перед значимым релизом.
 
 Debug APK подписывается **одним стабильным keystore** из GitHub Secrets — обновление поверх предыдущей CI-сборки не требует удаления приложения и сохраняет данные (счета, категории, операции).
 
