@@ -136,6 +136,7 @@ fun DalletApp(
         currentRoute?.startsWith("categor") == true
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
             if (!hideBottomBar) {
                 DalletBottomBar(

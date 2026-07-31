@@ -33,6 +33,7 @@ import com.dallet.app.R
 import com.dallet.app.ledger.CategoryKind
 import com.dallet.app.ui.CategoriesUiState
 import com.dallet.app.ui.CategoryEditorUiState
+import com.dallet.app.ui.common.SurfaceCard
 
 @Composable
 fun CategoriesScreen(
@@ -44,12 +45,12 @@ fun CategoriesScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(20.dp)
     ) {
         Text(
             text = stringResource(R.string.categories_title),
             style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(bottom = 12.dp)
+            modifier = Modifier.padding(bottom = 16.dp)
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(
@@ -67,33 +68,32 @@ fun CategoriesScreen(
             onClick = onAddClick,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 12.dp)
+                .padding(vertical = 16.dp)
         ) {
             Text(stringResource(R.string.categories_add))
         }
         LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             items(state.rows, key = { it.id }) { row ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onCategoryClick(row.id) }
-                        .padding(vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(CircleShape)
-                            .background(Color(row.colorArgb))
-                    )
-                    Column {
-                        Text(text = row.name, style = MaterialTheme.typography.bodyLarge)
-                        Text(
-                            text = row.iconKey,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                SurfaceCard(onClick = { onCategoryClick(row.id) }) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(Color(row.colorArgb))
                         )
+                        Column {
+                            Text(text = row.name, style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                text = row.iconKey,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 2.dp)
+                            )
+                        }
                     }
                 }
             }

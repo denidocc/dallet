@@ -1,6 +1,5 @@
 package com.dallet.app.ui.accounts
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,6 +17,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import com.dallet.app.R
 import com.dallet.app.ui.AccountEditorUiState
 import com.dallet.app.ui.AccountsUiState
+import com.dallet.app.ui.common.SurfaceCard
 
 @Composable
 fun AccountsScreen(
@@ -35,12 +36,12 @@ fun AccountsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(20.dp)
     ) {
         Text(
             text = stringResource(R.string.accounts_title),
             style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(bottom = 12.dp)
+            modifier = Modifier.padding(bottom = 16.dp)
         )
         Button(
             onClick = onAddClick,
@@ -49,32 +50,33 @@ fun AccountsScreen(
             Text(stringResource(R.string.accounts_add))
         }
         LazyColumn(
-            modifier = Modifier.padding(top = 12.dp),
+            modifier = Modifier.padding(top = 16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             items(state.rows, key = { it.id }) { row ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onAccountClick(row.id) }
-                        .padding(vertical = 6.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column {
-                        Text(text = row.name, style = MaterialTheme.typography.bodyLarge)
+                SurfaceCard(onClick = { onAccountClick(row.id) }) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = row.name, style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                text = stringResource(
+                                    R.string.accounts_opening,
+                                    row.openingBalanceLabel
+                                ),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
                         Text(
-                            text = stringResource(
-                                R.string.accounts_opening,
-                                row.openingBalanceLabel
-                            ),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = stringResource(R.string.amount_with_currency, row.balanceLabel),
+                            style = MaterialTheme.typography.titleMedium
                         )
                     }
-                    Text(
-                        text = stringResource(R.string.amount_with_currency, row.balanceLabel),
-                        style = MaterialTheme.typography.bodyLarge
-                    )
                 }
             }
         }

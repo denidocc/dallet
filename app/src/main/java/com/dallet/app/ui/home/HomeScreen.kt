@@ -1,6 +1,5 @@
 package com.dallet.app.ui.home
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,7 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,6 +20,8 @@ import com.dallet.app.R
 import com.dallet.app.ui.AccountRowUi
 import com.dallet.app.ui.ExpenseRowUi
 import com.dallet.app.ui.HomeUiState
+import com.dallet.app.ui.common.SurfaceCard
+import com.dallet.app.ui.theme.expenseAmountColor
 
 @Composable
 fun HomeScreen(
@@ -43,41 +43,52 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(24.dp),
+                    .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text(
-                    text = stringResource(R.string.home_total_label),
-                    style = MaterialTheme.typography.labelMedium
-                )
-                Text(
-                    text = stringResource(
-                        R.string.amount_with_currency,
-                        state.totalBalanceLabel
-                    ),
-                    style = MaterialTheme.typography.titleLarge
-                )
-                HorizontalDivider()
+                SurfaceCard {
+                    Text(
+                        text = stringResource(R.string.home_total_label),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = stringResource(
+                            R.string.amount_with_currency,
+                            state.totalBalanceLabel
+                        ),
+                        style = MaterialTheme.typography.displaySmall,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+
                 Text(
                     text = stringResource(R.string.home_accounts_label),
-                    style = MaterialTheme.typography.labelMedium
+                    style = MaterialTheme.typography.titleMedium
                 )
                 state.accountRows.forEach { row ->
-                    AccountBalanceRow(row)
+                    SurfaceCard {
+                        AccountBalanceRow(row)
+                    }
                 }
-                HorizontalDivider()
+
                 Text(
                     text = stringResource(R.string.home_recent_expenses),
-                    style = MaterialTheme.typography.labelMedium
+                    style = MaterialTheme.typography.titleMedium
                 )
                 if (state.recentExpenses.isEmpty()) {
-                    Text(
-                        text = stringResource(R.string.home_recent_empty),
-                        style = MaterialTheme.typography.bodyLarge
-                    )
+                    SurfaceCard {
+                        Text(
+                            text = stringResource(R.string.home_recent_empty),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 } else {
                     state.recentExpenses.forEach { row ->
-                        ExpenseRow(row = row, onClick = { onExpenseClick(row.id) })
+                        SurfaceCard(onClick = { onExpenseClick(row.id) }) {
+                            ExpenseRow(row = row)
+                        }
                     }
                 }
                 state.errorMessage?.let { message ->
@@ -95,26 +106,20 @@ fun HomeScreen(
 private fun AccountBalanceRow(row: AccountRowUi) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Text(text = row.name, style = MaterialTheme.typography.bodyLarge)
         Text(
             text = stringResource(R.string.amount_with_currency, row.balanceLabel),
-            style = MaterialTheme.typography.bodyLarge
+            style = MaterialTheme.typography.titleMedium
         )
     }
 }
 
 @Composable
-private fun ExpenseRow(
-    row: ExpenseRowUi,
-    onClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-    ) {
+private fun ExpenseRow(row: ExpenseRowUi) {
+    Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
@@ -122,15 +127,16 @@ private fun ExpenseRow(
             Text(text = row.title, style = MaterialTheme.typography.bodyLarge)
             Text(
                 text = stringResource(R.string.amount_with_currency, row.amountLabel),
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodyLarge
+                color = expenseAmountColor(),
+                style = MaterialTheme.typography.titleMedium
             )
         }
         if (row.subtitle.isNotBlank()) {
             Text(
                 text = row.subtitle,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp)
             )
         }
     }

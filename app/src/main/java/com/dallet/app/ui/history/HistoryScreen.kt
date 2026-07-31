@@ -1,6 +1,5 @@
 package com.dallet.app.ui.history
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,6 +18,9 @@ import com.dallet.app.R
 import com.dallet.app.ui.HistoryKindUi
 import com.dallet.app.ui.HistoryRowUi
 import com.dallet.app.ui.HistoryUiState
+import com.dallet.app.ui.common.SurfaceCard
+import com.dallet.app.ui.theme.expenseAmountColor
+import com.dallet.app.ui.theme.incomeAmountColor
 
 @Composable
 fun HistoryScreen(
@@ -28,22 +30,27 @@ fun HistoryScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(horizontal = 20.dp, vertical = 16.dp)
     ) {
         Text(
             text = stringResource(R.string.history_title),
             style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(bottom = 12.dp)
+            modifier = Modifier.padding(bottom = 16.dp)
         )
         if (state.rows.isEmpty()) {
-            Text(
-                text = stringResource(R.string.history_empty),
-                style = MaterialTheme.typography.bodyLarge
-            )
+            SurfaceCard {
+                Text(
+                    text = stringResource(R.string.history_empty),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(state.rows, key = { it.id }) { row ->
-                    HistoryRow(row = row, onClick = { onOperationClick(row.id) })
+                    SurfaceCard(onClick = { onOperationClick(row.id) }) {
+                        HistoryRow(row = row)
+                    }
                 }
             }
         }
@@ -51,33 +58,34 @@ fun HistoryScreen(
 }
 
 @Composable
-private fun HistoryRow(
-    row: HistoryRowUi,
-    onClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 4.dp)
-    ) {
+private fun HistoryRow(row: HistoryRowUi) {
+    Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(text = row.kindLabel, style = MaterialTheme.typography.labelMedium)
+            Text(
+                text = row.kindLabel,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             Text(
                 text = stringResource(R.string.amount_with_currency, row.amountLabel),
                 color = row.amountColor(),
-                style = MaterialTheme.typography.bodyLarge
+                style = MaterialTheme.typography.titleMedium
             )
         }
-        Text(text = row.title, style = MaterialTheme.typography.bodyLarge)
+        Text(
+            text = row.title,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.padding(top = 6.dp)
+        )
         if (row.subtitle.isNotBlank()) {
             Text(
                 text = row.subtitle,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp)
             )
         }
     }
@@ -85,7 +93,7 @@ private fun HistoryRow(
 
 @Composable
 private fun HistoryRowUi.amountColor() = when (kind) {
-    HistoryKindUi.EXPENSE -> MaterialTheme.colorScheme.error
-    HistoryKindUi.INCOME -> MaterialTheme.colorScheme.primary
+    HistoryKindUi.EXPENSE -> expenseAmountColor()
+    HistoryKindUi.INCOME -> incomeAmountColor()
     HistoryKindUi.TRANSFER -> MaterialTheme.colorScheme.onSurface
 }

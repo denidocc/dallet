@@ -25,6 +25,9 @@ import androidx.compose.ui.unit.dp
 import com.dallet.app.R
 import com.dallet.app.ledger.AnalyticsPeriod
 import com.dallet.app.ui.AnalyticsUiState
+import com.dallet.app.ui.common.SurfaceCard
+import com.dallet.app.ui.theme.expenseAmountColor
+import com.dallet.app.ui.theme.incomeAmountColor
 
 @Composable
 fun AnalyticsScreen(
@@ -35,7 +38,7 @@ fun AnalyticsScreen(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
@@ -62,32 +65,38 @@ fun AnalyticsScreen(
         if (state.rangeLabel.isNotBlank()) {
             Text(
                 text = state.rangeLabel,
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(24.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            SurfaceCard(modifier = Modifier.weight(1f)) {
                 Text(
                     text = stringResource(R.string.analytics_income_label),
-                    style = MaterialTheme.typography.labelMedium
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     text = stringResource(R.string.amount_with_currency, state.incomeTotalLabel),
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = incomeAmountColor(),
+                    modifier = Modifier.padding(top = 6.dp)
                 )
             }
-            Column(modifier = Modifier.weight(1f)) {
+            SurfaceCard(modifier = Modifier.weight(1f)) {
                 Text(
                     text = stringResource(R.string.analytics_expense_label),
-                    style = MaterialTheme.typography.labelMedium
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     text = stringResource(R.string.amount_with_currency, state.expenseTotalLabel),
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = expenseAmountColor(),
+                    modifier = Modifier.padding(top = 6.dp)
                 )
             }
         }
@@ -96,41 +105,45 @@ fun AnalyticsScreen(
             style = MaterialTheme.typography.titleMedium
         )
         if (state.categoryBars.isEmpty()) {
-            Text(
-                text = stringResource(R.string.analytics_chart_empty),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            SurfaceCard {
+                Text(
+                    text = stringResource(R.string.analytics_chart_empty),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         } else {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                state.categoryBars.forEach { bar ->
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(text = bar.name, style = MaterialTheme.typography.bodyMedium)
-                            Text(
-                                text = stringResource(
-                                    R.string.amount_with_currency,
-                                    bar.amountLabel
-                                ),
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(12.dp)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant)
-                        ) {
+            SurfaceCard {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    state.categoryBars.forEach { bar ->
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(text = bar.name, style = MaterialTheme.typography.bodyLarge)
+                                Text(
+                                    text = stringResource(
+                                        R.string.amount_with_currency,
+                                        bar.amountLabel
+                                    ),
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                            }
                             Box(
                                 modifier = Modifier
-                                    .fillMaxWidth(bar.fraction.coerceIn(0.02f, 1f))
-                                    .fillMaxHeight()
-                                    .background(Color(bar.colorArgb))
-                            )
+                                    .fillMaxWidth()
+                                    .height(10.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth(bar.fraction.coerceIn(0.02f, 1f))
+                                        .fillMaxHeight()
+                                        .background(Color(bar.colorArgb))
+                                )
+                            }
                         }
                     }
                 }

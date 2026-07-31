@@ -13,16 +13,34 @@ private val LightColors = lightColorScheme(
     primaryContainer = GreenContainer,
     onPrimaryContainer = GreenOnContainer,
     secondary = GreenPrimary,
-    onSecondary = GreenOnPrimary
+    onSecondary = GreenOnPrimary,
+    background = LightBackground,
+    onBackground = LightOnSurface,
+    surface = LightSurface,
+    onSurface = LightOnSurface,
+    surfaceVariant = LightSurfaceVariant,
+    onSurfaceVariant = LightOnSurfaceVariant,
+    outline = LightOutline,
+    error = ExpenseRed,
+    onError = Color.White
 )
 
 private val DarkColors = darkColorScheme(
-    primary = Color(0xFF6FCB9F),
+    primary = IncomeGreenDark,
     onPrimary = Color(0xFF003825),
     primaryContainer = Color(0xFF0F5C42),
     onPrimaryContainer = Color(0xFFD1F0E3),
-    secondary = Color(0xFF6FCB9F),
-    onSecondary = Color(0xFF003825)
+    secondary = IncomeGreenDark,
+    onSecondary = Color(0xFF003825),
+    background = DarkBackground,
+    onBackground = DarkOnSurface,
+    surface = DarkSurface,
+    onSurface = DarkOnSurface,
+    surfaceVariant = DarkSurfaceVariant,
+    onSurfaceVariant = DarkOnSurfaceVariant,
+    outline = DarkOutline,
+    error = ExpenseRedDark,
+    onError = Color(0xFF3B0000)
 )
 
 @Composable
@@ -36,3 +54,11 @@ fun DalletTheme(
         content = content
     )
 }
+
+@Composable
+fun incomeAmountColor(): Color =
+    if (isSystemInDarkTheme()) IncomeGreenDark else IncomeGreen
+
+@Composable
+fun expenseAmountColor(): Color =
+    MaterialTheme.colorScheme.error
