@@ -1,17 +1,13 @@
 package com.dallet.app.ui.add
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenu
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
@@ -31,6 +27,8 @@ import com.dallet.app.R
 import com.dallet.app.ui.AddExpenseUiState
 import com.dallet.app.ui.AddOperationKind
 import com.dallet.app.ui.SelectableOption
+import com.dallet.app.ui.common.FormDateField
+import com.dallet.app.ui.common.FormScrollColumn
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,13 +44,7 @@ fun AddExpenseScreen(
     onCommentChange: (String) -> Unit,
     onSubmit: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
+    FormScrollColumn {
         Text(
             text = stringResource(R.string.add_operation_title),
             style = MaterialTheme.typography.titleLarge
@@ -115,13 +107,9 @@ fun AddExpenseScreen(
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
         )
-        OutlinedTextField(
-            value = state.dateInput,
-            onValueChange = onDateChange,
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text(stringResource(R.string.add_date_label)) },
-            supportingText = { Text(stringResource(R.string.add_date_hint)) },
-            singleLine = true
+        FormDateField(
+            dateInput = state.dateInput,
+            onDateSelected = onDateChange
         )
         OutlinedTextField(
             value = state.commentInput,

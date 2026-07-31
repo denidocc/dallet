@@ -1,6 +1,10 @@
 package com.dallet.app.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BarChart
@@ -8,6 +12,7 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -15,9 +20,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -289,17 +298,47 @@ private fun DalletBottomBar(
 ) {
     NavigationBar {
         DalletDestination.bottomBarItems.forEach { destination ->
+            val selected = currentRoute == destination.route ||
+                (destination == DalletDestination.History && currentRoute.startsWith("edit/"))
+            val isAdd = destination == DalletDestination.Add
             NavigationBarItem(
-                selected = currentRoute == destination.route ||
-                    (destination == DalletDestination.History && currentRoute.startsWith("edit/")),
+                selected = selected && !isAdd,
                 onClick = { onNavigate(destination) },
                 icon = {
-                    Icon(
-                        imageVector = destination.icon,
-                        contentDescription = stringResource(destination.labelRes)
-                    )
+                    if (isAdd) {
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Add,
+                                contentDescription = stringResource(destination.labelRes),
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(30.dp)
+                            )
+                        }
+                    } else {
+                        Icon(
+                            imageVector = destination.icon,
+                            contentDescription = stringResource(destination.labelRes)
+                        )
+                    }
                 },
-                label = { Text(stringResource(destination.labelRes)) }
+                label = if (isAdd) {
+                    null
+                } else {
+                    {
+                        Text(
+                            text = stringResource(destination.labelRes),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                },
+                alwaysShowLabel = true
             )
         }
     }
