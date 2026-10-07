@@ -11,6 +11,10 @@ class RoomOperationRepository(
     override suspend fun getAll(): List<Operation> =
         dao.getAll().map { it.toDomain() }
 
+    override suspend fun replaceAll(operations: List<Operation>) {
+        dao.replaceAll(operations.map { it.toEntity() })
+    }
+
     override suspend fun insert(operation: Operation): Long =
         dao.insert(operation.toEntity())
 

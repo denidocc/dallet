@@ -69,4 +69,21 @@
     <string name="analytics_by_category">Расходы по категориям</string>
     <string name="analytics_expense_flow">Расходы по времени</string>
     <string name="analytics_chart_empty">Нет расходов за период</string>
+    <string name="more_data_title">Данные</string>
+    <string name="more_export">Экспорт</string>
+    <string name="more_export_hint">Сохранить резервную копию в файл</string>
+    <string name="more_import">Импорт</string>
+    <string name="more_import_hint">Восстановить данные из файла</string>
+    <string name="more_reset">Сбросить всё</string>
+    <string name="more_reset_hint">Удалить все счета, категории и операции</string>
+    <string name="import_dialog_title">Заменить данные?</string>
+    <string name="import_dialog_text">Все текущие счета, категории и операции будут заменены данными из файла.</string>
+    <string name="import_choose_file">Выбрать файл</string>
+    <string name="dialog_export_first">Сначала экспортировать</string>
+    <string name="dialog_cancel">Отмена</string>
+    <string name="reset_dialog_title">Сбросить всё?</string>
+    <string name="reset_dialog_text">Будут удалены все счета, категории и операции. Для подтверждения введите слово СБРОС.</string>
+    <string name="reset_word">СБРОС</string>
+    <string name="reset_confirm">Сбросить</string>
+    <string name="onboarding_restore">Восстановить из файла</string>
 </resources>

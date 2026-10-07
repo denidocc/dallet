@@ -6,6 +6,12 @@ class InMemoryOperationRepository : OperationRepository {
 
     override suspend fun getAll(): List<Operation> = operations.toList()
 
+    override suspend fun replaceAll(operations: List<Operation>) {
+        this.operations.clear()
+        this.operations.addAll(operations)
+        nextId = (operations.maxOfOrNull { it.id } ?: 0L) + 1L
+    }
+
     override suspend fun insert(operation: Operation): Long {
         val id = if (operation.id == 0L) nextId++ else operation.id
         operations.add(operation.copy(id = id))

@@ -10,9 +10,30 @@ import java.util.Locale
 class Ledger(
     private val accountRepository: AccountRepository,
     private val categoryRepository: CategoryRepository,
-    private val operationRepository: OperationRepository
+    private val operationRepository: OperationRepository,
+    private val dataStore: LedgerDataStore =
+        RepositoryLedgerDataStore(accountRepository, categoryRepository, operationRepository)
 ) {
     suspend fun hasCompletedOnboarding(): Boolean = accountRepository.getAll().isNotEmpty()
+
+    suspend fun exportBackup(): String =
+        BackupCodec.encode(
+            BackupData(
+                accounts = accountRepository.getAll(),
+                categories = categoryRepository.getAll(),
+                operations = operationRepository.getAll()
+            )
+        )
+
+    suspend fun importBackup(json: String) {
+        val data = BackupCodec.decode(json)
+        BackupCodec.validate(data)
+        dataStore.replaceAll(data.accounts, data.categories, data.operations)
+    }
+
+    suspend fun resetAll() {
+        dataStore.replaceAll(emptyList(), emptyList(), emptyList())
+    }
 
     suspend fun completeOnboarding(
         cashOpeningMinor: Long,

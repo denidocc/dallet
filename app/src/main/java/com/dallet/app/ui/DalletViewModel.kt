@@ -9,6 +9,7 @@ import com.dallet.app.ledger.AccountBalance
 import com.dallet.app.ui.categories.CategoryStyleOptions
 import com.dallet.app.ledger.AnalyticsPeriod
 import com.dallet.app.ledger.CategoryKind
+import com.dallet.app.ledger.InvalidBackupException
 import com.dallet.app.ledger.Ledger
 import com.dallet.app.ledger.Money
 import com.dallet.app.ledger.Operation
@@ -74,6 +75,12 @@ data class OnboardingUiState(
     val cardInput: String = "",
     val submitting: Boolean = false,
     val errorMessage: String? = null
+)
+
+data class DataUiState(
+    val busy: Boolean = false,
+    val message: String? = null,
+    val isError: Boolean = false
 )
 
 data class SelectableOption(
@@ -219,8 +226,68 @@ class DalletViewModel(
     private val _analytics = MutableStateFlow(AnalyticsUiState())
     val analytics: StateFlow<AnalyticsUiState> = _analytics.asStateFlow()
 
+    private val _data = MutableStateFlow(DataUiState())
+    val data: StateFlow<DataUiState> = _data.asStateFlow()
+
     init {
         refreshHome()
+    }
+
+    fun consumeDataMessage() {
+        _data.update { it.copy(message = null, isError = false) }
+    }
+
+    fun exportBackup(write: suspend (String) -> Unit) {
+        viewModelScope.launch {
+            _data.value = DataUiState(busy = true)
+            try {
+                write(ledger.exportBackup())
+                _data.value = DataUiState(message = "Резервная копия сохранена")
+            } catch (error: Exception) {
+                _data.value = DataUiState(message = "Не удалось сохранить файл", isError = true)
+            }
+        }
+    }
+
+    fun importBackup(read: suspend () -> String) {
+        viewModelScope.launch {
+            _data.value = DataUiState(busy = true)
+            try {
+                ledger.importBackup(read())
+                resetTransientStates()
+                _data.value = DataUiState(message = "Данные восстановлены")
+                refreshHome()
+            } catch (error: InvalidBackupException) {
+                _data.value = DataUiState(
+                    message = error.message ?: "Файл не похож на резервную копию Dallet",
+                    isError = true
+                )
+            } catch (error: Exception) {
+                _data.value = DataUiState(message = "Не удалось прочитать файл", isError = true)
+            }
+        }
+    }
+
+    fun resetAll() {
+        viewModelScope.launch {
+            _data.value = DataUiState(busy = true)
+            try {
+                ledger.resetAll()
+                resetTransientStates()
+                _data.value = DataUiState()
+                refreshHome()
+            } catch (error: Exception) {
+                _data.value = DataUiState(message = "Не удалось сбросить данные", isError = true)
+            }
+        }
+    }
+
+    private fun resetTransientStates() {
+        _onboarding.value = OnboardingUiState()
+        _addExpense.value = AddExpenseUiState()
+        _edit.value = EditOperationUiState()
+        _accountEditor.value = AccountEditorUiState()
+        _categoryEditor.value = CategoryEditorUiState()
     }
 
     fun refreshHome() {

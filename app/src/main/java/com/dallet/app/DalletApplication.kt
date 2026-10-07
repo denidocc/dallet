@@ -19,10 +19,19 @@ class DalletApplication : Application() {
             DalletDatabase::class.java,
             "dallet.db"
         ).fallbackToDestructiveMigration().build()
+        val accountRepository = RoomAccountRepository(database.accountDao())
+        val categoryRepository = RoomCategoryRepository(database.categoryDao())
+        val operationRepository = RoomOperationRepository(database.operationDao())
         ledger = Ledger(
-            accountRepository = RoomAccountRepository(database.accountDao()),
-            categoryRepository = RoomCategoryRepository(database.categoryDao()),
-            operationRepository = RoomOperationRepository(database.operationDao())
+            accountRepository = accountRepository,
+            categoryRepository = categoryRepository,
+            operationRepository = operationRepository,
+            dataStore = RoomLedgerDataStore(
+                database = database,
+                accountRepository = accountRepository,
+                categoryRepository = categoryRepository,
+                operationRepository = operationRepository
+            )
         )
     }
 }

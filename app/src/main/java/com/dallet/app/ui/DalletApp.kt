@@ -1,5 +1,7 @@
 package com.dallet.app.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
@@ -24,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -43,12 +46,14 @@ import com.dallet.app.ui.add.AddExpenseScreen
 import com.dallet.app.ui.analytics.AnalyticsScreen
 import com.dallet.app.ui.categories.CategoriesScreen
 import com.dallet.app.ui.categories.CategoryEditorScreen
+import com.dallet.app.ui.common.BackupFiles
 import com.dallet.app.ui.edit.EditOperationScreen
 import com.dallet.app.ui.history.HistoryScreen
 import com.dallet.app.ui.home.HomeScreen
 import com.dallet.app.ui.more.MoreScreen
 import com.dallet.app.ui.navigation.DalletDestination
 import com.dallet.app.ui.onboarding.OnboardingScreen
+import java.time.LocalDate
 
 private const val EDIT_ROUTE = "edit/{operationId}"
 private const val ACCOUNTS_ROUTE = "accounts"
@@ -74,13 +79,40 @@ fun DalletApp(
     val categoriesState by viewModel.categories.collectAsStateWithLifecycle()
     val categoryEditorState by viewModel.categoryEditor.collectAsStateWithLifecycle()
     val analyticsState by viewModel.analytics.collectAsStateWithLifecycle()
+    val dataState by viewModel.data.collectAsStateWithLifecycle()
+
+    val context = LocalContext.current
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            viewModel.exportBackup { text -> BackupFiles.write(context, uri, text) }
+        }
+    }
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            viewModel.importBackup { BackupFiles.read(context, uri) }
+        }
+    }
+    val launchExport = {
+        viewModel.consumeDataMessage()
+        exportLauncher.launch("Dallet-backup-${LocalDate.now()}.json")
+    }
+    val launchImport = {
+        viewModel.consumeDataMessage()
+        importLauncher.launch(arrayOf("*/*"))
+    }
 
     if (homeState.needsOnboarding) {
         OnboardingScreen(
             state = onboardingState,
+            dataState = dataState,
             onCashChange = viewModel::onCashInputChange,
             onCardChange = viewModel::onCardInputChange,
-            onSubmit = viewModel::submitOnboarding
+            onSubmit = viewModel::submitOnboarding,
+            onRestoreClick = launchImport
         )
         return
     }
@@ -188,8 +220,13 @@ fun DalletApp(
             }
             composable(DalletDestination.More.route) {
                 MoreScreen(
+                    dataState = dataState,
                     onAccountsClick = { navController.navigate(ACCOUNTS_ROUTE) },
-                    onCategoriesClick = { navController.navigate(CATEGORIES_ROUTE) }
+                    onCategoriesClick = { navController.navigate(CATEGORIES_ROUTE) },
+                    onExportClick = launchExport,
+                    onImportClick = launchImport,
+                    onResetConfirmed = viewModel::resetAll,
+                    onDataMessageShown = viewModel::consumeDataMessage
                 )
             }
             composable(ACCOUNTS_ROUTE) {
