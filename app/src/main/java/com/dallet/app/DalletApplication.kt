@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.dallet.app.data.DalletDatabase
 import com.dallet.app.data.RoomAccountRepository
 import com.dallet.app.data.RoomCategoryRepository
+import com.dallet.app.data.RoomLedgerDataStore
 import com.dallet.app.data.RoomOperationRepository
 import com.dallet.app.ledger.Ledger
 
