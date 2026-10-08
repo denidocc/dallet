@@ -355,13 +355,29 @@ class Ledger(
         val inPeriod = operationRepository.getAll().filter { operation ->
             !operation.date.isBefore(fromInclusive) && !operation.date.isAfter(toInclusive)
         }
-        val incomeTotalMinor = inPeriod
-            .filter { it.kind == OperationKind.INCOME }
-            .sumOf { it.amountMinor }
+        val incomes = inPeriod.filter { it.kind == OperationKind.INCOME }
+        val incomeTotalMinor = incomes.sumOf { it.amountMinor }
         val expenses = inPeriod.filter { it.kind == OperationKind.EXPENSE }
         val expenseTotalMinor = expenses.sumOf { it.amountMinor }
         val categoriesById = categoryRepository.getAll().associateBy { it.id }
-        val expensesByCategory = expenses
+        return AnalyticsSummary(
+            period = period,
+            fromInclusive = fromInclusive,
+            toInclusive = toInclusive,
+            incomeTotalMinor = incomeTotalMinor,
+            expenseTotalMinor = expenseTotalMinor,
+            expensesByCategory = categoryTotals(expenses, categoriesById),
+            expenseFlow = expenseFlowSeries(period, fromInclusive, toInclusive, expenses),
+            incomesByCategory = categoryTotals(incomes, categoriesById),
+            incomeFlow = expenseFlowSeries(period, fromInclusive, toInclusive, incomes)
+        )
+    }
+
+    private fun categoryTotals(
+        operations: List<Operation>,
+        categoriesById: Map<Long, Category>
+    ): List<CategoryExpenseTotal> =
+        operations
             .groupBy { it.categoryId }
             .mapNotNull { (categoryId, ops) ->
                 val id = categoryId ?: return@mapNotNull null
@@ -374,17 +390,6 @@ class Ledger(
                 )
             }
             .sortedByDescending { it.amountMinor }
-        val expenseFlow = expenseFlowSeries(period, fromInclusive, toInclusive, expenses)
-        return AnalyticsSummary(
-            period = period,
-            fromInclusive = fromInclusive,
-            toInclusive = toInclusive,
-            incomeTotalMinor = incomeTotalMinor,
-            expenseTotalMinor = expenseTotalMinor,
-            expensesByCategory = expensesByCategory,
-            expenseFlow = expenseFlow
-        )
-    }
 
     private fun expenseFlowSeries(
         period: AnalyticsPeriod,

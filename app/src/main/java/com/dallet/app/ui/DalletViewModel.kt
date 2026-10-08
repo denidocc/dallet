@@ -9,7 +9,9 @@ import com.dallet.app.ledger.AccountBalance
 import com.dallet.app.ui.categories.CategoryStyleOptions
 import com.dallet.app.ledger.AnalyticsPeriod
 import com.dallet.app.ledger.Category
+import com.dallet.app.ledger.CategoryExpenseTotal
 import com.dallet.app.ledger.CategoryKind
+import com.dallet.app.ledger.ExpenseFlowPoint
 import com.dallet.app.ledger.InvalidBackupException
 import com.dallet.app.ledger.Ledger
 import com.dallet.app.ledger.Money
@@ -186,13 +188,21 @@ data class CategoryEditorUiState(
     val done: Boolean = false
 )
 
+enum class AnalyticsMode {
+    EXPENSE,
+    INCOME
+}
+
 data class AnalyticsUiState(
     val period: AnalyticsPeriod = AnalyticsPeriod.MONTH,
+    val mode: AnalyticsMode = AnalyticsMode.EXPENSE,
     val incomeTotalLabel: String = "0.00",
     val expenseTotalLabel: String = "0.00",
     val rangeLabel: String = "",
     val categorySlices: List<AnalyticsCategorySliceUi> = emptyList(),
-    val flowPoints: List<AnalyticsFlowPointUi> = emptyList()
+    val flowPoints: List<AnalyticsFlowPointUi> = emptyList(),
+    val incomeSlices: List<AnalyticsCategorySliceUi> = emptyList(),
+    val incomeFlowPoints: List<AnalyticsFlowPointUi> = emptyList()
 )
 
 data class AnalyticsCategorySliceUi(
@@ -693,40 +703,45 @@ class DalletViewModel(
         }
     }
 
+    fun onAnalyticsModeSelected(mode: AnalyticsMode) {
+        _analytics.update { it.copy(mode = mode) }
+    }
+
     private suspend fun refreshAnalyticsInternal(period: AnalyticsPeriod) {
         val summary = ledger.analytics(period, LocalDate.now())
-        val expenseTotal = summary.expenseTotalMinor
-        val maxFlow = summary.expenseFlow.maxOfOrNull { it.amountMinor } ?: 0L
         _analytics.value = AnalyticsUiState(
             period = period,
+            mode = _analytics.value.mode,
             incomeTotalLabel = Money.formatManat(summary.incomeTotalMinor),
             expenseTotalLabel = Money.formatManat(summary.expenseTotalMinor),
             rangeLabel = "${summary.fromInclusive} — ${summary.toInclusive}",
-            categorySlices = summary.expensesByCategory.map { row ->
-                AnalyticsCategorySliceUi(
-                    categoryId = row.categoryId,
-                    name = row.categoryName,
-                    colorArgb = row.colorArgb,
-                    amountLabel = Money.formatManat(row.amountMinor),
-                    fraction = if (expenseTotal > 0L) {
-                        row.amountMinor.toFloat() / expenseTotal.toFloat()
-                    } else {
-                        0f
-                    }
-                )
-            },
-            flowPoints = summary.expenseFlow.map { point ->
-                AnalyticsFlowPointUi(
-                    label = point.label,
-                    amountLabel = Money.formatManat(point.amountMinor),
-                    fraction = if (maxFlow > 0L) {
-                        point.amountMinor.toFloat() / maxFlow.toFloat()
-                    } else {
-                        0f
-                    }
-                )
-            }
+            categorySlices = summary.expensesByCategory.toSlices(summary.expenseTotalMinor),
+            flowPoints = summary.expenseFlow.toFlowPoints(),
+            incomeSlices = summary.incomesByCategory.toSlices(summary.incomeTotalMinor),
+            incomeFlowPoints = summary.incomeFlow.toFlowPoints()
         )
+    }
+
+    private fun List<CategoryExpenseTotal>.toSlices(total: Long): List<AnalyticsCategorySliceUi> =
+        map { row ->
+            AnalyticsCategorySliceUi(
+                categoryId = row.categoryId,
+                name = row.categoryName,
+                colorArgb = row.colorArgb,
+                amountLabel = Money.formatManat(row.amountMinor),
+                fraction = if (total > 0L) row.amountMinor.toFloat() / total.toFloat() else 0f
+            )
+        }
+
+    private fun List<ExpenseFlowPoint>.toFlowPoints(): List<AnalyticsFlowPointUi> {
+        val maxFlow = maxOfOrNull { it.amountMinor } ?: 0L
+        return map { point ->
+            AnalyticsFlowPointUi(
+                label = point.label,
+                amountLabel = Money.formatManat(point.amountMinor),
+                fraction = if (maxFlow > 0L) point.amountMinor.toFloat() / maxFlow.toFloat() else 0f
+            )
+        }
     }
 
     fun refreshHistory() {

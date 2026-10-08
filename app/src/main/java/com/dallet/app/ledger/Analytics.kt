@@ -28,5 +28,7 @@ data class AnalyticsSummary(
     val incomeTotalMinor: Long,
     val expenseTotalMinor: Long,
     val expensesByCategory: List<CategoryExpenseTotal>,
-    val expenseFlow: List<ExpenseFlowPoint>
+    val expenseFlow: List<ExpenseFlowPoint>,
+    val incomesByCategory: List<CategoryExpenseTotal> = emptyList(),
+    val incomeFlow: List<ExpenseFlowPoint> = emptyList()
 )

@@ -71,6 +71,9 @@
     <string name="analytics_by_category">Расходы по категориям</string>
     <string name="analytics_expense_flow">Расходы по времени</string>
     <string name="analytics_chart_empty">Нет расходов за период</string>
+    <string name="analytics_chart_empty_income">Нет доходов за период</string>
+    <string name="analytics_income_by_category">Доходы по категориям</string>
+    <string name="analytics_income_flow">Доходы по времени</string>
     <string name="more_data_title">Данные</string>
     <string name="more_export">Экспорт</string>
     <string name="more_export_hint">Сохранить резервную копию в файл</string>

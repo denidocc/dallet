@@ -1,6 +1,7 @@
 package com.dallet.app.ui.common
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -19,12 +20,20 @@ private val CardShape = RoundedCornerShape(12.dp)
 fun SurfaceCard(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
+    selected: Boolean = false,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val base = modifier
         .fillMaxWidth()
         .clip(CardShape)
         .background(MaterialTheme.colorScheme.surface)
+        .then(
+            if (selected) {
+                Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CardShape)
+            } else {
+                Modifier
+            }
+        )
         .then(
             if (onClick != null) {
                 Modifier.clickable(onClick = onClick)

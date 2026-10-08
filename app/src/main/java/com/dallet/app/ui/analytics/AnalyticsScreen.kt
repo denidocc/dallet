@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -38,6 +37,7 @@ import com.dallet.app.R
 import com.dallet.app.ledger.AnalyticsPeriod
 import com.dallet.app.ui.AnalyticsCategorySliceUi
 import com.dallet.app.ui.AnalyticsFlowPointUi
+import com.dallet.app.ui.AnalyticsMode
 import com.dallet.app.ui.AnalyticsUiState
 import com.dallet.app.ui.common.SurfaceCard
 import com.dallet.app.ui.theme.expenseAmountColor
@@ -47,8 +47,17 @@ import java.util.Locale
 @Composable
 fun AnalyticsScreen(
     state: AnalyticsUiState,
-    onPeriodSelected: (AnalyticsPeriod) -> Unit
+    onPeriodSelected: (AnalyticsPeriod) -> Unit,
+    onModeSelected: (AnalyticsMode) -> Unit
 ) {
+    val isIncome = state.mode == AnalyticsMode.INCOME
+    val slices = if (isIncome) state.incomeSlices else state.categorySlices
+    val flow = if (isIncome) state.incomeFlowPoints else state.flowPoints
+    val totalLabel = if (isIncome) state.incomeTotalLabel else state.expenseTotalLabel
+    val emptyText = stringResource(
+        if (isIncome) R.string.analytics_chart_empty_income else R.string.analytics_chart_empty
+    )
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -88,58 +97,52 @@ fun AnalyticsScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            SurfaceCard(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.analytics_income_label),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = stringResource(R.string.amount_with_currency, state.incomeTotalLabel),
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = incomeAmountColor(),
-                    modifier = Modifier.padding(top = 6.dp)
-                )
-            }
-            SurfaceCard(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.analytics_expense_label),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = stringResource(R.string.amount_with_currency, state.expenseTotalLabel),
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = expenseAmountColor(),
-                    modifier = Modifier.padding(top = 6.dp)
-                )
-            }
+            SummaryCard(
+                label = stringResource(R.string.analytics_income_label),
+                value = stringResource(R.string.amount_with_currency, state.incomeTotalLabel),
+                valueColor = incomeAmountColor(),
+                selected = isIncome,
+                onClick = { onModeSelected(AnalyticsMode.INCOME) },
+                modifier = Modifier.weight(1f)
+            )
+            SummaryCard(
+                label = stringResource(R.string.analytics_expense_label),
+                value = stringResource(R.string.amount_with_currency, state.expenseTotalLabel),
+                valueColor = expenseAmountColor(),
+                selected = !isIncome,
+                onClick = { onModeSelected(AnalyticsMode.EXPENSE) },
+                modifier = Modifier.weight(1f)
+            )
         }
 
         Text(
-            text = stringResource(R.string.analytics_by_category),
+            text = stringResource(
+                if (isIncome) R.string.analytics_income_by_category
+                else R.string.analytics_by_category
+            ),
             style = MaterialTheme.typography.titleMedium
         )
-        if (state.categorySlices.isEmpty()) {
+        if (slices.isEmpty()) {
             SurfaceCard {
                 Text(
-                    text = stringResource(R.string.analytics_chart_empty),
+                    text = emptyText,
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         } else {
             SurfaceCard {
-                ExpenseDonut(
-                    slices = state.categorySlices,
-                    totalLabel = stringResource(
-                        R.string.amount_with_currency,
-                        state.expenseTotalLabel
-                    )
+                CategoryDonut(
+                    slices = slices,
+                    centerLabel = stringResource(
+                        if (isIncome) R.string.analytics_income_label
+                        else R.string.analytics_expense_label
+                    ),
+                    totalLabel = stringResource(R.string.amount_with_currency, totalLabel)
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    state.categorySlices.forEach { slice ->
+                    slices.forEach { slice ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
@@ -170,28 +173,56 @@ fun AnalyticsScreen(
         }
 
         Text(
-            text = stringResource(R.string.analytics_expense_flow),
+            text = stringResource(
+                if (isIncome) R.string.analytics_income_flow
+                else R.string.analytics_expense_flow
+            ),
             style = MaterialTheme.typography.titleMedium
         )
-        if (state.flowPoints.all { it.fraction <= 0f }) {
+        if (flow.all { it.fraction <= 0f }) {
             SurfaceCard {
                 Text(
-                    text = stringResource(R.string.analytics_chart_empty),
+                    text = emptyText,
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         } else {
             SurfaceCard {
-                ExpenseFlowChart(points = state.flowPoints)
+                FlowChart(points = flow)
             }
         }
     }
 }
 
 @Composable
-private fun ExpenseDonut(
+private fun SummaryCard(
+    label: String,
+    value: String,
+    valueColor: Color,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    SurfaceCard(modifier = modifier, onClick = onClick, selected = selected) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.headlineMedium,
+            color = valueColor,
+            modifier = Modifier.padding(top = 6.dp)
+        )
+    }
+}
+
+@Composable
+private fun CategoryDonut(
     slices: List<AnalyticsCategorySliceUi>,
+    centerLabel: String,
     totalLabel: String
 ) {
     val trackColor = MaterialTheme.colorScheme.surfaceVariant
@@ -241,7 +272,7 @@ private fun ExpenseDonut(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = stringResource(R.string.analytics_expense_label),
+                text = centerLabel,
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -256,7 +287,7 @@ private fun ExpenseDonut(
 }
 
 @Composable
-private fun ExpenseFlowChart(points: List<AnalyticsFlowPointUi>) {
+private fun FlowChart(points: List<AnalyticsFlowPointUi>) {
     val barColor = MaterialTheme.colorScheme.primary
     val scroll = rememberScrollState()
     val barWidth = if (points.size <= 7) 44.dp else 38.dp

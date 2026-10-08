@@ -235,7 +235,8 @@ fun DalletApp(
                 LaunchedEffect(Unit) { viewModel.refreshAnalytics() }
                 AnalyticsScreen(
                     state = analyticsState,
-                    onPeriodSelected = viewModel::onAnalyticsPeriodSelected
+                    onPeriodSelected = viewModel::onAnalyticsPeriodSelected,
+                    onModeSelected = viewModel::onAnalyticsModeSelected
                 )
             }
             composable(DalletDestination.More.route) {
