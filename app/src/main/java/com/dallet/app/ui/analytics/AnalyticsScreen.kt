@@ -129,7 +129,13 @@ fun AnalyticsScreen(
             }
         } else {
             SurfaceCard {
-                ExpenseDonut(slices = state.categorySlices)
+                ExpenseDonut(
+                    slices = state.categorySlices,
+                    totalLabel = stringResource(
+                        R.string.amount_with_currency,
+                        state.expenseTotalLabel
+                    )
+                )
                 Spacer(modifier = Modifier.height(16.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     state.categorySlices.forEach { slice ->
@@ -183,7 +189,10 @@ fun AnalyticsScreen(
 }
 
 @Composable
-private fun ExpenseDonut(slices: List<AnalyticsCategorySliceUi>) {
+private fun ExpenseDonut(
+    slices: List<AnalyticsCategorySliceUi>,
+    totalLabel: String
+) {
     val trackColor = MaterialTheme.colorScheme.surfaceVariant
     Box(
         modifier = Modifier
@@ -225,6 +234,22 @@ private fun ExpenseDonut(slices: List<AnalyticsCategorySliceUi>) {
                 )
                 start += sweep
             }
+        }
+        Column(
+            modifier = Modifier.width(110.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = stringResource(R.string.analytics_expense_label),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = totalLabel,
+                style = MaterialTheme.typography.titleMedium,
+                textAlign = TextAlign.Center,
+                maxLines = 2
+            )
         }
     }
 }
