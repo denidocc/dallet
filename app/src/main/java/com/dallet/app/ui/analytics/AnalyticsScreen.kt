@@ -42,6 +42,7 @@ import com.dallet.app.ui.AnalyticsUiState
 import com.dallet.app.ui.common.SurfaceCard
 import com.dallet.app.ui.theme.expenseAmountColor
 import com.dallet.app.ui.theme.incomeAmountColor
+import java.util.Locale
 
 @Composable
 fun AnalyticsScreen(
@@ -258,16 +259,12 @@ private fun ExpenseDonut(
 private fun ExpenseFlowChart(points: List<AnalyticsFlowPointUi>) {
     val barColor = MaterialTheme.colorScheme.primary
     val scroll = rememberScrollState()
-    val barWidth = when {
-        points.size <= 7 -> 36.dp
-        points.size <= 12 -> 28.dp
-        else -> 18.dp
-    }
+    val barWidth = if (points.size <= 7) 44.dp else 38.dp
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .horizontalScroll(scroll)
-            .height(160.dp),
+            .height(172.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.Bottom
     ) {
@@ -277,33 +274,48 @@ private fun ExpenseFlowChart(points: List<AnalyticsFlowPointUi>) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Bottom
             ) {
-                val heightFraction =
-                    if (point.fraction > 0f) point.fraction.coerceIn(0.02f, 1f) else 0.02f
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(120.dp),
-                    contentAlignment = Alignment.BottomCenter
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(0.7f)
-                            .fillMaxHeight(heightFraction)
-                            .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
-                            .background(
-                                if (point.fraction > 0f) barColor
-                                else MaterialTheme.colorScheme.surfaceVariant
-                            )
+                val hasAmount = point.fraction > 0f
+                val heightFraction = if (hasAmount) point.fraction.coerceIn(0.02f, 1f) else 0.02f
+                if (hasAmount) {
+                    Text(
+                        text = compactAmount(point.amountLabel),
+                        style = MaterialTheme.typography.labelMedium,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        modifier = Modifier.padding(bottom = 4.dp)
                     )
                 }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.7f)
+                        .height(100.dp * heightFraction)
+                        .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
+                        .background(
+                            if (hasAmount) barColor
+                            else MaterialTheme.colorScheme.surfaceVariant
+                        )
+                )
                 Text(
                     text = point.label,
                     style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                     maxLines = 1,
                     modifier = Modifier.padding(top = 6.dp)
                 )
             }
         }
+    }
+}
+
+private fun compactAmount(label: String): String {
+    val value = label.toDoubleOrNull() ?: return label
+    return when {
+        value >= 1000.0 -> {
+            val thousands = String.format(Locale.US, "%.1f", value / 1000.0).removeSuffix(".0")
+            thousands + "k"
+        }
+        value % 1.0 == 0.0 -> value.toLong().toString()
+        else -> String.format(Locale.US, "%.1f", value).removeSuffix(".0")
     }
 }
