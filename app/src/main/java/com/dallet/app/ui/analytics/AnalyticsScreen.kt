@@ -2,6 +2,7 @@ package com.dallet.app.ui.analytics
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,11 +15,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,6 +36,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -43,12 +50,14 @@ import com.dallet.app.ui.common.SurfaceCard
 import com.dallet.app.ui.theme.expenseAmountColor
 import com.dallet.app.ui.theme.incomeAmountColor
 import java.util.Locale
+import kotlin.math.abs
 
 @Composable
 fun AnalyticsScreen(
     state: AnalyticsUiState,
     onPeriodSelected: (AnalyticsPeriod) -> Unit,
-    onModeSelected: (AnalyticsMode) -> Unit
+    onModeSelected: (AnalyticsMode) -> Unit,
+    onStep: (Int) -> Unit
 ) {
     val isIncome = state.mode == AnalyticsMode.INCOME
     val slices = if (isIncome) state.incomeSlices else state.categorySlices
@@ -86,9 +95,15 @@ fun AnalyticsScreen(
                 label = { Text(stringResource(R.string.analytics_period_year)) }
             )
         }
-        if (state.rangeLabel.isNotBlank()) {
+        PeriodNavigator(
+            label = state.periodLabel,
+            canGoForward = state.offset < 0,
+            onBack = { onStep(-1) },
+            onForward = { onStep(1) }
+        )
+        if (!state.isComplete) {
             Text(
-                text = state.rangeLabel,
+                text = stringResource(R.string.analytics_incomplete),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -101,6 +116,9 @@ fun AnalyticsScreen(
                 label = stringResource(R.string.analytics_income_label),
                 value = stringResource(R.string.amount_with_currency, state.incomeTotalLabel),
                 valueColor = incomeAmountColor(),
+                changePercent = state.incomeChangePercent,
+                higherIsGood = true,
+                period = state.period,
                 selected = isIncome,
                 onClick = { onModeSelected(AnalyticsMode.INCOME) },
                 modifier = Modifier.weight(1f)
@@ -109,6 +127,9 @@ fun AnalyticsScreen(
                 label = stringResource(R.string.analytics_expense_label),
                 value = stringResource(R.string.amount_with_currency, state.expenseTotalLabel),
                 valueColor = expenseAmountColor(),
+                changePercent = state.expenseChangePercent,
+                higherIsGood = false,
+                period = state.period,
                 selected = !isIncome,
                 onClick = { onModeSelected(AnalyticsMode.EXPENSE) },
                 modifier = Modifier.weight(1f)
@@ -179,7 +200,7 @@ fun AnalyticsScreen(
             ),
             style = MaterialTheme.typography.titleMedium
         )
-        if (flow.all { it.fraction <= 0f }) {
+        if (flow.all { it.fraction <= 0f && it.previousFraction <= 0f }) {
             SurfaceCard {
                 Text(
                     text = emptyText,
@@ -189,9 +210,67 @@ fun AnalyticsScreen(
             }
         } else {
             SurfaceCard {
+                FlowLegend()
+                Spacer(modifier = Modifier.height(12.dp))
                 FlowChart(points = flow)
             }
         }
+    }
+}
+
+@Composable
+private fun PeriodNavigator(
+    label: String,
+    canGoForward: Boolean,
+    onBack: () -> Unit,
+    onForward: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        NavButton(
+            icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+            description = stringResource(R.string.analytics_prev),
+            enabled = true,
+            onClick = onBack
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleMedium,
+            textAlign = TextAlign.Center
+        )
+        NavButton(
+            icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            description = stringResource(R.string.analytics_next),
+            enabled = canGoForward,
+            onClick = onForward
+        )
+    }
+}
+
+@Composable
+private fun NavButton(
+    icon: ImageVector,
+    description: String,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surface)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = description,
+            tint = if (enabled) MaterialTheme.colorScheme.onSurface
+            else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
+        )
     }
 }
 
@@ -200,6 +279,9 @@ private fun SummaryCard(
     label: String,
     value: String,
     valueColor: Color,
+    changePercent: Int?,
+    higherIsGood: Boolean,
+    period: AnalyticsPeriod,
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -216,7 +298,54 @@ private fun SummaryCard(
             color = valueColor,
             modifier = Modifier.padding(top = 6.dp)
         )
+        ChangeLine(
+            percent = changePercent,
+            higherIsGood = higherIsGood,
+            period = period,
+            modifier = Modifier.padding(top = 4.dp)
+        )
     }
+}
+
+@Composable
+private fun ChangeLine(
+    percent: Int?,
+    higherIsGood: Boolean,
+    period: AnalyticsPeriod,
+    modifier: Modifier = Modifier
+) {
+    if (percent == null) {
+        Text(
+            text = stringResource(R.string.analytics_no_previous),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = modifier
+        )
+        return
+    }
+    val noun = stringResource(
+        when (period) {
+            AnalyticsPeriod.WEEK -> R.string.analytics_vs_week
+            AnalyticsPeriod.MONTH -> R.string.analytics_vs_month
+            AnalyticsPeriod.YEAR -> R.string.analytics_vs_year
+        }
+    )
+    val arrow = when {
+        percent > 0 -> "▲"
+        percent < 0 -> "▼"
+        else -> "▬"
+    }
+    val color = when {
+        percent == 0 -> MaterialTheme.colorScheme.onSurfaceVariant
+        (percent > 0) == higherIsGood -> incomeAmountColor()
+        else -> expenseAmountColor()
+    }
+    Text(
+        text = "$arrow ${abs(percent)}% $noun",
+        style = MaterialTheme.typography.labelMedium,
+        color = color,
+        modifier = modifier
+    )
 }
 
 @Composable
@@ -287,45 +416,100 @@ private fun CategoryDonut(
 }
 
 @Composable
+private fun previousBarColor(): Color =
+    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+
+@Composable
+private fun FlowLegend() {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        LegendItem(
+            color = MaterialTheme.colorScheme.primary,
+            label = stringResource(R.string.analytics_legend_current)
+        )
+        LegendItem(
+            color = previousBarColor(),
+            label = stringResource(R.string.analytics_legend_previous)
+        )
+    }
+}
+
+@Composable
+private fun LegendItem(color: Color, label: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(10.dp)
+                .clip(CircleShape)
+                .background(color)
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
 private fun FlowChart(points: List<AnalyticsFlowPointUi>) {
-    val barColor = MaterialTheme.colorScheme.primary
+    val currentColor = MaterialTheme.colorScheme.primary
+    val previousColor = previousBarColor()
     val scroll = rememberScrollState()
-    val barWidth = if (points.size <= 7) 44.dp else 38.dp
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .horizontalScroll(scroll)
-            .height(172.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+            .horizontalScroll(scroll),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.Bottom
     ) {
         points.forEach { point ->
             Column(
-                modifier = Modifier.width(barWidth),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Bottom
+                modifier = Modifier.width(BucketWidth),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                val hasAmount = point.fraction > 0f
-                val heightFraction = if (hasAmount) point.fraction.coerceIn(0.02f, 1f) else 0.02f
-                if (hasAmount) {
-                    Text(
-                        text = compactAmount(point.amountLabel),
-                        style = MaterialTheme.typography.labelMedium,
-                        textAlign = TextAlign.Center,
-                        maxLines = 1,
-                        modifier = Modifier.padding(bottom = 4.dp)
+                Row(
+                    modifier = Modifier.height(BarAreaHeight),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(PreviousBarWidth)
+                            .height(barHeight(point.previousFraction))
+                            .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
+                            .background(previousColor)
                     )
-                }
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(0.7f)
-                        .height(100.dp * heightFraction)
-                        .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
-                        .background(
-                            if (hasAmount) barColor
-                            else MaterialTheme.colorScheme.surfaceVariant
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Bottom
+                    ) {
+                        if (point.fraction > 0f) {
+                            Text(
+                                text = compactAmount(point.amountLabel),
+                                style = MaterialTheme.typography.labelMedium,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                softWrap = false,
+                                modifier = Modifier
+                                    .wrapContentWidth(unbounded = true)
+                                    .padding(bottom = 4.dp)
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .width(CurrentBarWidth)
+                                .height(barHeight(point.fraction))
+                                .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
+                                .background(currentColor)
                         )
-                )
+                    }
+                }
                 Text(
                     text = point.label,
                     style = MaterialTheme.typography.labelMedium,
@@ -338,6 +522,15 @@ private fun FlowChart(points: List<AnalyticsFlowPointUi>) {
         }
     }
 }
+
+private val BucketWidth = 62.dp
+private val BarAreaHeight = 128.dp
+private val MaxBarHeight = 100.dp
+private val PreviousBarWidth = 22.dp
+private val CurrentBarWidth = 28.dp
+
+private fun barHeight(fraction: Float) =
+    if (fraction > 0f) MaxBarHeight * fraction.coerceIn(0.02f, 1f) else 2.dp
 
 private fun compactAmount(label: String): String {
     val value = label.toDoubleOrNull() ?: return label

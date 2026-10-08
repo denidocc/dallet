@@ -373,6 +373,20 @@ class Ledger(
         )
     }
 
+    suspend fun analyticsComparison(
+        period: AnalyticsPeriod,
+        asOf: LocalDate,
+        today: LocalDate
+    ): AnalyticsComparison {
+        val current = analytics(period, asOf)
+        val previous = analytics(period, shiftAsOf(period, asOf, -1))
+        return AnalyticsComparison(
+            current = current,
+            previous = previous,
+            currentIsComplete = !current.toInclusive.isAfter(today)
+        )
+    }
+
     private fun categoryTotals(
         operations: List<Operation>,
         categoriesById: Map<Long, Category>

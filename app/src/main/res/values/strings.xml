@@ -74,6 +74,15 @@
     <string name="analytics_chart_empty_income">Нет доходов за период</string>
     <string name="analytics_income_by_category">Доходы по категориям</string>
     <string name="analytics_income_flow">Доходы по времени</string>
+    <string name="analytics_prev">Назад</string>
+    <string name="analytics_next">Вперёд</string>
+    <string name="analytics_incomplete">Период ещё не закончился</string>
+    <string name="analytics_no_previous">в прошлом периоде не было</string>
+    <string name="analytics_vs_week">к прошлой неделе</string>
+    <string name="analytics_vs_month">к прошлому месяцу</string>
+    <string name="analytics_vs_year">к прошлому году</string>
+    <string name="analytics_legend_current">Этот период</string>
+    <string name="analytics_legend_previous">Прошлый</string>
     <string name="more_data_title">Данные</string>
     <string name="more_export">Экспорт</string>
     <string name="more_export_hint">Сохранить резервную копию в файл</string>

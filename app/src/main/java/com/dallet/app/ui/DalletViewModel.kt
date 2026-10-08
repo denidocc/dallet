@@ -18,6 +18,8 @@ import com.dallet.app.ledger.Money
 import com.dallet.app.ledger.Operation
 import com.dallet.app.ledger.OperationKind
 import com.dallet.app.ledger.SameAccountTransferException
+import com.dallet.app.ledger.percentChange
+import com.dallet.app.ledger.shiftAsOf
 import com.dallet.app.security.PinLock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,6 +31,7 @@ import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
+import java.util.Locale
 
 enum class AddOperationKind {
     EXPENSE,
@@ -202,7 +205,12 @@ data class AnalyticsUiState(
     val categorySlices: List<AnalyticsCategorySliceUi> = emptyList(),
     val flowPoints: List<AnalyticsFlowPointUi> = emptyList(),
     val incomeSlices: List<AnalyticsCategorySliceUi> = emptyList(),
-    val incomeFlowPoints: List<AnalyticsFlowPointUi> = emptyList()
+    val incomeFlowPoints: List<AnalyticsFlowPointUi> = emptyList(),
+    val offset: Int = 0,
+    val periodLabel: String = "",
+    val isComplete: Boolean = true,
+    val incomeChangePercent: Int? = null,
+    val expenseChangePercent: Int? = null
 )
 
 data class AnalyticsCategorySliceUi(
@@ -216,7 +224,9 @@ data class AnalyticsCategorySliceUi(
 data class AnalyticsFlowPointUi(
     val label: String,
     val amountLabel: String,
-    val fraction: Float
+    val fraction: Float,
+    val previousAmountLabel: String = "0.00",
+    val previousFraction: Float = 0f
 )
 
 private val DATE_FORMAT: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE
@@ -686,19 +696,24 @@ class DalletViewModel(
     }
 
     fun refreshAnalytics() {
-        loadAnalytics(_analytics.value.period)
+        loadAnalytics(_analytics.value.period, _analytics.value.offset)
     }
 
     fun onAnalyticsPeriodSelected(period: AnalyticsPeriod) {
-        loadAnalytics(period)
+        loadAnalytics(period, 0)
     }
 
-    private fun loadAnalytics(period: AnalyticsPeriod) {
+    fun onAnalyticsStep(delta: Int) {
+        val state = _analytics.value
+        loadAnalytics(state.period, (state.offset + delta).coerceAtMost(0))
+    }
+
+    private fun loadAnalytics(period: AnalyticsPeriod, offset: Int) {
         viewModelScope.launch {
             try {
-                refreshAnalyticsInternal(period)
+                refreshAnalyticsInternal(period, offset)
             } catch (_: Exception) {
-                _analytics.value = AnalyticsUiState(period = period)
+                _analytics.value = AnalyticsUiState(period = period, offset = offset)
             }
         }
     }
@@ -707,8 +722,15 @@ class DalletViewModel(
         _analytics.update { it.copy(mode = mode) }
     }
 
-    private suspend fun refreshAnalyticsInternal(period: AnalyticsPeriod) {
-        val summary = ledger.analytics(period, LocalDate.now())
+    private suspend fun refreshAnalyticsInternal(period: AnalyticsPeriod, offset: Int) {
+        val today = LocalDate.now()
+        val result = ledger.analyticsComparison(
+            period = period,
+            asOf = shiftAsOf(period, today, offset.toLong()),
+            today = today
+        )
+        val summary = result.current
+        val previous = result.previous
         _analytics.value = AnalyticsUiState(
             period = period,
             mode = _analytics.value.mode,
@@ -716,10 +738,34 @@ class DalletViewModel(
             expenseTotalLabel = Money.formatManat(summary.expenseTotalMinor),
             rangeLabel = "${summary.fromInclusive} — ${summary.toInclusive}",
             categorySlices = summary.expensesByCategory.toSlices(summary.expenseTotalMinor),
-            flowPoints = summary.expenseFlow.toFlowPoints(),
+            flowPoints = summary.expenseFlow.toFlowPoints(previous.expenseFlow),
             incomeSlices = summary.incomesByCategory.toSlices(summary.incomeTotalMinor),
-            incomeFlowPoints = summary.incomeFlow.toFlowPoints()
+            incomeFlowPoints = summary.incomeFlow.toFlowPoints(previous.incomeFlow),
+            offset = offset,
+            periodLabel = periodLabel(period, summary.fromInclusive, summary.toInclusive),
+            isComplete = result.currentIsComplete,
+            incomeChangePercent = percentChange(
+                summary.incomeTotalMinor,
+                previous.incomeTotalMinor
+            ),
+            expenseChangePercent = percentChange(
+                summary.expenseTotalMinor,
+                previous.expenseTotalMinor
+            )
         )
+    }
+
+    private fun periodLabel(period: AnalyticsPeriod, from: LocalDate, to: LocalDate): String {
+        val ru = Locale.forLanguageTag("ru")
+        return when (period) {
+            AnalyticsPeriod.WEEK -> {
+                val format = DateTimeFormatter.ofPattern("d MMM", ru)
+                "${from.format(format)} — ${to.format(format)}"
+            }
+            AnalyticsPeriod.MONTH -> from.format(DateTimeFormatter.ofPattern("LLLL yyyy", ru))
+                .replaceFirstChar { it.uppercase() }
+            AnalyticsPeriod.YEAR -> from.year.toString()
+        }
     }
 
     private fun List<CategoryExpenseTotal>.toSlices(total: Long): List<AnalyticsCategorySliceUi> =
@@ -733,13 +779,23 @@ class DalletViewModel(
             )
         }
 
-    private fun List<ExpenseFlowPoint>.toFlowPoints(): List<AnalyticsFlowPointUi> {
-        val maxFlow = maxOfOrNull { it.amountMinor } ?: 0L
-        return map { point ->
+    private fun List<ExpenseFlowPoint>.toFlowPoints(
+        previous: List<ExpenseFlowPoint>
+    ): List<AnalyticsFlowPointUi> {
+        val maxFlow = maxOf(
+            maxOfOrNull { it.amountMinor } ?: 0L,
+            previous.maxOfOrNull { it.amountMinor } ?: 0L
+        )
+        fun fractionOf(amount: Long): Float =
+            if (maxFlow > 0L) amount.toFloat() / maxFlow.toFloat() else 0f
+        return mapIndexed { index, point ->
+            val previousAmount = previous.getOrNull(index)?.amountMinor ?: 0L
             AnalyticsFlowPointUi(
                 label = point.label,
                 amountLabel = Money.formatManat(point.amountMinor),
-                fraction = if (maxFlow > 0L) point.amountMinor.toFloat() / maxFlow.toFloat() else 0f
+                fraction = fractionOf(point.amountMinor),
+                previousAmountLabel = Money.formatManat(previousAmount),
+                previousFraction = fractionOf(previousAmount)
             )
         }
     }
