@@ -8,13 +8,19 @@ import com.dallet.app.data.RoomCategoryRepository
 import com.dallet.app.data.RoomLedgerDataStore
 import com.dallet.app.data.RoomOperationRepository
 import com.dallet.app.ledger.Ledger
+import com.dallet.app.security.PinLock
+import com.dallet.app.security.SharedPreferencesSecurityStorage
 
 class DalletApplication : Application() {
     lateinit var ledger: Ledger
         private set
 
+    lateinit var pinLock: PinLock
+        private set
+
     override fun onCreate() {
         super.onCreate()
+        pinLock = PinLock(SharedPreferencesSecurityStorage(this))
         val database = Room.databaseBuilder(
             this,
             DalletDatabase::class.java,

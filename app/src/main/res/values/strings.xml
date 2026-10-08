@@ -88,4 +88,24 @@
     <string name="reset_word">СБРОС</string>
     <string name="reset_confirm">Сбросить</string>
     <string name="onboarding_restore">Восстановить из файла</string>
+    <string name="more_security">Безопасность</string>
+    <string name="security_title">Безопасность</string>
+    <string name="security_pin">PIN-код</string>
+    <string name="security_pin_hint">Запрашивается при запуске приложения</string>
+    <string name="security_biometric">Отпечаток пальца</string>
+    <string name="security_biometric_hint">Быстрый вход вместо PIN</string>
+    <string name="security_backup_title">Сначала сделайте копию</string>
+    <string name="security_backup_text">Забытый PIN восстановить нельзя. Данные можно будет вернуть только из резервной копии.</string>
+    <string name="security_backup_export">Экспорт</string>
+    <string name="security_backup_continue">Продолжить</string>
+    <string name="security_enter_new">Придумайте PIN</string>
+    <string name="security_confirm_new">Повторите PIN</string>
+    <string name="security_enter_current">Введите PIN, чтобы выключить</string>
+    <string name="security_mismatch">PIN не совпал, попробуйте ещё раз</string>
+    <string name="security_wrong">Неверный PIN</string>
+    <string name="lock_title">Введите PIN</string>
+    <string name="lock_forgot">Забыли PIN? Сбросить всё</string>
+    <string name="lock_reset_text">Все данные будут удалены, PIN снимется. Вернуть данные можно только из резервной копии: «Восстановить из файла» на первом экране.</string>
+    <string name="lock_biometric_title">Вход в Dallet</string>
+    <string name="pin_delete">Удалить</string>
 </resources>

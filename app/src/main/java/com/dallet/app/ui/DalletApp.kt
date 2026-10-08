@@ -40,6 +40,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.dallet.app.ledger.Ledger
+import com.dallet.app.security.PinLock
 import com.dallet.app.ui.accounts.AccountEditorScreen
 import com.dallet.app.ui.accounts.AccountsScreen
 import com.dallet.app.ui.add.AddExpenseScreen
@@ -50,15 +51,18 @@ import com.dallet.app.ui.common.BackupFiles
 import com.dallet.app.ui.edit.EditOperationScreen
 import com.dallet.app.ui.history.HistoryScreen
 import com.dallet.app.ui.home.HomeScreen
+import com.dallet.app.ui.lock.LockScreen
 import com.dallet.app.ui.more.MoreScreen
 import com.dallet.app.ui.navigation.DalletDestination
 import com.dallet.app.ui.onboarding.OnboardingScreen
+import com.dallet.app.ui.security.SecurityScreen
 import java.time.LocalDate
 
 private const val EDIT_ROUTE = "edit/{operationId}"
 private const val ACCOUNTS_ROUTE = "accounts"
 private const val ACCOUNT_NEW_ROUTE = "account/new"
 private const val ACCOUNT_EDIT_ROUTE = "account/{accountId}"
+private const val SECURITY_ROUTE = "security"
 private const val CATEGORIES_ROUTE = "categories"
 private const val CATEGORY_NEW_ROUTE = "category/new"
 private const val CATEGORY_EDIT_ROUTE = "category/{categoryId}"
@@ -67,7 +71,8 @@ private const val CATEGORY_EDIT_ROUTE = "category/{categoryId}"
 @Composable
 fun DalletApp(
     ledger: Ledger,
-    viewModel: DalletViewModel = viewModel(factory = DalletViewModel.factory(ledger))
+    pinLock: PinLock,
+    viewModel: DalletViewModel = viewModel(factory = DalletViewModel.factory(ledger, pinLock))
 ) {
     val homeState by viewModel.home.collectAsStateWithLifecycle()
     val onboardingState by viewModel.onboarding.collectAsStateWithLifecycle()
@@ -80,6 +85,8 @@ fun DalletApp(
     val categoryEditorState by viewModel.categoryEditor.collectAsStateWithLifecycle()
     val analyticsState by viewModel.analytics.collectAsStateWithLifecycle()
     val dataState by viewModel.data.collectAsStateWithLifecycle()
+    val lockState by viewModel.lock.collectAsStateWithLifecycle()
+    val securityState by viewModel.security.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val exportLauncher = rememberLauncherForActivityResult(
@@ -103,6 +110,18 @@ fun DalletApp(
     val launchImport = {
         viewModel.consumeDataMessage()
         importLauncher.launch(arrayOf("*/*"))
+    }
+
+    if (lockState.locked) {
+        LockScreen(
+            state = lockState,
+            biometricEnabled = securityState.biometricEnabled,
+            onDigit = viewModel::onLockDigit,
+            onBackspace = viewModel::onLockBackspace,
+            onBiometricSuccess = viewModel::unlockWithBiometric,
+            onResetConfirmed = viewModel::resetFromLock
+        )
+        return
     }
 
     if (homeState.needsOnboarding) {
@@ -164,6 +183,7 @@ fun DalletApp(
     }
 
     val hideBottomBar = currentRoute?.startsWith("edit/") == true ||
+        currentRoute == SECURITY_ROUTE ||
         currentRoute?.startsWith("account") == true ||
         currentRoute?.startsWith("categor") == true
 
@@ -223,10 +243,20 @@ fun DalletApp(
                     dataState = dataState,
                     onAccountsClick = { navController.navigate(ACCOUNTS_ROUTE) },
                     onCategoriesClick = { navController.navigate(CATEGORIES_ROUTE) },
+                    onSecurityClick = { navController.navigate(SECURITY_ROUTE) },
                     onExportClick = launchExport,
                     onImportClick = launchImport,
                     onResetConfirmed = viewModel::resetAll,
                     onDataMessageShown = viewModel::consumeDataMessage
+                )
+            }
+            composable(SECURITY_ROUTE) {
+                SecurityScreen(
+                    state = securityState,
+                    onExportClick = launchExport,
+                    onEnablePin = viewModel::enablePin,
+                    onDisablePin = viewModel::disablePin,
+                    onBiometricChange = viewModel::setBiometricEnabled
                 )
             }
             composable(ACCOUNTS_ROUTE) {

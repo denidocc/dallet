@@ -29,6 +29,7 @@ fun MoreScreen(
     dataState: DataUiState,
     onAccountsClick: () -> Unit,
     onCategoriesClick: () -> Unit,
+    onSecurityClick: () -> Unit,
     onExportClick: () -> Unit,
     onImportClick: () -> Unit,
     onResetConfirmed: () -> Unit,
@@ -62,6 +63,13 @@ fun MoreScreen(
         SurfaceCard(onClick = onCategoriesClick) {
             Text(
                 text = stringResource(R.string.more_categories),
+                style = MaterialTheme.typography.titleMedium
+            )
+        }
+
+        SurfaceCard(onClick = onSecurityClick) {
+            Text(
+                text = stringResource(R.string.more_security),
                 style = MaterialTheme.typography.titleMedium
             )
         }

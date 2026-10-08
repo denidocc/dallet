@@ -16,11 +16,14 @@ import com.dallet.app.ledger.Money
 import com.dallet.app.ledger.Operation
 import com.dallet.app.ledger.OperationKind
 import com.dallet.app.ledger.SameAccountTransferException
+import com.dallet.app.security.PinLock
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
@@ -86,6 +89,17 @@ data class DataUiState(
     val busy: Boolean = false,
     val message: String? = null,
     val isError: Boolean = false
+)
+
+data class LockUiState(
+    val locked: Boolean = false,
+    val input: String = "",
+    val errorMessage: String? = null
+)
+
+data class SecurityUiState(
+    val pinEnabled: Boolean = false,
+    val biometricEnabled: Boolean = false
 )
 
 data class SelectableOption(
@@ -198,7 +212,8 @@ data class AnalyticsFlowPointUi(
 private val DATE_FORMAT: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE
 
 class DalletViewModel(
-    private val ledger: Ledger
+    private val ledger: Ledger,
+    private val pinLock: PinLock
 ) : ViewModel() {
 
     private val _home = MutableStateFlow(HomeUiState())
@@ -242,6 +257,105 @@ class DalletViewModel(
         _data.update { it.copy(message = null, isError = false) }
     }
 
+    private val _lock = MutableStateFlow(LockUiState(locked = pinLock.isEnabled))
+    val lock: StateFlow<LockUiState> = _lock.asStateFlow()
+
+    private val _security = MutableStateFlow(
+        SecurityUiState(
+            pinEnabled = pinLock.isEnabled,
+            biometricEnabled = pinLock.biometricEnabled
+        )
+    )
+    val security: StateFlow<SecurityUiState> = _security.asStateFlow()
+
+    private var failedAttempts = 0
+    private var blockedUntilMillis = 0L
+
+    fun onLockDigit(digit: Char) {
+        val current = _lock.value
+        if (current.input.length >= PinLock.PIN_LENGTH) return
+        if (System.currentTimeMillis() < blockedUntilMillis) {
+            _lock.update { it.copy(errorMessage = "Слишком много попыток. Подождите немного") }
+            return
+        }
+        val input = current.input + digit
+        _lock.update { it.copy(input = input, errorMessage = null) }
+        if (input.length < PinLock.PIN_LENGTH) return
+        viewModelScope.launch {
+            val ok = withContext(Dispatchers.Default) { pinLock.verify(input) }
+            if (ok) {
+                failedAttempts = 0
+                _lock.value = LockUiState(locked = false)
+            } else {
+                failedAttempts++
+                val tooMany = failedAttempts % MAX_ATTEMPTS == 0
+                if (tooMany) blockedUntilMillis = System.currentTimeMillis() + BLOCK_MILLIS
+                _lock.value = LockUiState(
+                    locked = true,
+                    errorMessage = if (tooMany) {
+                        "Слишком много попыток. Подождите 30 секунд"
+                    } else {
+                        "Неверный PIN"
+                    }
+                )
+            }
+        }
+    }
+
+    fun onLockBackspace() {
+        _lock.update { it.copy(input = it.input.dropLast(1), errorMessage = null) }
+    }
+
+    fun unlockWithBiometric() {
+        _lock.value = LockUiState(locked = false)
+    }
+
+    fun resetFromLock() {
+        viewModelScope.launch {
+            try {
+                ledger.resetAll()
+                pinLock.disable()
+                failedAttempts = 0
+                resetTransientStates()
+                syncSecurity()
+                _lock.value = LockUiState(locked = false)
+                refreshHome()
+            } catch (error: Exception) {
+                _lock.update { it.copy(errorMessage = "Не удалось сбросить данные") }
+            }
+        }
+    }
+
+    fun enablePin(pin: String) {
+        viewModelScope.launch {
+            withContext(Dispatchers.Default) { pinLock.setPin(pin) }
+            syncSecurity()
+        }
+    }
+
+    fun disablePin(pin: String, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val ok = withContext(Dispatchers.Default) { pinLock.verify(pin) }
+            if (ok) {
+                pinLock.disable()
+                syncSecurity()
+            }
+            onResult(ok)
+        }
+    }
+
+    fun setBiometricEnabled(enabled: Boolean) {
+        pinLock.setBiometricEnabled(enabled)
+        syncSecurity()
+    }
+
+    private fun syncSecurity() {
+        _security.value = SecurityUiState(
+            pinEnabled = pinLock.isEnabled,
+            biometricEnabled = pinLock.biometricEnabled
+        )
+    }
+
     fun exportBackup(write: suspend (String) -> Unit) {
         viewModelScope.launch {
             _data.value = DataUiState(busy = true)
@@ -278,6 +392,8 @@ class DalletViewModel(
             _data.value = DataUiState(busy = true)
             try {
                 ledger.resetAll()
+                pinLock.disable()
+                syncSecurity()
                 resetTransientStates()
                 _data.value = DataUiState()
                 refreshHome()
@@ -974,11 +1090,14 @@ class DalletViewModel(
     }
 
     companion object {
-        fun factory(ledger: Ledger): ViewModelProvider.Factory =
+        private const val MAX_ATTEMPTS = 5
+        private const val BLOCK_MILLIS = 30_000L
+
+        fun factory(ledger: Ledger, pinLock: PinLock): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return DalletViewModel(ledger) as T
+                    return DalletViewModel(ledger, pinLock) as T
                 }
             }
     }
