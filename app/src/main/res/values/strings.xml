@@ -18,6 +18,8 @@
     <string name="onboarding_card_label">ЗП карта</string>
     <string name="onboarding_continue">Продолжить</string>
     <string name="home_total_label">Общий баланс</string>
+    <string name="home_month_income">Доходы за месяц</string>
+    <string name="home_month_expense">Расходы за месяц</string>
     <string name="home_accounts_label">Счета</string>
     <string name="home_recent_expenses">Последние расходы</string>
     <string name="home_recent_empty">Пока нет расходов</string>

@@ -13,7 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 
-private val CardShape = RoundedCornerShape(16.dp)
+private val CardShape = RoundedCornerShape(12.dp)
 
 @Composable
 fun SurfaceCard(

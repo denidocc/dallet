@@ -8,6 +8,7 @@ import com.dallet.app.ledger.CategoryHasOperationsException
 import com.dallet.app.ledger.AccountBalance
 import com.dallet.app.ui.categories.CategoryStyleOptions
 import com.dallet.app.ledger.AnalyticsPeriod
+import com.dallet.app.ledger.Category
 import com.dallet.app.ledger.CategoryKind
 import com.dallet.app.ledger.InvalidBackupException
 import com.dallet.app.ledger.Ledger
@@ -40,6 +41,8 @@ data class HomeUiState(
     val loading: Boolean = true,
     val needsOnboarding: Boolean = false,
     val totalBalanceLabel: String = "0.00",
+    val monthIncomeLabel: String = "0.00",
+    val monthExpenseLabel: String = "0.00",
     val accountRows: List<AccountRowUi> = emptyList(),
     val recentExpenses: List<ExpenseRowUi> = emptyList(),
     val errorMessage: String? = null
@@ -54,7 +57,9 @@ data class ExpenseRowUi(
     val id: Long,
     val title: String,
     val subtitle: String,
-    val amountLabel: String
+    val amountLabel: String,
+    val iconKey: String = "other",
+    val colorArgb: Int = 0xFF546E7A.toInt()
 )
 
 data class HistoryUiState(
@@ -298,17 +303,20 @@ class DalletViewModel(
                 if (needsOnboarding) {
                     _home.value = HomeUiState(loading = false, needsOnboarding = true)
                 } else {
-                    val categoryNames = ledger.categories(CategoryKind.EXPENSE)
-                        .associate { it.id to it.name }
+                    val categoriesById = ledger.categories(CategoryKind.EXPENSE)
+                        .associateBy { it.id }
                     val accountNames = ledger.accountBalances()
                         .associate { it.account.id to it.account.name }
+                    val month = ledger.analytics(AnalyticsPeriod.MONTH, LocalDate.now())
                     _home.value = HomeUiState(
                         loading = false,
                         needsOnboarding = false,
                         totalBalanceLabel = Money.formatManat(ledger.totalBalanceMinor()),
+                        monthIncomeLabel = Money.formatManat(month.incomeTotalMinor),
+                        monthExpenseLabel = Money.formatManat(month.expenseTotalMinor),
                         accountRows = ledger.accountBalances().map { it.toRow() },
                         recentExpenses = ledger.recentExpenses(limit = 10).map { operation ->
-                            operation.toExpenseRow(categoryNames, accountNames)
+                            operation.toExpenseRow(categoriesById, accountNames)
                         }
                     )
                     refreshHistoryInternal()
@@ -913,18 +921,20 @@ class DalletViewModel(
         AccountRowUi(name = account.name, balanceLabel = Money.formatManat(balanceMinor))
 
     private fun Operation.toExpenseRow(
-        categoryNames: Map<Long, String>,
+        categories: Map<Long, Category>,
         accountNames: Map<Long, String>
     ): ExpenseRowUi {
-        val category = categoryId?.let { categoryNames[it] }.orEmpty()
+        val category = categoryId?.let { categories[it] }
         val account = accountId?.let { accountNames[it] }.orEmpty()
         return ExpenseRowUi(
             id = id,
-            title = category.ifBlank { "Расход" },
-            subtitle = listOf(account, date.toString(), comment.orEmpty())
+            title = category?.name?.ifBlank { null } ?: "Расход",
+            subtitle = listOf(account, date.toString())
                 .filter { it.isNotBlank() }
                 .joinToString(" · "),
-            amountLabel = Money.formatManat(amountMinor)
+            amountLabel = Money.formatManat(amountMinor),
+            iconKey = category?.iconKey ?: "other",
+            colorArgb = category?.colorArgb ?: 0xFF546E7A.toInt()
         )
     }
 
