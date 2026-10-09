@@ -12,8 +12,8 @@ android {
         applicationId = "com.dallet.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 13
-        versionName = "0.0.13"
+        versionCode = 14
+        versionName = "0.0.14"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -90,6 +90,8 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.navigation:navigation-compose:2.7.7")
     implementation("androidx.biometric:biometric:1.1.0")
+    // biometric pulls an old fragment that rejects Activity Result API request codes.
+    implementation("androidx.fragment:fragment-ktx:1.8.1")
 
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
