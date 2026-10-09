@@ -29,6 +29,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dallet.app.R
+import com.dallet.app.ui.moneyText
 import com.dallet.app.ui.AccountRowUi
 import com.dallet.app.ui.ExpenseRowUi
 import com.dallet.app.ui.HomeUiState
@@ -66,7 +67,7 @@ fun HomeScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                text = stringResource(R.string.amount_with_currency, state.totalBalanceLabel),
+                text = moneyText(state.totalBalanceLabel),
                 style = MaterialTheme.typography.displaySmall,
                 modifier = Modifier.padding(top = 4.dp)
             )
@@ -78,13 +79,13 @@ fun HomeScreen(
             ) {
                 MonthStat(
                     label = stringResource(R.string.home_month_income),
-                    value = stringResource(R.string.amount_with_currency, state.monthIncomeLabel),
+                    value = moneyText(state.monthIncomeLabel),
                     valueColor = incomeAmountColor(),
                     modifier = Modifier.weight(1f)
                 )
                 MonthStat(
                     label = stringResource(R.string.home_month_expense),
-                    value = stringResource(R.string.amount_with_currency, state.monthExpenseLabel),
+                    value = moneyText(state.monthExpenseLabel),
                     valueColor = expenseAmountColor(),
                     modifier = Modifier.weight(1f)
                 )
@@ -171,7 +172,7 @@ private fun AccountCard(row: AccountRowUi) {
             overflow = TextOverflow.Ellipsis
         )
         Text(
-            text = stringResource(R.string.amount_with_currency, row.balanceLabel),
+            text = moneyText(row.balanceLabel),
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(top = 4.dp)
         )
@@ -224,7 +225,7 @@ private fun ExpenseRow(
             }
         }
         Text(
-            text = stringResource(R.string.amount_with_currency, row.amountLabel),
+            text = moneyText(row.amountLabel),
             color = expenseAmountColor(),
             style = MaterialTheme.typography.titleMedium
         )

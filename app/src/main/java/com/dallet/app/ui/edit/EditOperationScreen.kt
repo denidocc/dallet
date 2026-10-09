@@ -28,6 +28,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.dallet.app.R
+import com.dallet.app.ui.LocalCurrency
 import com.dallet.app.ledger.OperationKind
 import com.dallet.app.ui.EditOperationUiState
 import com.dallet.app.ui.SelectableOption
@@ -110,7 +111,7 @@ fun EditOperationScreen(
             onValueChange = onAmountChange,
             modifier = Modifier.fillMaxWidth(),
             label = { Text(stringResource(R.string.add_amount_label)) },
-            suffix = { Text(stringResource(R.string.currency_tmt)) },
+            suffix = { Text(LocalCurrency.current.code) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
         )

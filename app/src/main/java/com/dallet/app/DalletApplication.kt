@@ -11,6 +11,7 @@ import com.dallet.app.data.RoomCategoryRepository
 import com.dallet.app.data.RoomLedgerDataStore
 import com.dallet.app.data.RoomOperationRepository
 import com.dallet.app.data.RoomShoppingRepository
+import com.dallet.app.data.SharedPreferencesSettingsStore
 import com.dallet.app.ledger.Ledger
 import com.dallet.app.ledger.ShoppingService
 import com.dallet.app.security.PinLock
@@ -46,7 +47,8 @@ class DalletApplication : Application() {
             categoryRepository = categoryRepository,
             operationRepository = operationRepository,
             shoppingRepository = shoppingRepository,
-            dataStore = RoomLedgerDataStore(
+            settings = SharedPreferencesSettingsStore(this),
+            dataStore =RoomLedgerDataStore(
                 database = database,
                 accountRepository = accountRepository,
                 categoryRepository = categoryRepository,

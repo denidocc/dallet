@@ -33,6 +33,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -104,6 +105,17 @@ fun DalletApp(
     shopping: ShoppingService,
     viewModel: DalletViewModel = viewModel(factory = DalletViewModel.factory(ledger, pinLock)),
     shoppingViewModel: ShoppingViewModel = viewModel(factory = ShoppingViewModel.factory(ledger, shopping))
+) {
+    val currency by viewModel.currency.collectAsStateWithLifecycle()
+    CompositionLocalProvider(LocalCurrency provides currency) {
+        DalletAppContent(viewModel, shoppingViewModel)
+    }
+}
+
+@Composable
+private fun DalletAppContent(
+    viewModel: DalletViewModel,
+    shoppingViewModel: ShoppingViewModel
 ) {
     val homeState by viewModel.home.collectAsStateWithLifecycle()
     val onboardingState by viewModel.onboarding.collectAsStateWithLifecycle()
@@ -184,8 +196,11 @@ fun DalletApp(
         OnboardingScreen(
             state = onboardingState,
             dataState = dataState,
-            onCashChange = viewModel::onCashInputChange,
-            onCardChange = viewModel::onCardInputChange,
+            onCurrencySelected = viewModel::onCurrencySelected,
+            onTemplateToggled = viewModel::onTemplateToggled,
+            onTemplateOpeningChange = viewModel::onTemplateOpeningChange,
+            onCustomNameChange = viewModel::onCustomNameChange,
+            onCustomOpeningChange = viewModel::onCustomOpeningChange,
             onSubmit = viewModel::submitOnboarding,
             onRestoreClick = launchImport
         )

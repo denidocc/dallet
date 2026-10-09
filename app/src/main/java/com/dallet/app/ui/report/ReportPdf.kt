@@ -49,8 +49,10 @@ object ReportPdf {
         report: PeriodReport,
         title: String,
         createdOn: String,
-        incompleteNote: String?
+        incompleteNote: String?,
+        currencyCode: String
     ): ByteArray {
+        this.currencyCode = currencyCode
         val document = PdfDocument()
         val writer = PageWriter(document)
         val current = report.comparison.current
@@ -130,7 +132,9 @@ object ReportPdf {
         return output.toByteArray()
     }
 
-    private fun money(minor: Long): String = Money.formatManat(minor) + " ТМТ"
+    private var currencyCode: String = "ТМТ"
+
+    private fun money(minor: Long): String = Money.formatManat(minor) + " " + currencyCode
 
     private class PageWriter(private val document: PdfDocument) {
         private var pageNumber = 0

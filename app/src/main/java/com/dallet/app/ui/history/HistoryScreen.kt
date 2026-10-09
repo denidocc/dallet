@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dallet.app.R
+import com.dallet.app.ui.moneyText
 import com.dallet.app.ui.HistoryKindUi
 import com.dallet.app.ui.HistoryRowUi
 import com.dallet.app.ui.HistoryUiState
@@ -70,7 +71,7 @@ private fun HistoryRow(row: HistoryRowUi) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                text = stringResource(R.string.amount_with_currency, row.amountLabel),
+                text = moneyText(row.amountLabel),
                 color = row.amountColor(),
                 style = MaterialTheme.typography.titleMedium
             )

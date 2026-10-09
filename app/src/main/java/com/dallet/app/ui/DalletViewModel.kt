@@ -6,6 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.dallet.app.ledger.AccountHasOperationsException
 import com.dallet.app.ledger.CategoryHasOperationsException
 import com.dallet.app.ledger.AccountBalance
+import com.dallet.app.ledger.AccountTemplates
+import com.dallet.app.ledger.Currency
+import com.dallet.app.ledger.NewAccount
 import com.dallet.app.ledger.AccountPeriodTotal
 import com.dallet.app.ui.categories.CategoryStyleOptions
 import com.dallet.app.ledger.AnalyticsPeriod
@@ -93,9 +96,19 @@ data class HistoryRowUi(
     val amountLabel: String
 )
 
+data class OnboardingAccountRowUi(
+    val name: String,
+    val enabled: Boolean,
+    val openingInput: String = ""
+)
+
 data class OnboardingUiState(
-    val cashInput: String = "",
-    val cardInput: String = "",
+    val currency: Currency = Currency.DEFAULT,
+    val rows: List<OnboardingAccountRowUi> = AccountTemplates.defaults().map {
+        OnboardingAccountRowUi(name = it.name, enabled = it.enabledByDefault)
+    },
+    val customName: String = "",
+    val customOpening: String = "",
     val submitting: Boolean = false,
     val errorMessage: String? = null
 )
@@ -270,6 +283,9 @@ class DalletViewModel(
     private val pinLock: PinLock
 ) : ViewModel() {
 
+    private val _currency = MutableStateFlow(Currency.DEFAULT)
+    val currency: StateFlow<Currency> = _currency.asStateFlow()
+
     private val _home = MutableStateFlow(HomeUiState())
     val home: StateFlow<HomeUiState> = _home.asStateFlow()
 
@@ -433,6 +449,7 @@ class DalletViewModel(
                     asOf = shiftAsOf(state.period, today, state.offset.toLong()),
                     today = today
                 )
+                val currencyCode = ledger.mainCurrency().code
                 val bytes = withContext(Dispatchers.Default) {
                     when (format) {
                         ReportFormat.CSV -> ReportCsv.encode(report.rows).toByteArray(Charsets.UTF_8)
@@ -440,7 +457,8 @@ class DalletViewModel(
                             report = report,
                             title = state.periodLabel,
                             createdOn = today.toString(),
-                            incompleteNote = if (state.isComplete) null else "Период ещё не закончился"
+                            incompleteNote = if (state.isComplete) null else "Период ещё не закончился",
+                            currencyCode = currencyCode
                         )
                     }
                 }
@@ -499,6 +517,7 @@ class DalletViewModel(
         viewModelScope.launch {
             _home.update { it.copy(loading = true, errorMessage = null) }
             try {
+                _currency.value = ledger.mainCurrency()
                 val needsOnboarding = !ledger.hasCompletedOnboarding()
                 if (needsOnboarding) {
                     _home.value = HomeUiState(loading = false, needsOnboarding = true)
@@ -986,26 +1005,64 @@ class DalletViewModel(
         }
     }
 
-    fun onCashInputChange(value: String) {
-        _onboarding.update { it.copy(cashInput = value, errorMessage = null) }
+    fun onCurrencySelected(currency: Currency) {
+        _onboarding.update { it.copy(currency = currency, errorMessage = null) }
     }
 
-    fun onCardInputChange(value: String) {
-        _onboarding.update { it.copy(cardInput = value, errorMessage = null) }
+    fun onTemplateToggled(name: String, enabled: Boolean) {
+        _onboarding.update { state ->
+            state.copy(
+                rows = state.rows.map { if (it.name == name) it.copy(enabled = enabled) else it },
+                errorMessage = null
+            )
+        }
+    }
+
+    fun onTemplateOpeningChange(name: String, value: String) {
+        _onboarding.update { state ->
+            state.copy(
+                rows = state.rows.map { if (it.name == name) it.copy(openingInput = value) else it },
+                errorMessage = null
+            )
+        }
+    }
+
+    fun onCustomNameChange(value: String) {
+        _onboarding.update { it.copy(customName = value, errorMessage = null) }
+    }
+
+    fun onCustomOpeningChange(value: String) {
+        _onboarding.update { it.copy(customOpening = value, errorMessage = null) }
     }
 
     fun submitOnboarding() {
         viewModelScope.launch {
-            val cashText = _onboarding.value.cashInput
-            val cardText = _onboarding.value.cardInput
+            val state = _onboarding.value
             _onboarding.update { it.copy(submitting = true, errorMessage = null) }
             try {
-                ledger.completeOnboarding(
-                    cashOpeningMinor = Money.parseManat(cashText.ifBlank { "0" }),
-                    cardOpeningMinor = Money.parseManat(cardText.ifBlank { "0" })
-                )
+                val chosen = state.rows.filter { it.enabled }
+                    .map { NewAccount(it.name, Money.parseManat(it.openingInput.ifBlank { "0" })) } +
+                    listOfNotNull(
+                        state.customName.trim().takeIf { it.isNotEmpty() }?.let {
+                            NewAccount(it, Money.parseManat(state.customOpening.ifBlank { "0" }))
+                        }
+                    )
+                if (chosen.isEmpty()) {
+                    _onboarding.update {
+                        it.copy(submitting = false, errorMessage = "Выберите хотя бы один счёт")
+                    }
+                    return@launch
+                }
+                ledger.completeOnboarding(chosen, state.currency)
                 _onboarding.value = OnboardingUiState()
                 refreshHome()
+            } catch (error: IllegalArgumentException) {
+                _onboarding.update {
+                    it.copy(
+                        submitting = false,
+                        errorMessage = "Проверьте названия и суммы. Названия счетов не должны повторяться. Пример суммы: 10.50"
+                    )
+                }
             } catch (error: Exception) {
                 _onboarding.update {
                     it.copy(submitting = false, errorMessage = "Проверьте суммы. Пример: 10.50")

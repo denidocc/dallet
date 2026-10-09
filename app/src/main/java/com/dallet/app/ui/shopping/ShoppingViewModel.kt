@@ -132,6 +132,12 @@ class ShoppingViewModel(
     private val service: ShoppingService
 ) : ViewModel() {
 
+    private var currencyCode: String = "ТМТ"
+
+    private suspend fun syncCurrency() {
+        currencyCode = ledger.mainCurrency().code
+    }
+
     private val _hub = MutableStateFlow(ShoppingHubUiState())
     val hub: StateFlow<ShoppingHubUiState> = _hub.asStateFlow()
 
@@ -148,6 +154,7 @@ class ShoppingViewModel(
         viewModelScope.launch {
             _product.value = ProductDetailUiState(loading = true)
             try {
+                syncCurrency()
                 val found = service.products().firstOrNull { it.id == productId }
                 if (found == null) {
                     _product.value = ProductDetailUiState(loading = false, missing = true)
@@ -158,7 +165,7 @@ class ShoppingViewModel(
                 val minPrice = prices.minOrNull()
                 val maxPrice = prices.maxOrNull()
                 val unit = found.unit.label
-                fun label(minor: Long) = "${Money.formatManat(minor)} ТМТ / $unit"
+                fun label(minor: Long) = "${Money.formatManat(minor)} $currencyCode / $unit"
                 val rows = points.mapIndexed { index, point ->
                     val change = points.getOrNull(index - 1)?.let {
                         percentChange(point.unitPriceMinor, it.unitPriceMinor)
@@ -212,6 +219,7 @@ class ShoppingViewModel(
     fun refreshHub() {
         viewModelScope.launch {
             try {
+                syncCurrency()
                 _hub.update {
                     it.copy(
                         lists = service.openLists().map { row -> row.toRow() },
@@ -222,7 +230,7 @@ class ShoppingViewModel(
                                 name = product.name,
                                 unitLabel = product.unit.label,
                                 priceLabel = product.lastPriceMinor
-                                    ?.let { price -> "${Money.formatManat(price)} ТМТ / ${product.unit.label}" }
+                                    ?.let { price -> "${Money.formatManat(price)} $currencyCode / ${product.unit.label}" }
                                     ?: "цена не сохранена"
                             )
                         }
@@ -288,6 +296,7 @@ class ShoppingViewModel(
 
     private suspend fun reloadEditor(listId: Long) {
         try {
+            syncCurrency()
             val detail = service.detail(listId)
             if (detail == null) {
                 _editor.value = ShoppingEditorUiState(loading = false, missing = true, listId = listId)
@@ -514,7 +523,7 @@ class ShoppingViewModel(
                 reloadEditor(listId)
                 refreshHub()
                 val text = if (result.operationId != null) {
-                    "Закуп закрыт: расход ${Money.formatManat(result.totalMinor)} ТМТ"
+                    "Закуп закрыт: расход ${Money.formatManat(result.totalMinor)} $currencyCode"
                 } else {
                     "Закуп закрыт без расхода (нет цен)"
                 }
@@ -549,7 +558,7 @@ class ShoppingViewModel(
             id = list.id,
             title = list.title,
             subtitle = "$progress · $date",
-            totalLabel = "${Money.formatManat(total)} ТМТ"
+            totalLabel = "${Money.formatManat(total)} $currencyCode"
         )
     }
 
@@ -577,11 +586,11 @@ class ShoppingViewModel(
             priceInput = if (unitPriceMinor > 0) Money.formatManat(unitPriceMinor) else "",
             quantityLabel = "$quantity ${unit.label}",
             priceLabel = if (unitPriceMinor > 0) {
-                "${Money.formatManat(unitPriceMinor)} ТМТ / ${unit.label}"
+                "${Money.formatManat(unitPriceMinor)} $currencyCode / ${unit.label}"
             } else {
                 "без цены"
             },
-            lineTotalLabel = if (unitPriceMinor > 0) "${Money.formatManat(lineTotalMinor)} ТМТ" else "",
+            lineTotalLabel = if (unitPriceMinor > 0) "${Money.formatManat(lineTotalMinor)} $currencyCode" else "",
             checked = checked
         )
     }

@@ -48,6 +48,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.dallet.app.R
+import com.dallet.app.ui.moneyText
 import com.dallet.app.ledger.AnalyticsPeriod
 import com.dallet.app.ui.AccountStatUi
 import com.dallet.app.ui.AnalyticsCategorySliceUi
@@ -127,7 +128,7 @@ fun AnalyticsScreen(
         ) {
             SummaryCard(
                 label = stringResource(R.string.analytics_income_label),
-                value = stringResource(R.string.amount_with_currency, state.incomeTotalLabel),
+                value = moneyText(state.incomeTotalLabel),
                 valueColor = incomeAmountColor(),
                 changePercent = state.incomeChangePercent,
                 higherIsGood = true,
@@ -138,7 +139,7 @@ fun AnalyticsScreen(
             )
             SummaryCard(
                 label = stringResource(R.string.analytics_expense_label),
-                value = stringResource(R.string.amount_with_currency, state.expenseTotalLabel),
+                value = moneyText(state.expenseTotalLabel),
                 valueColor = expenseAmountColor(),
                 changePercent = state.expenseChangePercent,
                 higherIsGood = false,
@@ -172,7 +173,7 @@ fun AnalyticsScreen(
                         if (isIncome) R.string.analytics_income_label
                         else R.string.analytics_expense_label
                     ),
-                    totalLabel = stringResource(R.string.amount_with_currency, totalLabel)
+                    totalLabel = moneyText(totalLabel)
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -194,10 +195,7 @@ fun AnalyticsScreen(
                                 modifier = Modifier.weight(1f)
                             )
                             Text(
-                                text = stringResource(
-                                    R.string.amount_with_currency,
-                                    slice.amountLabel
-                                ),
+                                text = moneyText(slice.amountLabel),
                                 style = MaterialTheme.typography.titleMedium
                             )
                         }
@@ -308,13 +306,13 @@ private fun AccountStat(stat: AccountStatUi) {
         Text(text = stat.name, style = MaterialTheme.typography.titleMedium)
         StatBar(
             label = stringResource(R.string.analytics_income_label),
-            value = stringResource(R.string.amount_with_currency, stat.incomeLabel),
+            value = moneyText(stat.incomeLabel),
             fraction = stat.incomeFraction,
             color = incomeAmountColor()
         )
         StatBar(
             label = stringResource(R.string.analytics_expense_label),
-            value = stringResource(R.string.amount_with_currency, stat.expenseLabel),
+            value = moneyText(stat.expenseLabel),
             fraction = stat.expenseFraction,
             color = expenseAmountColor()
         )

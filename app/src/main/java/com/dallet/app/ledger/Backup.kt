@@ -14,7 +14,8 @@ data class BackupData(
     val accounts: List<Account>,
     val categories: List<Category>,
     val operations: List<Operation>,
-    val shopping: ShoppingData = ShoppingData.EMPTY
+    val shopping: ShoppingData = ShoppingData.EMPTY,
+    val mainCurrency: Currency = Currency.DEFAULT
 )
 
 object BackupCodec {
@@ -66,6 +67,7 @@ object BackupCodec {
             }
         })
         root.put("shopping", encodeShopping(data.shopping))
+        root.put("mainCurrency", data.mainCurrency.name)
         return root.toString()
     }
 
@@ -230,7 +232,8 @@ object BackupCodec {
             }
             val shopping = root.optJSONObject("shopping")?.let { decodeShopping(it) }
                 ?: ShoppingData.EMPTY
-            return BackupData(accounts, categories, operations, shopping)
+            val currency = Currency.fromName(root.optNullableString("mainCurrency"))
+            return BackupData(accounts, categories, operations, shopping, currency)
         } catch (error: InvalidBackupException) {
             throw error
         } catch (error: JSONException) {

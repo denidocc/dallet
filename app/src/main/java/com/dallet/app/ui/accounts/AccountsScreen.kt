@@ -23,6 +23,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.dallet.app.R
+import com.dallet.app.ui.moneyText
+import com.dallet.app.ui.LocalCurrency
 import com.dallet.app.ui.AccountEditorUiState
 import com.dallet.app.ui.AccountsUiState
 import com.dallet.app.ui.common.SurfaceCard
@@ -65,7 +67,7 @@ fun AccountsScreen(
                             Text(
                                 text = stringResource(
                                     R.string.accounts_opening,
-                                    row.openingBalanceLabel
+                                    moneyText(row.openingBalanceLabel)
                                 ),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -73,7 +75,7 @@ fun AccountsScreen(
                             )
                         }
                         Text(
-                            text = stringResource(R.string.amount_with_currency, row.balanceLabel),
+                            text = moneyText(row.balanceLabel),
                             style = MaterialTheme.typography.titleMedium
                         )
                     }
@@ -118,7 +120,7 @@ fun AccountEditorScreen(
             onValueChange = onOpeningChange,
             modifier = Modifier.fillMaxWidth(),
             label = { Text(stringResource(R.string.accounts_opening_label)) },
-            suffix = { Text(stringResource(R.string.currency_tmt)) },
+            suffix = { Text(LocalCurrency.current.code) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
         )

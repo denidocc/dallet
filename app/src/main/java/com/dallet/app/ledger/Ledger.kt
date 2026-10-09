@@ -13,6 +13,7 @@ class Ledger(
     private val categoryRepository: CategoryRepository,
     private val operationRepository: OperationRepository,
     private val shoppingRepository: ShoppingRepository = InMemoryShoppingRepository(),
+    private val settings: SettingsStore = InMemorySettingsStore(),
     private val dataStore: LedgerDataStore =
         RepositoryLedgerDataStore(
             accountRepository,
@@ -29,7 +30,8 @@ class Ledger(
                 accounts = accountRepository.getAll(),
                 categories = categoryRepository.getAll(),
                 operations = operationRepository.getAll(),
-                shopping = shoppingRepository.getAll()
+                shopping = shoppingRepository.getAll(),
+                mainCurrency = settings.mainCurrency()
             )
         )
 
@@ -37,27 +39,52 @@ class Ledger(
         val data = BackupCodec.decode(json)
         BackupCodec.validate(data)
         dataStore.replaceAll(data.accounts, data.categories, data.operations, data.shopping)
+        settings.setMainCurrency(data.mainCurrency)
     }
 
     suspend fun resetAll() {
         dataStore.replaceAll(emptyList(), emptyList(), emptyList(), ShoppingData.EMPTY)
+        settings.setMainCurrency(Currency.DEFAULT)
+    }
+
+    suspend fun mainCurrency(): Currency = settings.mainCurrency()
+
+    suspend fun completeOnboarding(
+        accounts: List<NewAccount>,
+        currency: Currency = Currency.DEFAULT
+    ) {
+        require(accounts.isNotEmpty()) { "at least one account is required" }
+        val cleaned = accounts.map { it.copy(name = it.name.trim()) }
+        require(cleaned.all { it.name.isNotEmpty() }) { "account name must not be blank" }
+        require(cleaned.all { it.openingBalanceMinor >= 0 }) {
+            "opening balances must be non-negative"
+        }
+        require(cleaned.map { it.name.lowercase() }.toSet().size == cleaned.size) {
+            "account names must be unique"
+        }
+        accountRepository.replaceAll(
+            cleaned.mapIndexed { index, item ->
+                Account(
+                    id = index + 1L,
+                    name = item.name,
+                    openingBalanceMinor = item.openingBalanceMinor
+                )
+            }
+        )
+        categoryRepository.replaceAll(CategorySeed.defaults())
+        settings.setMainCurrency(currency)
     }
 
     suspend fun completeOnboarding(
         cashOpeningMinor: Long,
         cardOpeningMinor: Long
-    ) {
-        require(cashOpeningMinor >= 0 && cardOpeningMinor >= 0) {
-            "opening balances must be non-negative"
-        }
-        accountRepository.replaceAll(
-            listOf(
-                Account(id = 1L, name = CASH_NAME, openingBalanceMinor = cashOpeningMinor),
-                Account(id = 2L, name = CARD_NAME, openingBalanceMinor = cardOpeningMinor)
-            )
-        )
-        categoryRepository.replaceAll(CategorySeed.defaults())
-    }
+    ) = completeOnboarding(
+        listOf(
+            NewAccount(CASH_NAME, cashOpeningMinor),
+            NewAccount(CARD_NAME, cardOpeningMinor)
+        ),
+        Currency.DEFAULT
+    )
 
     suspend fun categories(kind: CategoryKind): List<Category> {
         ensureCategoriesSeeded()

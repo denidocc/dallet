@@ -11,12 +11,13 @@
     <string name="placeholder_add">Добавление операции — скоро</string>
     <string name="placeholder_analytics">Аналитика — скоро здесь будут диаграммы</string>
     <string name="placeholder_more">Ещё — счета и категории</string>
-    <string name="currency_tmt">ТМТ</string>
-    <string name="amount_with_currency">%1$s ТМТ</string>
     <string name="onboarding_title">Сколько сейчас денег?</string>
-    <string name="onboarding_subtitle">Укажите остатки. Суммы в манатах, например 10.50</string>
+    <string name="onboarding_subtitle">Отметьте нужные счета и укажите остатки, например 10.50</string>
     <string name="onboarding_cash_label">Наличные</string>
     <string name="onboarding_card_label">ЗП карта</string>
+    <string name="onboarding_currency">Основная валюта</string>
+    <string name="onboarding_accounts">Счета</string>
+    <string name="onboarding_custom_account">Свой счёт (название)</string>
     <string name="onboarding_continue">Продолжить</string>
     <string name="home_total_label">Общий баланс</string>
     <string name="home_month_income">Доходы за месяц</string>
@@ -52,7 +53,7 @@
     <string name="more_accounts">Счета</string>
     <string name="accounts_title">Счета</string>
     <string name="accounts_add">Добавить счёт</string>
-    <string name="accounts_opening">Старт: %1$s ТМТ</string>
+    <string name="accounts_opening">Старт: %1$s</string>
     <string name="accounts_new_title">Новый счёт</string>
     <string name="accounts_edit_title">Счёт</string>
     <string name="accounts_name_label">Название</string>
@@ -146,7 +147,7 @@
     <string name="shopping_delete_list_text">Созданный расход останется.</string>
     <string name="shopping_add_name">Что купить</string>
     <string name="shopping_qty">Кол-во</string>
-    <string name="shopping_price">Цена за ед.</string>
+    <string name="shopping_price">Цена</string>
     <string name="shopping_add">Добавить</string>
     <string name="shopping_total">Всего по списку</string>
     <string name="shopping_checked_total">Куплено (%1$d)</string>
@@ -154,7 +155,7 @@
     <string name="shopping_close">Закрыть закуп</string>
     <string name="shopping_edit_item">Позиция</string>
     <string name="shopping_close_title">Закрыть закуп</string>
-    <string name="shopping_close_summary">Куплено позиций: %1$d на %2$s ТМТ</string>
+    <string name="shopping_close_summary">Куплено позиций: %1$d на %2$s</string>
     <string name="shopping_account">Счёт</string>
     <string name="shopping_category">Категория</string>
     <string name="shopping_carry_over">Перенести неотмеченные в новый список</string>

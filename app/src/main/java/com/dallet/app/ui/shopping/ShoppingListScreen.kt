@@ -51,6 +51,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.dallet.app.R
+import com.dallet.app.ui.moneyText
 import com.dallet.app.ledger.Money
 import com.dallet.app.ledger.QuantityUnit
 import com.dallet.app.ui.SelectableOption
@@ -457,7 +458,7 @@ private fun BottomPanel(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                text = stringResource(R.string.amount_with_currency, state.totalLabel),
+                text = moneyText(state.totalLabel),
                 style = MaterialTheme.typography.titleMedium
             )
         }
@@ -468,7 +469,7 @@ private fun BottomPanel(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                text = stringResource(R.string.amount_with_currency, state.checkedTotalLabel),
+                text = moneyText(state.checkedTotalLabel),
                 style = MaterialTheme.typography.titleMedium
             )
         }
@@ -603,7 +604,7 @@ private fun CloseDialog(
                     text = stringResource(
                         R.string.shopping_close_summary,
                         state.checkedCount,
-                        state.checkedTotalLabel
+                        moneyText(state.checkedTotalLabel)
                     ),
                     style = MaterialTheme.typography.bodyLarge
                 )
