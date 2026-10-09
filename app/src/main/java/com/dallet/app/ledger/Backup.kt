@@ -4,6 +4,7 @@ import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeParseException
 
@@ -12,11 +13,12 @@ class InvalidBackupException(message: String) : Exception(message)
 data class BackupData(
     val accounts: List<Account>,
     val categories: List<Category>,
-    val operations: List<Operation>
+    val operations: List<Operation>,
+    val shopping: ShoppingData = ShoppingData.EMPTY
 )
 
 object BackupCodec {
-    const val SCHEMA_VERSION = 1
+    const val SCHEMA_VERSION = 2
     private const val APP_MARKER = "dallet"
     private const val NOT_A_BACKUP = "Файл не похож на резервную копию Dallet"
     private const val TOO_NEW = "Резервная копия создана в более новой версии Dallet"
@@ -63,8 +65,128 @@ object BackupCodec {
                 put(item)
             }
         })
+        root.put("shopping", encodeShopping(data.shopping))
         return root.toString()
     }
+
+    private fun encodeShopping(data: ShoppingData): JSONObject {
+        val root = JSONObject()
+        root.put("lists", JSONArray().apply {
+            data.lists.forEach { list ->
+                val item = JSONObject()
+                    .put("id", list.id)
+                    .put("title", list.title)
+                    .put("createdAt", list.createdAt.toString())
+                list.closedAt?.let { item.put("closedAt", it.toString()) }
+                list.operationId?.let { item.put("operationId", it) }
+                put(item)
+            }
+        })
+        root.put("items", JSONArray().apply {
+            data.items.forEach { item ->
+                put(
+                    JSONObject()
+                        .put("id", item.id)
+                        .put("listId", item.listId)
+                        .put("name", item.name)
+                        .put("unit", item.unit.name)
+                        .put("quantityThousandths", item.quantityThousandths)
+                        .put("unitPriceMinor", item.unitPriceMinor)
+                        .put("checked", item.checked)
+                        .put("position", item.position)
+                )
+            }
+        })
+        root.put("products", JSONArray().apply {
+            data.products.forEach { product ->
+                val item = JSONObject()
+                    .put("id", product.id)
+                    .put("name", product.name)
+                    .put("unit", product.unit.name)
+                product.lastPriceMinor?.let { item.put("lastPriceMinor", it) }
+                product.lastPricedAt?.let { item.put("lastPricedAt", it.toString()) }
+                put(item)
+            }
+        })
+        root.put("pricePoints", JSONArray().apply {
+            data.pricePoints.forEach { point ->
+                put(
+                    JSONObject()
+                        .put("id", point.id)
+                        .put("productId", point.productId)
+                        .put("at", point.at.toString())
+                        .put("unitPriceMinor", point.unitPriceMinor)
+                )
+            }
+        })
+        return root
+    }
+
+    private fun decodeShopping(root: JSONObject): ShoppingData = ShoppingData(
+        lists = root.optJSONArray("lists").objectsOrEmpty().map {
+            ShoppingList(
+                id = it.getLong("id"),
+                title = it.getString("title"),
+                createdAt = LocalDateTime.parse(it.getString("createdAt")),
+                closedAt = it.optNullableString("closedAt")?.let { text -> LocalDateTime.parse(text) },
+                operationId = it.optNullableLong("operationId")
+            )
+        },
+        items = root.optJSONArray("items").objectsOrEmpty().map {
+            ShoppingItem(
+                id = it.getLong("id"),
+                listId = it.getLong("listId"),
+                name = it.getString("name"),
+                unit = QuantityUnit.valueOf(it.getString("unit")),
+                quantityThousandths = it.getLong("quantityThousandths"),
+                unitPriceMinor = it.getLong("unitPriceMinor"),
+                checked = it.getBoolean("checked"),
+                position = it.getInt("position")
+            )
+        },
+        products = root.optJSONArray("products").objectsOrEmpty().map {
+            Product(
+                id = it.getLong("id"),
+                name = it.getString("name"),
+                unit = QuantityUnit.valueOf(it.getString("unit")),
+                lastPriceMinor = it.optNullableLong("lastPriceMinor"),
+                lastPricedAt = it.optNullableString("lastPricedAt")
+                    ?.let { text -> LocalDateTime.parse(text) }
+            )
+        },
+        pricePoints = root.optJSONArray("pricePoints").objectsOrEmpty().map {
+            PricePoint(
+                id = it.getLong("id"),
+                productId = it.getLong("productId"),
+                at = LocalDateTime.parse(it.getString("at")),
+                unitPriceMinor = it.getLong("unitPriceMinor")
+            )
+        }
+    )
+
+    private fun validateShopping(shopping: ShoppingData) {
+        requireValid(hasUniquePositiveIds(shopping.lists.map { it.id }))
+        requireValid(hasUniquePositiveIds(shopping.items.map { it.id }))
+        requireValid(hasUniquePositiveIds(shopping.products.map { it.id }))
+        requireValid(hasUniquePositiveIds(shopping.pricePoints.map { it.id }))
+        val listIds = shopping.lists.map { it.id }.toSet()
+        val productIds = shopping.products.map { it.id }.toSet()
+        requireValid(shopping.lists.all { it.title.isNotBlank() })
+        requireValid(
+            shopping.items.all {
+                it.listId in listIds &&
+                    it.name.isNotBlank() &&
+                    it.quantityThousandths > 0 &&
+                    it.unitPriceMinor >= 0
+            }
+        )
+        requireValid(shopping.products.all { it.name.isNotBlank() })
+        requireValid(
+            shopping.pricePoints.all { it.productId in productIds && it.unitPriceMinor > 0 }
+        )
+    }
+
+    private fun JSONArray?.objectsOrEmpty(): List<JSONObject> = this?.objects() ?: emptyList()
 
     fun decode(json: String): BackupData {
         try {
@@ -104,7 +226,9 @@ object BackupCodec {
                     time = it.optNullableString("time")?.let { text -> LocalTime.parse(text) }
                 )
             }
-            return BackupData(accounts, categories, operations)
+            val shopping = root.optJSONObject("shopping")?.let { decodeShopping(it) }
+                ?: ShoppingData.EMPTY
+            return BackupData(accounts, categories, operations, shopping)
         } catch (error: InvalidBackupException) {
             throw error
         } catch (error: JSONException) {
@@ -123,6 +247,7 @@ object BackupCodec {
         requireValid(hasUniquePositiveIds(data.operations.map { it.id }))
         requireValid(data.accounts.all { it.name.isNotBlank() && it.openingBalanceMinor >= 0 })
         requireValid(data.categories.all { it.name.isNotBlank() })
+        validateShopping(data.shopping)
 
         val accountIds = data.accounts.map { it.id }.toSet()
         val categoriesById = data.categories.associateBy { it.id }

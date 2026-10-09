@@ -8,22 +8,27 @@ import com.dallet.app.ledger.CategoryRepository
 import com.dallet.app.ledger.LedgerDataStore
 import com.dallet.app.ledger.Operation
 import com.dallet.app.ledger.OperationRepository
+import com.dallet.app.ledger.ShoppingData
+import com.dallet.app.ledger.ShoppingRepository
 
 class RoomLedgerDataStore(
     private val database: DalletDatabase,
     private val accountRepository: AccountRepository,
     private val categoryRepository: CategoryRepository,
-    private val operationRepository: OperationRepository
+    private val operationRepository: OperationRepository,
+    private val shoppingRepository: ShoppingRepository
 ) : LedgerDataStore {
     override suspend fun replaceAll(
         accounts: List<Account>,
         categories: List<Category>,
-        operations: List<Operation>
+        operations: List<Operation>,
+        shopping: ShoppingData
     ) {
         database.withTransaction {
             operationRepository.replaceAll(operations)
             accountRepository.replaceAll(accounts)
             categoryRepository.replaceAll(categories)
+            shoppingRepository.replaceAll(shopping)
         }
     }
 }

@@ -113,7 +113,7 @@ class LedgerBackupTest {
     fun newerSchemaVersion_isRejectedAndDataKept() = runTest {
         val ledger = filledLedger()
         val before = ledger.accountBalances()
-        val newer = ledger.exportBackup().replace("\"schemaVersion\":1", "\"schemaVersion\":99")
+        val newer = ledger.exportBackup().replace("\"schemaVersion\":2", "\"schemaVersion\":99")
 
         val error = assertThrows(InvalidBackupException::class.java) {
             runBlocking { ledger.importBackup(newer) }

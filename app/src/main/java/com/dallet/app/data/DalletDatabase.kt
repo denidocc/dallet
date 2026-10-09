@@ -4,12 +4,21 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [AccountEntity::class, CategoryEntity::class, OperationEntity::class],
-    version = 3,
+    entities = [
+        AccountEntity::class,
+        CategoryEntity::class,
+        OperationEntity::class,
+        ShoppingListEntity::class,
+        ShoppingItemEntity::class,
+        ProductEntity::class,
+        PricePointEntity::class
+    ],
+    version = 4,
     exportSchema = false
 )
 abstract class DalletDatabase : RoomDatabase() {
     abstract fun accountDao(): AccountDao
     abstract fun categoryDao(): CategoryDao
     abstract fun operationDao(): OperationDao
+    abstract fun shoppingDao(): ShoppingDao
 }

@@ -4,16 +4,22 @@ import android.app.Application
 import androidx.room.Room
 import com.dallet.app.data.DalletDatabase
 import com.dallet.app.data.MIGRATION_2_3
+import com.dallet.app.data.MIGRATION_3_4
 import com.dallet.app.data.RoomAccountRepository
 import com.dallet.app.data.RoomCategoryRepository
 import com.dallet.app.data.RoomLedgerDataStore
 import com.dallet.app.data.RoomOperationRepository
+import com.dallet.app.data.RoomShoppingRepository
 import com.dallet.app.ledger.Ledger
+import com.dallet.app.ledger.ShoppingService
 import com.dallet.app.security.PinLock
 import com.dallet.app.security.SharedPreferencesSecurityStorage
 
 class DalletApplication : Application() {
     lateinit var ledger: Ledger
+        private set
+
+    lateinit var shopping: ShoppingService
         private set
 
     lateinit var pinLock: PinLock
@@ -22,27 +28,31 @@ class DalletApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         CrashReporter.install(this)
-        pinLock =PinLock(SharedPreferencesSecurityStorage(this))
+        pinLock = PinLock(SharedPreferencesSecurityStorage(this))
         val database = Room.databaseBuilder(
             this,
             DalletDatabase::class.java,
             "dallet.db"
-        ).addMigrations(MIGRATION_2_3)
+        ).addMigrations(MIGRATION_2_3, MIGRATION_3_4)
             .fallbackToDestructiveMigrationFrom(1)
             .build()
         val accountRepository = RoomAccountRepository(database.accountDao())
         val categoryRepository = RoomCategoryRepository(database.categoryDao())
         val operationRepository = RoomOperationRepository(database.operationDao())
+        val shoppingRepository = RoomShoppingRepository(database.shoppingDao())
         ledger = Ledger(
             accountRepository = accountRepository,
             categoryRepository = categoryRepository,
             operationRepository = operationRepository,
+            shoppingRepository = shoppingRepository,
             dataStore = RoomLedgerDataStore(
                 database = database,
                 accountRepository = accountRepository,
                 categoryRepository = categoryRepository,
-                operationRepository = operationRepository
+                operationRepository = operationRepository,
+                shoppingRepository = shoppingRepository
             )
         )
+        shopping = ShoppingService(ledger, shoppingRepository)
     }
 }

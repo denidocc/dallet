@@ -12,8 +12,14 @@ class Ledger(
     private val accountRepository: AccountRepository,
     private val categoryRepository: CategoryRepository,
     private val operationRepository: OperationRepository,
+    private val shoppingRepository: ShoppingRepository = InMemoryShoppingRepository(),
     private val dataStore: LedgerDataStore =
-        RepositoryLedgerDataStore(accountRepository, categoryRepository, operationRepository)
+        RepositoryLedgerDataStore(
+            accountRepository,
+            categoryRepository,
+            operationRepository,
+            shoppingRepository
+        )
 ) {
     suspend fun hasCompletedOnboarding(): Boolean = accountRepository.getAll().isNotEmpty()
 
@@ -22,18 +28,19 @@ class Ledger(
             BackupData(
                 accounts = accountRepository.getAll(),
                 categories = categoryRepository.getAll(),
-                operations = operationRepository.getAll()
+                operations = operationRepository.getAll(),
+                shopping = shoppingRepository.getAll()
             )
         )
 
     suspend fun importBackup(json: String) {
         val data = BackupCodec.decode(json)
         BackupCodec.validate(data)
-        dataStore.replaceAll(data.accounts, data.categories, data.operations)
+        dataStore.replaceAll(data.accounts, data.categories, data.operations, data.shopping)
     }
 
     suspend fun resetAll() {
-        dataStore.replaceAll(emptyList(), emptyList(), emptyList())
+        dataStore.replaceAll(emptyList(), emptyList(), emptyList(), ShoppingData.EMPTY)
     }
 
     suspend fun completeOnboarding(
