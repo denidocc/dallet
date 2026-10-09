@@ -3,6 +3,7 @@ package com.dallet.app
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
@@ -25,6 +26,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
+import com.dallet.app.ledger.ThemeMode
 import com.dallet.app.ui.DalletApp
 import com.dallet.app.ui.theme.DalletTheme
 
@@ -34,7 +36,13 @@ class MainActivity : FragmentActivity() {
         enableEdgeToEdge()
         val app = application as DalletApplication
         setContent {
-            DalletTheme {
+            var themeMode by remember { mutableStateOf(app.settings.themeMode()) }
+            val darkTheme = when (themeMode) {
+                ThemeMode.SYSTEM -> isSystemInDarkTheme()
+                ThemeMode.LIGHT -> false
+                ThemeMode.DARK -> true
+            }
+            DalletTheme(darkTheme = darkTheme) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background,
@@ -43,7 +51,12 @@ class MainActivity : FragmentActivity() {
                     DalletApp(
                         ledger = app.ledger,
                         pinLock = app.pinLock,
-                        shopping = app.shopping
+                        shopping = app.shopping,
+                        themeMode = themeMode,
+                        onThemeModeChange = {
+                            app.settings.setThemeMode(it)
+                            themeMode = it
+                        }
                     )
                     CrashReportDialog()
                 }

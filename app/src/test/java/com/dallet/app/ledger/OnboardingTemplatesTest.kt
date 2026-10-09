@@ -150,4 +150,24 @@ class OnboardingTemplatesTest {
         assertThat(Currency.fromName(null)).isEqualTo(Currency.TMT)
         assertThat(Currency.fromName("USD")).isEqualTo(Currency.USD)
     }
+
+    @Test
+    fun mainCurrency_canBeChangedAfterOnboarding() = runTest {
+        val env = Env()
+        env.ledger.completeOnboarding(listOf(NewAccount("Наличные", 500L)), Currency.USD)
+
+        env.ledger.setMainCurrency(Currency.EUR)
+
+        assertThat(env.ledger.mainCurrency()).isEqualTo(Currency.EUR)
+        assertThat(env.ledger.totalBalanceMinor()).isEqualTo(500L)
+    }
+
+    @Test
+    fun themeMode_defaultsToSystemAndIsStored() {
+        val store = InMemorySettingsStore()
+        assertThat(store.themeMode()).isEqualTo(ThemeMode.SYSTEM)
+        store.setThemeMode(ThemeMode.DARK)
+        assertThat(store.themeMode()).isEqualTo(ThemeMode.DARK)
+        assertThat(ThemeMode.fromName("bad")).isEqualTo(ThemeMode.SYSTEM)
+    }
 }

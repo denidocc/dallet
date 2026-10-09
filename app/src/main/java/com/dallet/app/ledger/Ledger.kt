@@ -49,6 +49,10 @@ class Ledger(
 
     suspend fun mainCurrency(): Currency = settings.mainCurrency()
 
+    suspend fun setMainCurrency(currency: Currency) {
+        settings.setMainCurrency(currency)
+    }
+
     suspend fun completeOnboarding(
         accounts: List<NewAccount>,
         currency: Currency = Currency.DEFAULT

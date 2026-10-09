@@ -13,6 +13,7 @@ import com.dallet.app.data.RoomOperationRepository
 import com.dallet.app.data.RoomShoppingRepository
 import com.dallet.app.data.SharedPreferencesSettingsStore
 import com.dallet.app.ledger.Ledger
+import com.dallet.app.ledger.SettingsStore
 import com.dallet.app.ledger.ShoppingService
 import com.dallet.app.security.PinLock
 import com.dallet.app.security.SharedPreferencesSecurityStorage
@@ -27,6 +28,9 @@ class DalletApplication : Application() {
     lateinit var pinLock: PinLock
         private set
 
+    lateinit var settings: SettingsStore
+        private set
+
     override fun onCreate() {
         super.onCreate()
         CrashReporter.install(this)
@@ -38,6 +42,7 @@ class DalletApplication : Application() {
         ).addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
             .fallbackToDestructiveMigrationFrom(1)
             .build()
+        settings = SharedPreferencesSettingsStore(this)
         val accountRepository = RoomAccountRepository(database.accountDao())
         val categoryRepository = RoomCategoryRepository(database.categoryDao())
         val operationRepository = RoomOperationRepository(database.operationDao())
@@ -47,8 +52,8 @@ class DalletApplication : Application() {
             categoryRepository = categoryRepository,
             operationRepository = operationRepository,
             shoppingRepository = shoppingRepository,
-            settings = SharedPreferencesSettingsStore(this),
-            dataStore =RoomLedgerDataStore(
+            settings = settings,
+            dataStore = RoomLedgerDataStore(
                 database = database,
                 accountRepository = accountRepository,
                 categoryRepository = categoryRepository,

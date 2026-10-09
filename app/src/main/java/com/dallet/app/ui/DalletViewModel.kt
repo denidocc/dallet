@@ -513,6 +513,13 @@ class DalletViewModel(
         _categoryEditor.value = CategoryEditorUiState()
     }
 
+    fun setMainCurrency(currency: Currency) {
+        viewModelScope.launch {
+            ledger.setMainCurrency(currency)
+            _currency.value = currency
+        }
+    }
+
     fun refreshHome() {
         viewModelScope.launch {
             _home.update { it.copy(loading = true, errorMessage = null) }

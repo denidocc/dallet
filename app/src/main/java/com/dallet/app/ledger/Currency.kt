@@ -17,18 +17,38 @@ enum class Currency(val code: String) {
     }
 }
 
+enum class ThemeMode {
+    SYSTEM,
+    LIGHT,
+    DARK;
+
+    companion object {
+        fun fromName(name: String?): ThemeMode =
+            values().firstOrNull { it.name == name } ?: SYSTEM
+    }
+}
+
 interface SettingsStore {
     fun mainCurrency(): Currency
     fun setMainCurrency(currency: Currency)
+    fun themeMode(): ThemeMode
+    fun setThemeMode(mode: ThemeMode)
 }
 
 class InMemorySettingsStore : SettingsStore {
     private var currency: Currency = Currency.DEFAULT
+    private var theme: ThemeMode = ThemeMode.SYSTEM
 
     override fun mainCurrency(): Currency = currency
 
     override fun setMainCurrency(currency: Currency) {
         this.currency = currency
+    }
+
+    override fun themeMode(): ThemeMode = theme
+
+    override fun setThemeMode(mode: ThemeMode) {
+        theme = mode
     }
 }
 

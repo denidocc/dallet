@@ -6,6 +6,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 
 private val LightColors = lightColorScheme(
     primary = LightAccent,
@@ -67,7 +68,7 @@ fun DalletTheme(
 
 @Composable
 fun incomeAmountColor(): Color =
-    if (isSystemInDarkTheme()) IncomeGreenDark else IncomeGreen
+    if (MaterialTheme.colorScheme.background.luminance() < 0.5f) IncomeGreenDark else IncomeGreen
 
 @Composable
 fun expenseAmountColor(): Color =

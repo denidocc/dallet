@@ -58,6 +58,9 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.dallet.app.R
 import com.dallet.app.ledger.Ledger
+import com.dallet.app.ledger.ThemeMode
+import com.dallet.app.ledger.Currency
+import com.dallet.app.ui.settings.SettingsScreen
 import com.dallet.app.ledger.ShoppingService
 import com.dallet.app.ui.common.SurfaceCard
 import com.dallet.app.ui.shopping.ProductDetailScreen
@@ -90,6 +93,7 @@ private const val ACCOUNTS_ROUTE = "accounts"
 private const val ACCOUNT_NEW_ROUTE = "account/new"
 private const val ACCOUNT_EDIT_ROUTE = "account/{accountId}"
 private const val SECURITY_ROUTE = "security"
+private const val SETTINGS_ROUTE = "settings"
 private const val SHOPPING_ROUTE = "shopping"
 private const val SHOPPING_LIST_ROUTE = "shopping/{listId}"
 private const val PRODUCT_ROUTE = "shopping/product/{productId}"
@@ -103,19 +107,23 @@ fun DalletApp(
     ledger: Ledger,
     pinLock: PinLock,
     shopping: ShoppingService,
+    themeMode: ThemeMode,
+    onThemeModeChange: (ThemeMode) -> Unit,
     viewModel: DalletViewModel = viewModel(factory = DalletViewModel.factory(ledger, pinLock)),
     shoppingViewModel: ShoppingViewModel = viewModel(factory = ShoppingViewModel.factory(ledger, shopping))
 ) {
     val currency by viewModel.currency.collectAsStateWithLifecycle()
     CompositionLocalProvider(LocalCurrency provides currency) {
-        DalletAppContent(viewModel, shoppingViewModel)
+        DalletAppContent(viewModel, shoppingViewModel, themeMode, onThemeModeChange)
     }
 }
 
 @Composable
 private fun DalletAppContent(
     viewModel: DalletViewModel,
-    shoppingViewModel: ShoppingViewModel
+    shoppingViewModel: ShoppingViewModel,
+    themeMode: ThemeMode,
+    onThemeModeChange: (ThemeMode) -> Unit
 ) {
     val homeState by viewModel.home.collectAsStateWithLifecycle()
     val onboardingState by viewModel.onboarding.collectAsStateWithLifecycle()
@@ -260,6 +268,7 @@ private fun DalletAppContent(
 
     val hideBottomBar = currentRoute?.startsWith("edit/") == true ||
         currentRoute == SECURITY_ROUTE ||
+        currentRoute == SETTINGS_ROUTE ||
         currentRoute?.startsWith("shopping") == true ||
         currentRoute?.startsWith("account") == true ||
         currentRoute?.startsWith("categor") == true
@@ -355,6 +364,7 @@ private fun DalletAppContent(
                     onAccountsClick = { navController.navigate(ACCOUNTS_ROUTE) },
                     onCategoriesClick = { navController.navigate(CATEGORIES_ROUTE) },
                     onSecurityClick = { navController.navigate(SECURITY_ROUTE) },
+                    onSettingsClick = { navController.navigate(SETTINGS_ROUTE) },
                     onShoppingClick = {
                         shoppingViewModel.refreshHub()
                         navController.navigate(SHOPPING_ROUTE)
@@ -363,6 +373,15 @@ private fun DalletAppContent(
                     onImportClick = launchImport,
                     onResetConfirmed = viewModel::resetAll,
                     onDataMessageShown = viewModel::consumeDataMessage
+                )
+            }
+            composable(SETTINGS_ROUTE) {
+                val currentCurrency by viewModel.currency.collectAsStateWithLifecycle()
+                SettingsScreen(
+                    currency = currentCurrency,
+                    themeMode = themeMode,
+                    onCurrencyChange = viewModel::setMainCurrency,
+                    onThemeModeChange = onThemeModeChange
                 )
             }
             composable(SECURITY_ROUTE) {

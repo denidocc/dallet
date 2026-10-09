@@ -119,6 +119,17 @@
     <string name="reset_word">СБРОС</string>
     <string name="reset_confirm">Сбросить</string>
     <string name="onboarding_restore">Восстановить из файла</string>
+    <string name="more_settings">Настройки</string>
+    <string name="settings_title">Настройки</string>
+    <string name="settings_currency">Основная валюта</string>
+    <string name="settings_currency_hint">Меняется только подпись, суммы не пересчитываются.</string>
+    <string name="settings_currency_dialog_title">Сменить валюту?</string>
+    <string name="settings_currency_dialog_text">Суммы останутся прежними числами, изменится только подпись валюты.</string>
+    <string name="settings_currency_confirm">Сменить</string>
+    <string name="settings_theme">Тема</string>
+    <string name="settings_theme_system">Системная</string>
+    <string name="settings_theme_light">Светлая</string>
+    <string name="settings_theme_dark">Тёмная</string>
     <string name="more_security">Безопасность</string>
     <string name="more_shopping">Покупки</string>
     <string name="shopping_title">Покупки</string>
