@@ -145,7 +145,8 @@ fun ShoppingListScreen(
                         if (state.readOnly) {
                             Text(
                                 text = state.title,
-                                style = MaterialTheme.typography.titleLarge
+                                style = MaterialTheme.typography.titleLarge,
+                                modifier = Modifier.padding(end = 48.dp)
                             )
                             if (state.note.isNotBlank()) {
                                 Text(
@@ -160,6 +161,7 @@ fun ShoppingListScreen(
                                 onValueChange = { titleInput = it },
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .padding(end = 48.dp)
                                     .onFocusChanged { if (!it.isFocused) saveInfo() },
                                 label = { Text(stringResource(R.string.shopping_list_name)) },
                                 singleLine = true
