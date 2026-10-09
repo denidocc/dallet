@@ -318,6 +318,73 @@ class ShoppingTest {
     }
 
     @Test
+    fun setChecked_savesPriceOfBoughtItem_onlyWhenChecked() = runTest {
+        val env = readyEnv()
+        val listId = env.service.createList("Цены", now)
+        val milk = env.service.addItem(listId, "Молоко", QuantityUnit.LITER, 1_000, 1_800)
+        val bread = env.service.addItem(listId, "Хлеб", QuantityUnit.PIECE, 1_000, 0)
+
+        env.service.setChecked(milk, true, now)
+        env.service.setChecked(bread, true, now)
+
+        val prices = env.service.products().associate { it.name to it.lastPriceMinor }
+        assertThat(prices["Молоко"]).isEqualTo(1_800L)
+        assertThat(prices["Хлеб"]).isNull()
+        val milkProduct = env.service.products().first { it.name == "Молоко" }
+        assertThat(env.service.pricePoints(milkProduct.id)).hasSize(1)
+
+        env.service.setChecked(milk, false, now.plusDays(1))
+        assertThat(env.service.pricePoints(milkProduct.id)).hasSize(1)
+    }
+
+    @Test
+    fun updateListInfo_changesTitleAndNote() = runTest {
+        val env = readyEnv()
+        val listId = env.service.createList("Старое", now)
+
+        env.service.updateListInfo(listId, "  Базар  ", "для дачи")
+
+        val list = env.service.detail(listId)!!.list
+        assertThat(list.title).isEqualTo("Базар")
+        assertThat(list.note).isEqualTo("для дачи")
+    }
+
+    @Test
+    fun closePurchase_expenseCommentIncludesNote() = runTest {
+        val env = readyEnv()
+        val listId = env.service.createList("Базар", now)
+        env.service.updateListInfo(listId, "Базар", "для дачи")
+        val item = env.service.addItem(listId, "Хлеб", QuantityUnit.PIECE, 1_000, 300)
+        env.service.setChecked(item, true, now)
+
+        val withNote = env.service.closePurchase(
+            listId, env.cashId(), env.foodId(), LocalDate.of(2026, 10, 9), null, now, false
+        )
+        assertThat(env.ledger.operation(withNote.operationId!!)!!.comment)
+            .isEqualTo("Базар — для дачи")
+
+        val plainId = env.service.createList("Просто", now)
+        val plainItem = env.service.addItem(plainId, "Сыр", QuantityUnit.PACK, 1_000, 500)
+        env.service.setChecked(plainItem, true, now)
+        val plain = env.service.closePurchase(
+            plainId, env.cashId(), env.foodId(), LocalDate.of(2026, 10, 9), null, now, false
+        )
+        assertThat(env.ledger.operation(plain.operationId!!)!!.comment).isEqualTo("Просто")
+    }
+
+    @Test
+    fun backup_roundTripKeepsListNote() = runTest {
+        val source = readyEnv()
+        val listId = source.service.createList("Базар", now)
+        source.service.updateListInfo(listId, "Базар", "для дачи")
+
+        val target = Env()
+        target.ledger.importBackup(source.ledger.exportBackup())
+
+        assertThat(target.service.detail(listId)!!.list.note).isEqualTo("для дачи")
+    }
+
+    @Test
     fun reset_clearsShoppingData() = runTest {
         val env = readyEnv()
         val listId = env.service.createList("Базар", now)

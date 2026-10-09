@@ -20,7 +20,8 @@ data class ShoppingList(
     val title: String,
     val createdAt: LocalDateTime,
     val closedAt: LocalDateTime? = null,
-    val operationId: Long? = null
+    val operationId: Long? = null,
+    val note: String = ""
 ) {
     val isClosed: Boolean get() = closedAt != null
 }
@@ -236,9 +237,11 @@ class ShoppingService(
         return repository.insertList(ShoppingList(id = 0L, title = clean, createdAt = now))
     }
 
-    suspend fun renameList(listId: Long, title: String) {
+    suspend fun updateListInfo(listId: Long, title: String, note: String) {
         val list = openList(listId)
-        repository.updateList(list.copy(title = title.trim().ifEmpty { DEFAULT_TITLE }))
+        repository.updateList(
+            list.copy(title = title.trim().ifEmpty { DEFAULT_TITLE }, note = note.trim())
+        )
     }
 
     suspend fun deleteList(listId: Long) {
@@ -293,11 +296,17 @@ class ShoppingService(
         repository.updateItem(item.copy(name = item.name.trim()))
     }
 
-    suspend fun setChecked(itemId: Long, checked: Boolean) {
+    suspend fun setChecked(
+        itemId: Long,
+        checked: Boolean,
+        now: LocalDateTime = LocalDateTime.now()
+    ) {
         val item = repository.item(itemId) ?: error("item not found")
         openList(item.listId)
         repository.updateItem(item.copy(checked = checked))
-    }
+        if (checked) {
+            savePrices(listOf(item), now)
+        }    }
 
     suspend fun deleteItem(itemId: Long) {
         val item = repository.item(itemId) ?: return
@@ -360,7 +369,7 @@ class ShoppingService(
                 categoryId = categoryId,
                 amountMinor = total,
                 date = date,
-                comment = list.title,
+                comment = if (list.note.isBlank()) list.title else "${list.title} — ${list.note}",
                 time = time
             )
         } else {

@@ -12,6 +12,7 @@ import com.dallet.app.ledger.ShoppingItem
 import com.dallet.app.ledger.ShoppingListDetail
 import com.dallet.app.ledger.ShoppingListSummary
 import com.dallet.app.ledger.ShoppingService
+import com.dallet.app.ledger.percentChange
 import com.dallet.app.ui.SelectableOption
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -77,6 +78,8 @@ data class ShoppingEditorUiState(
     val checkedCount: Int = 0,
     val closedLabel: String? = null,
     val hasExpense: Boolean = false,
+    val note: String = "",
+    val operationId: Long? = null,
     val nameInput: String = "",
     val quantityInput: String = "1",
     val unit: QuantityUnit = QuantityUnit.PIECE,
@@ -98,6 +101,29 @@ data class CloseFormUiState(
     val errorMessage: String? = null
 )
 
+data class PricePointRowUi(
+    val dateLabel: String,
+    val priceLabel: String,
+    val changeLabel: String?,
+    val priceWentUp: Boolean?
+)
+
+data class ChartPointUi(val x: Float, val y: Float)
+
+data class ProductDetailUiState(
+    val loading: Boolean = true,
+    val missing: Boolean = false,
+    val name: String = "",
+    val unitLabel: String = "",
+    val lastPriceLabel: String = "",
+    val minLabel: String = "",
+    val maxLabel: String = "",
+    val changeLabel: String? = null,
+    val priceWentUp: Boolean? = null,
+    val chart: List<ChartPointUi> = emptyList(),
+    val rows: List<PricePointRowUi> = emptyList()
+)
+
 private val TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 private val DISPLAY_DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 
@@ -114,6 +140,72 @@ class ShoppingViewModel(
 
     private val _closeForm = MutableStateFlow(CloseFormUiState())
     val closeForm: StateFlow<CloseFormUiState> = _closeForm.asStateFlow()
+
+    private val _product = MutableStateFlow(ProductDetailUiState())
+    val product: StateFlow<ProductDetailUiState> = _product.asStateFlow()
+
+    fun openProduct(productId: Long) {
+        viewModelScope.launch {
+            _product.value = ProductDetailUiState(loading = true)
+            try {
+                val found = service.products().firstOrNull { it.id == productId }
+                if (found == null) {
+                    _product.value = ProductDetailUiState(loading = false, missing = true)
+                    return@launch
+                }
+                val points = service.pricePoints(productId)
+                val prices = points.map { it.unitPriceMinor }
+                val minPrice = prices.minOrNull()
+                val maxPrice = prices.maxOrNull()
+                val unit = found.unit.label
+                fun label(minor: Long) = "${Money.formatManat(minor)} ТМТ / $unit"
+                val rows = points.mapIndexed { index, point ->
+                    val change = points.getOrNull(index - 1)?.let {
+                        percentChange(point.unitPriceMinor, it.unitPriceMinor)
+                    }
+                    PricePointRowUi(
+                        dateLabel = point.at.format(DISPLAY_DATE),
+                        priceLabel = label(point.unitPriceMinor),
+                        changeLabel = change?.let { changeText(it) },
+                        priceWentUp = change?.let { if (it == 0) null else it > 0 }
+                    )
+                }.reversed()
+                val lastChange = if (points.size >= 2) {
+                    percentChange(points.last().unitPriceMinor, points[points.size - 2].unitPriceMinor)
+                } else {
+                    null
+                }
+                val low = minPrice ?: 0L
+                val span = ((maxPrice ?: 0L) - low).coerceAtLeast(0L)
+                val chart = points.mapIndexed { index, point ->
+                    ChartPointUi(
+                        x = if (points.size == 1) 0.5f else index.toFloat() / (points.size - 1),
+                        y = if (span == 0L) 0.5f else (point.unitPriceMinor - low).toFloat() / span
+                    )
+                }
+                _product.value = ProductDetailUiState(
+                    loading = false,
+                    name = found.name,
+                    unitLabel = unit,
+                    lastPriceLabel = prices.lastOrNull()?.let { label(it) } ?: "цена не сохранена",
+                    minLabel = minPrice?.let { label(it) }.orEmpty(),
+                    maxLabel = maxPrice?.let { label(it) }.orEmpty(),
+                    changeLabel = lastChange?.let { changeText(it) },
+                    priceWentUp = lastChange?.let { if (it == 0) null else it > 0 },
+                    chart = chart,
+                    rows = rows
+                )
+            } catch (_: Exception) {
+                _product.value = ProductDetailUiState(loading = false, missing = true)
+            }
+        }
+    }
+
+    private fun changeText(percent: Int): String = when {
+        percent > 0 -> "▲ $percent%"
+        percent < 0 -> "▼ ${-percent}%"
+        else -> "▬ 0%"
+    }
 
     // region hub
 
@@ -275,7 +367,11 @@ class ShoppingViewModel(
     fun toggleItem(itemId: Long, checked: Boolean) {
         viewModelScope.launch {
             try {
-                service.setChecked(itemId, checked)
+                service.setChecked(
+                    itemId,
+                    checked,
+                    LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES)
+                )
                 reloadEditor(_editor.value.listId)
             } catch (_: Exception) {
                 _editor.update { it.copy(message = "Не удалось отметить", isError = true) }
@@ -323,15 +419,15 @@ class ShoppingViewModel(
         }
     }
 
-    fun renameList(title: String) {
+    fun saveListInfo(title: String, note: String) {
         viewModelScope.launch {
             val listId = _editor.value.listId
             try {
-                service.renameList(listId, title)
+                service.updateListInfo(listId, title, note)
                 reloadEditor(listId)
                 refreshHub()
             } catch (_: Exception) {
-                _editor.update { it.copy(message = "Не удалось переименовать", isError = true) }
+                _editor.update { it.copy(message = "Не удалось сохранить название", isError = true) }
             }
         }
     }
@@ -466,7 +562,9 @@ class ShoppingViewModel(
             checkedTotalLabel = Money.formatManat(checkedTotalMinor),
             checkedCount = checkedCount,
             closedLabel = list.closedAt?.format(DISPLAY_DATE),
-            hasExpense = list.operationId != null
+            hasExpense = list.operationId != null,
+            note = list.note,
+            operationId = list.operationId
         )
 
     private fun ShoppingItem.toUi(): ShoppingItemUi {

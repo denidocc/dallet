@@ -36,6 +36,7 @@ fun ShoppingHubScreen(
     onTabSelected: (HubTab) -> Unit,
     onNewList: () -> Unit,
     onListClick: (Long) -> Unit,
+    onProductClick: (Long) -> Unit,
     onDeleteProduct: (Long) -> Unit
 ) {
     var productToDelete by remember { mutableStateOf<ProductRowUi?>(null) }
@@ -100,7 +101,7 @@ fun ShoppingHubScreen(
                     EmptyText(stringResource(R.string.shopping_products_empty))
                 }
                 state.products.forEach { product ->
-                    SurfaceCard {
+                    SurfaceCard(onClick = { onProductClick(product.id) }) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically

@@ -1,5 +1,6 @@
 package com.dallet.app.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -9,7 +10,8 @@ data class ShoppingListEntity(
     val title: String,
     val createdAtSec: Long,
     val closedAtSec: Long?,
-    val operationId: Long?
+    val operationId: Long?,
+    @ColumnInfo(defaultValue = "''") val note: String = ""
 )
 
 @Entity(tableName = "shopping_items")

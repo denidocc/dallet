@@ -13,7 +13,7 @@ import androidx.room.RoomDatabase
         ProductEntity::class,
         PricePointEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class DalletDatabase : RoomDatabase() {

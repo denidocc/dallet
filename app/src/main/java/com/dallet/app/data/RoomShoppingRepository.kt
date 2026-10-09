@@ -92,7 +92,8 @@ private fun ShoppingListEntity.toDomain() = ShoppingList(
     title = title,
     createdAt = createdAtSec.toDateTime(),
     closedAt = closedAtSec?.toDateTime(),
-    operationId = operationId
+    operationId = operationId,
+    note = note
 )
 
 private fun ShoppingList.toEntity() = ShoppingListEntity(
@@ -100,7 +101,8 @@ private fun ShoppingList.toEntity() = ShoppingListEntity(
     title = title,
     createdAtSec = createdAt.toSec(),
     closedAtSec = closedAt?.toSec(),
-    operationId = operationId
+    operationId = operationId,
+    note = note
 )
 
 private fun ShoppingItemEntity.toDomain() = ShoppingItem(

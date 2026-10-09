@@ -77,6 +77,7 @@ object BackupCodec {
                     .put("id", list.id)
                     .put("title", list.title)
                     .put("createdAt", list.createdAt.toString())
+                    .put("note", list.note)
                 list.closedAt?.let { item.put("closedAt", it.toString()) }
                 list.operationId?.let { item.put("operationId", it) }
                 put(item)
@@ -129,7 +130,8 @@ object BackupCodec {
                 title = it.getString("title"),
                 createdAt = LocalDateTime.parse(it.getString("createdAt")),
                 closedAt = it.optNullableString("closedAt")?.let { text -> LocalDateTime.parse(text) },
-                operationId = it.optNullableLong("operationId")
+                operationId = it.optNullableLong("operationId"),
+                note = it.optNullableString("note").orEmpty()
             )
         },
         items = root.optJSONArray("items").objectsOrEmpty().map {

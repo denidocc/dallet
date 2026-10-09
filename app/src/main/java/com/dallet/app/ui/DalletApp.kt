@@ -51,6 +51,7 @@ import com.dallet.app.R
 import com.dallet.app.ledger.Ledger
 import com.dallet.app.ledger.ShoppingService
 import com.dallet.app.ui.common.SurfaceCard
+import com.dallet.app.ui.shopping.ProductDetailScreen
 import com.dallet.app.ui.shopping.ShoppingHubScreen
 import com.dallet.app.ui.shopping.ShoppingListActions
 import com.dallet.app.ui.shopping.ShoppingListScreen
@@ -80,6 +81,7 @@ private const val ACCOUNT_EDIT_ROUTE = "account/{accountId}"
 private const val SECURITY_ROUTE = "security"
 private const val SHOPPING_ROUTE = "shopping"
 private const val SHOPPING_LIST_ROUTE = "shopping/{listId}"
+private const val PRODUCT_ROUTE = "shopping/product/{productId}"
 private const val CATEGORIES_ROUTE = "categories"
 private const val CATEGORY_NEW_ROUTE = "category/new"
 private const val CATEGORY_EDIT_ROUTE = "category/{categoryId}"
@@ -187,6 +189,7 @@ fun DalletApp(
     val hubState by shoppingViewModel.hub.collectAsStateWithLifecycle()
     val editorState by shoppingViewModel.editor.collectAsStateWithLifecycle()
     val closeFormState by shoppingViewModel.closeForm.collectAsStateWithLifecycle()
+    val productState by shoppingViewModel.product.collectAsStateWithLifecycle()
 
     fun navigateTo(destination: DalletDestination) {
         navController.navigate(destination.route) {
@@ -348,8 +351,20 @@ fun DalletApp(
                         }
                     },
                     onListClick = { id -> navController.navigate("shopping/$id") },
+                    onProductClick = { id ->
+                        shoppingViewModel.openProduct(id)
+                        navController.navigate("shopping/product/$id")
+                    },
                     onDeleteProduct = shoppingViewModel::deleteProduct
                 )
+            }
+            composable(
+                route = PRODUCT_ROUTE,
+                arguments = listOf(navArgument("productId") { type = NavType.LongType })
+            ) { entry ->
+                val productId = entry.arguments?.getLong("productId") ?: return@composable
+                LaunchedEffect(productId) { shoppingViewModel.openProduct(productId) }
+                ProductDetailScreen(state = productState)
             }
             composable(
                 route = SHOPPING_LIST_ROUTE,
@@ -361,7 +376,7 @@ fun DalletApp(
                     state = editorState,
                     closeForm = closeFormState,
                     actions = ShoppingListActions(
-                        onRename = shoppingViewModel::renameList,
+                        onSaveInfo = shoppingViewModel::saveListInfo,
                         onNameChange = shoppingViewModel::onNameChange,
                         onQuantityChange = shoppingViewModel::onQuantityChange,
                         onUnitSelected = shoppingViewModel::onUnitSelected,
@@ -383,7 +398,14 @@ fun DalletApp(
                         },
                         onDeleteList = {
                             shoppingViewModel.deleteList(listId) { navController.popBackStack() }
-                        }
+                        },
+                        onGoHome = { navigateTo(DalletDestination.Home) },
+                        onGoShopping = {
+                            navController.navigate(SHOPPING_ROUTE) {
+                                popUpTo(SHOPPING_ROUTE) { inclusive = true }
+                            }
+                        },
+                        onOpenExpense = { id -> openEdit(id) }
                     )
                 )
             }

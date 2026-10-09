@@ -36,13 +36,16 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
@@ -56,7 +59,7 @@ import com.dallet.app.ui.common.FormTimeField
 import com.dallet.app.ui.common.SurfaceCard
 
 class ShoppingListActions(
-    val onRename: (String) -> Unit,
+    val onSaveInfo: (String, String) -> Unit,
     val onNameChange: (String) -> Unit,
     val onQuantityChange: (String) -> Unit,
     val onUnitSelected: (QuantityUnit) -> Unit,
@@ -74,7 +77,10 @@ class ShoppingListActions(
     val onCloseTime: (String) -> Unit,
     val onCloseCarryOver: (Boolean) -> Unit,
     val onConfirmClose: () -> Unit,
-    val onDeleteList: () -> Unit
+    val onDeleteList: () -> Unit,
+    val onGoHome: () -> Unit,
+    val onGoShopping: () -> Unit,
+    val onOpenExpense: (Long) -> Unit
 )
 
 @Composable
@@ -96,10 +102,20 @@ fun ShoppingListScreen(
         return
     }
 
-    var showRename by remember { mutableStateOf(false) }
     var showDelete by remember { mutableStateOf(false) }
     var showClose by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<ShoppingItemUi?>(null) }
+    var titleInput by remember(state.listId) { mutableStateOf(state.title) }
+    var noteInput by remember(state.listId) { mutableStateOf(state.note) }
+
+    val saveInfo by rememberUpdatedState {
+        if (!state.readOnly && (titleInput != state.title || noteInput != state.note)) {
+            actions.onSaveInfo(titleInput, noteInput)
+        }
+    }
+    DisposableEffect(state.listId) {
+        onDispose { saveInfo() }
+    }
 
     LaunchedEffect(state.readOnly) {
         if (state.readOnly) showClose = false
@@ -120,18 +136,45 @@ fun ShoppingListScreen(
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.Top
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = state.title,
-                            style = MaterialTheme.typography.titleLarge,
-                            modifier = if (state.readOnly) {
-                                Modifier
-                            } else {
-                                Modifier.clickable { showRename = true }
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (state.readOnly) {
+                            Text(
+                                text = state.title,
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                            if (state.note.isNotBlank()) {
+                                Text(
+                                    text = state.note,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
-                        )
+                        } else {
+                            OutlinedTextField(
+                                value = titleInput,
+                                onValueChange = { titleInput = it },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .onFocusChanged { if (!it.isFocused) saveInfo() },
+                                label = { Text(stringResource(R.string.shopping_list_name)) },
+                                singleLine = true
+                            )
+                            OutlinedTextField(
+                                value = noteInput,
+                                onValueChange = { noteInput = it },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .onFocusChanged { if (!it.isFocused) saveInfo() },
+                                label = { Text(stringResource(R.string.shopping_list_note)) },
+                                minLines = 1,
+                                maxLines = 3
+                            )
+                        }
                         state.closedLabel?.let { closed ->
                             val expense = stringResource(
                                 if (state.hasExpense) R.string.shopping_expense_created
@@ -219,37 +262,10 @@ fun ShoppingListScreen(
             onClose = {
                 actions.onPrepareClose()
                 showClose = true
-            }
-        )
-    }
-
-    if (showRename) {
-        var title by remember { mutableStateOf(state.title) }
-        AlertDialog(
-            onDismissRequest = { showRename = false },
-            title = { Text(stringResource(R.string.shopping_rename_title)) },
-            text = {
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = { title = it },
-                    singleLine = true
-                )
             },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        actions.onRename(title)
-                        showRename = false
-                    }
-                ) {
-                    Text(stringResource(R.string.shopping_save))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showRename = false }) {
-                    Text(stringResource(R.string.dialog_cancel))
-                }
-            }
+            onGoHome = actions.onGoHome,
+            onGoShopping = actions.onGoShopping,
+            onOpenExpense = actions.onOpenExpense
         )
     }
 
@@ -415,7 +431,10 @@ private fun UnitPicker(
 private fun BottomPanel(
     state: ShoppingEditorUiState,
     onSavePrices: () -> Unit,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    onGoHome: () -> Unit,
+    onGoShopping: () -> Unit,
+    onOpenExpense: (Long) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -447,21 +466,43 @@ private fun BottomPanel(
             )
         }
         if (!state.readOnly) {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                OutlinedButton(onClick = onSavePrices, modifier = Modifier.weight(1f)) {
-                    Text(text = stringResource(R.string.shopping_save_prices), maxLines = 1)
+                OutlinedButton(onClick = onSavePrices, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.shopping_save_prices))
                 }
                 Button(
                     onClick = onClose,
                     enabled = state.checkedCount > 0,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(text = stringResource(R.string.shopping_close), maxLines = 1)
+                    Text(stringResource(R.string.shopping_close))
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(onClick = onGoHome, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.shopping_go_home))
+                }
+                OutlinedButton(onClick = onGoShopping, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.shopping_go_shopping))
+                }
+                state.operationId?.let { operationId ->
+                    TextButton(
+                        onClick = { onOpenExpense(operationId) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.shopping_open_expense))
+                    }
                 }
             }
         }
