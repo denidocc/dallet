@@ -21,6 +21,13 @@ data class ExpenseFlowPoint(
     val amountMinor: Long
 )
 
+data class AccountPeriodTotal(
+    val accountId: Long,
+    val accountName: String,
+    val incomeMinor: Long,
+    val expenseMinor: Long
+)
+
 data class AnalyticsComparison(
     val current: AnalyticsSummary,
     val previous: AnalyticsSummary,
@@ -50,5 +57,6 @@ data class AnalyticsSummary(
     val expensesByCategory: List<CategoryExpenseTotal>,
     val expenseFlow: List<ExpenseFlowPoint>,
     val incomesByCategory: List<CategoryExpenseTotal> = emptyList(),
-    val incomeFlow: List<ExpenseFlowPoint> = emptyList()
+    val incomeFlow: List<ExpenseFlowPoint> = emptyList(),
+    val byAccount: List<AccountPeriodTotal> = emptyList()
 )

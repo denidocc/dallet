@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.dallet.app.ledger.AccountHasOperationsException
 import com.dallet.app.ledger.CategoryHasOperationsException
 import com.dallet.app.ledger.AccountBalance
+import com.dallet.app.ledger.AccountPeriodTotal
 import com.dallet.app.ui.categories.CategoryStyleOptions
 import com.dallet.app.ledger.AnalyticsPeriod
 import com.dallet.app.ledger.Category
@@ -210,7 +211,16 @@ data class AnalyticsUiState(
     val periodLabel: String = "",
     val isComplete: Boolean = true,
     val incomeChangePercent: Int? = null,
-    val expenseChangePercent: Int? = null
+    val expenseChangePercent: Int? = null,
+    val accountStats: List<AccountStatUi> = emptyList()
+)
+
+data class AccountStatUi(
+    val name: String,
+    val incomeLabel: String,
+    val expenseLabel: String,
+    val incomeFraction: Float,
+    val expenseFraction: Float
 )
 
 data class AnalyticsCategorySliceUi(
@@ -751,8 +761,24 @@ class DalletViewModel(
             expenseChangePercent = percentChange(
                 summary.expenseTotalMinor,
                 previous.expenseTotalMinor
-            )
+            ),
+            accountStats = summary.byAccount.toAccountStats()
         )
+    }
+
+    private fun List<AccountPeriodTotal>.toAccountStats(): List<AccountStatUi> {
+        val maxAmount = maxOfOrNull { maxOf(it.incomeMinor, it.expenseMinor) } ?: 0L
+        fun fractionOf(amount: Long): Float =
+            if (maxAmount > 0L) amount.toFloat() / maxAmount.toFloat() else 0f
+        return map { row ->
+            AccountStatUi(
+                name = row.accountName,
+                incomeLabel = Money.formatManat(row.incomeMinor),
+                expenseLabel = Money.formatManat(row.expenseMinor),
+                incomeFraction = fractionOf(row.incomeMinor),
+                expenseFraction = fractionOf(row.expenseMinor)
+            )
+        }
     }
 
     private fun periodLabel(period: AnalyticsPeriod, from: LocalDate, to: LocalDate): String {

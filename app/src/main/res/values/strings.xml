@@ -74,6 +74,7 @@
     <string name="analytics_chart_empty_income">Нет доходов за период</string>
     <string name="analytics_income_by_category">Доходы по категориям</string>
     <string name="analytics_income_flow">Доходы по времени</string>
+    <string name="analytics_by_account">По счетам</string>
     <string name="analytics_prev">Назад</string>
     <string name="analytics_next">Вперёд</string>
     <string name="analytics_incomplete">Период ещё не закончился</string>

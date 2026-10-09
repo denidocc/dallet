@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -42,6 +43,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.dallet.app.R
 import com.dallet.app.ledger.AnalyticsPeriod
+import com.dallet.app.ui.AccountStatUi
 import com.dallet.app.ui.AnalyticsCategorySliceUi
 import com.dallet.app.ui.AnalyticsFlowPointUi
 import com.dallet.app.ui.AnalyticsMode
@@ -214,6 +216,76 @@ fun AnalyticsScreen(
                 Spacer(modifier = Modifier.height(12.dp))
                 FlowChart(points = flow)
             }
+        }
+
+        if (state.accountStats.isNotEmpty()) {
+            Text(
+                text = stringResource(R.string.analytics_by_account),
+                style = MaterialTheme.typography.titleMedium
+            )
+            SurfaceCard {
+                Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                    state.accountStats.forEach { stat ->
+                        AccountStat(stat)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccountStat(stat: AccountStatUi) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(text = stat.name, style = MaterialTheme.typography.titleMedium)
+        StatBar(
+            label = stringResource(R.string.analytics_income_label),
+            value = stringResource(R.string.amount_with_currency, stat.incomeLabel),
+            fraction = stat.incomeFraction,
+            color = incomeAmountColor()
+        )
+        StatBar(
+            label = stringResource(R.string.analytics_expense_label),
+            value = stringResource(R.string.amount_with_currency, stat.expenseLabel),
+            fraction = stat.expenseFraction,
+            color = expenseAmountColor()
+        )
+    }
+}
+
+@Composable
+private fun StatBar(
+    label: String,
+    value: String,
+    fraction: Float,
+    color: Color
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(text = value, style = MaterialTheme.typography.bodyMedium)
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(8.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(fraction.coerceIn(0f, 1f))
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(color)
+            )
         }
     }
 }

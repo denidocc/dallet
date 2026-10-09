@@ -369,7 +369,17 @@ class Ledger(
             expensesByCategory = categoryTotals(expenses, categoriesById),
             expenseFlow = expenseFlowSeries(period, fromInclusive, toInclusive, expenses),
             incomesByCategory = categoryTotals(incomes, categoriesById),
-            incomeFlow = expenseFlowSeries(period, fromInclusive, toInclusive, incomes)
+            incomeFlow = expenseFlowSeries(period, fromInclusive, toInclusive, incomes),
+            byAccount = accountRepository.getAll().map { account ->
+                AccountPeriodTotal(
+                    accountId = account.id,
+                    accountName = account.name,
+                    incomeMinor = incomes.filter { it.accountId == account.id }
+                        .sumOf { it.amountMinor },
+                    expenseMinor = expenses.filter { it.accountId == account.id }
+                        .sumOf { it.amountMinor }
+                )
+            }
         )
     }
 
