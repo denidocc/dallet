@@ -1,5 +1,7 @@
 package com.dallet.app
 
+import android.content.Context
+import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -21,16 +23,26 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
+import java.util.Locale
+import com.dallet.app.data.SharedPreferencesSettingsStore
 import com.dallet.app.ledger.ThemeMode
 import com.dallet.app.ui.DalletApp
 import com.dallet.app.ui.theme.DalletTheme
 
 class MainActivity : FragmentActivity() {
+    override fun attachBaseContext(newBase: Context) {
+        val language = SharedPreferencesSettingsStore(newBase).language()
+        val config = Configuration(newBase.resources.configuration)
+        config.setLocale(Locale.forLanguageTag(language.tag))
+        super.attachBaseContext(newBase.createConfigurationContext(config))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -52,10 +64,16 @@ class MainActivity : FragmentActivity() {
                         ledger = app.ledger,
                         pinLock = app.pinLock,
                         shopping = app.shopping,
+                        strings = app.strings,
                         themeMode = themeMode,
                         onThemeModeChange = {
                             app.settings.setThemeMode(it)
                             themeMode = it
+                        },
+                        language = app.settings.language(),
+                        onLanguageChange = {
+                            app.settings.setLanguage(it)
+                            recreate()
                         }
                     )
                     CrashReportDialog()
@@ -73,7 +91,7 @@ private fun CrashReportDialog() {
     val text = report ?: return
     AlertDialog(
         onDismissRequest = {},
-        title = { Text("Приложение закрылось с ошибкой") },
+        title = { Text(stringResource(R.string.crash_title)) },
         text = {
             Text(
                 text = text,
@@ -87,7 +105,7 @@ private fun CrashReportDialog() {
         },
         confirmButton = {
             TextButton(onClick = { clipboard.setText(AnnotatedString(text)) }) {
-                Text("Копировать")
+                Text(stringResource(R.string.crash_copy))
             }
         },
         dismissButton = {
@@ -97,7 +115,7 @@ private fun CrashReportDialog() {
                     report = null
                 }
             ) {
-                Text("Закрыть")
+                Text(stringResource(R.string.crash_close))
             }
         }
     )

@@ -31,6 +31,9 @@ class DalletApplication : Application() {
     lateinit var settings: SettingsStore
         private set
 
+    lateinit var strings: AppStrings
+        private set
+
     override fun onCreate() {
         super.onCreate()
         CrashReporter.install(this)
@@ -43,6 +46,7 @@ class DalletApplication : Application() {
             .fallbackToDestructiveMigrationFrom(1)
             .build()
         settings = SharedPreferencesSettingsStore(this)
+        strings = AppStrings(this, settings)
         val accountRepository = RoomAccountRepository(database.accountDao())
         val categoryRepository = RoomCategoryRepository(database.categoryDao())
         val operationRepository = RoomOperationRepository(database.operationDao())

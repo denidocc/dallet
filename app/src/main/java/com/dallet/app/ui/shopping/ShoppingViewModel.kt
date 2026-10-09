@@ -3,6 +3,8 @@ package com.dallet.app.ui.shopping
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.dallet.app.AppStrings
+import com.dallet.app.R
 import com.dallet.app.ledger.CategoryKind
 import com.dallet.app.ledger.Ledger
 import com.dallet.app.ledger.Money
@@ -14,6 +16,7 @@ import com.dallet.app.ledger.ShoppingListSummary
 import com.dallet.app.ledger.ShoppingService
 import com.dallet.app.ledger.percentChange
 import com.dallet.app.ui.SelectableOption
+import com.dallet.app.ui.labelRes
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -129,7 +132,8 @@ private val DISPLAY_DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-
 
 class ShoppingViewModel(
     private val ledger: Ledger,
-    private val service: ShoppingService
+    private val service: ShoppingService,
+    private val strings: AppStrings
 ) : ViewModel() {
 
     private var currencyCode: String = "ТМТ"
@@ -164,7 +168,7 @@ class ShoppingViewModel(
                 val prices = points.map { it.unitPriceMinor }
                 val minPrice = prices.minOrNull()
                 val maxPrice = prices.maxOrNull()
-                val unit = found.unit.label
+                val unit = strings.get(found.unit.labelRes())
                 fun label(minor: Long) = "${Money.formatManat(minor)} $currencyCode / $unit"
                 val rows = points.mapIndexed { index, point ->
                     val change = points.getOrNull(index - 1)?.let {
@@ -194,7 +198,7 @@ class ShoppingViewModel(
                     loading = false,
                     name = found.name,
                     unitLabel = unit,
-                    lastPriceLabel = prices.lastOrNull()?.let { label(it) } ?: "цена не сохранена",
+                    lastPriceLabel = prices.lastOrNull()?.let { label(it) } ?: strings.get(R.string.price_not_saved),
                     minLabel = minPrice?.let { label(it) }.orEmpty(),
                     maxLabel = maxPrice?.let { label(it) }.orEmpty(),
                     changeLabel = lastChange?.let { changeText(it) },
@@ -228,10 +232,10 @@ class ShoppingViewModel(
                             ProductRowUi(
                                 id = product.id,
                                 name = product.name,
-                                unitLabel = product.unit.label,
+                                unitLabel = strings.get(product.unit.labelRes()),
                                 priceLabel = product.lastPriceMinor
-                                    ?.let { price -> "${Money.formatManat(price)} $currencyCode / ${product.unit.label}" }
-                                    ?: "цена не сохранена"
+                                    ?.let { price -> "${Money.formatManat(price)} $currencyCode / ${strings.get(product.unit.labelRes())}" }
+                                    ?: strings.get(R.string.price_not_saved)
                             )
                         }
                     )
@@ -250,7 +254,10 @@ class ShoppingViewModel(
         viewModelScope.launch {
             try {
                 val now = LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES)
-                val title = "Покупки " + now.format(DateTimeFormatter.ofPattern("dd.MM"))
+                val title = strings.get(
+                    R.string.shopping_default_title,
+                    now.format(DateTimeFormatter.ofPattern("dd.MM"))
+                )
                 val id = service.createList(title, now)
                 refreshHub()
                 onCreated(id)
@@ -267,7 +274,7 @@ class ShoppingViewModel(
                 refreshHub()
                 onDone()
             } catch (_: Exception) {
-                _editor.update { it.copy(message = "Не удалось удалить", isError = true) }
+                _editor.update { it.copy(message = strings.get(R.string.err_delete_failed), isError = true) }
             }
         }
     }
@@ -306,7 +313,7 @@ class ShoppingViewModel(
                 detail.applyTo(current.copy(loading = false, missing = false, listId = listId))
             }
         } catch (_: Exception) {
-            _editor.update { it.copy(loading = false, message = "Не удалось загрузить", isError = true) }
+            _editor.update { it.copy(loading = false, message = strings.get(R.string.err_load), isError = true) }
         }
     }
 
@@ -367,7 +374,7 @@ class ShoppingViewModel(
                 reloadEditor(state.listId)
             } catch (_: Exception) {
                 _editor.update {
-                    it.copy(message = "Проверьте название, количество и цену", isError = true)
+                    it.copy(message = strings.get(R.string.err_check_item), isError = true)
                 }
             }
         }
@@ -383,7 +390,7 @@ class ShoppingViewModel(
                 )
                 reloadEditor(_editor.value.listId)
             } catch (_: Exception) {
-                _editor.update { it.copy(message = "Не удалось отметить", isError = true) }
+                _editor.update { it.copy(message = strings.get(R.string.err_mark), isError = true) }
             }
         }
     }
@@ -411,7 +418,7 @@ class ShoppingViewModel(
                 reloadEditor(listId)
             } catch (_: Exception) {
                 _editor.update {
-                    it.copy(message = "Проверьте название, количество и цену", isError = true)
+                    it.copy(message = strings.get(R.string.err_check_item), isError = true)
                 }
             }
         }
@@ -423,7 +430,7 @@ class ShoppingViewModel(
                 service.deleteItem(itemId)
                 reloadEditor(_editor.value.listId)
             } catch (_: Exception) {
-                _editor.update { it.copy(message = "Не удалось удалить", isError = true) }
+                _editor.update { it.copy(message = strings.get(R.string.err_delete_failed), isError = true) }
             }
         }
     }
@@ -436,7 +443,7 @@ class ShoppingViewModel(
                 reloadEditor(listId)
                 refreshHub()
             } catch (_: Exception) {
-                _editor.update { it.copy(message = "Не удалось сохранить название", isError = true) }
+                _editor.update { it.copy(message = strings.get(R.string.err_save_name), isError = true) }
             }
         }
     }
@@ -446,10 +453,10 @@ class ShoppingViewModel(
             val listId = _editor.value.listId
             try {
                 val saved = service.savePrices(listId, LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES))
-                val text = if (saved > 0) "Цены сохранены: $saved" else "Нет цен для сохранения"
+                val text = if (saved > 0) strings.get(R.string.msg_prices_saved, saved) else strings.get(R.string.msg_no_prices)
                 _editor.update { it.copy(message = text, isError = false) }
             } catch (_: Exception) {
-                _editor.update { it.copy(message = "Не удалось сохранить цены", isError = true) }
+                _editor.update { it.copy(message = strings.get(R.string.err_save_prices), isError = true) }
             }
         }
     }
@@ -477,7 +484,7 @@ class ShoppingViewModel(
                     timeInput = LocalTime.now().truncatedTo(ChronoUnit.MINUTES).format(TIME_FORMAT)
                 )
             } catch (_: Exception) {
-                _closeForm.value = CloseFormUiState(errorMessage = "Не удалось загрузить счета")
+                _closeForm.value = CloseFormUiState(errorMessage = strings.get(R.string.err_load_accounts))
             }
         }
     }
@@ -523,19 +530,22 @@ class ShoppingViewModel(
                 reloadEditor(listId)
                 refreshHub()
                 val text = if (result.operationId != null) {
-                    "Закуп закрыт: расход ${Money.formatManat(result.totalMinor)} $currencyCode"
+                    strings.get(
+                        R.string.msg_purchase_closed,
+                        "${Money.formatManat(result.totalMinor)} $currencyCode"
+                    )
                 } else {
-                    "Закуп закрыт без расхода (нет цен)"
+                    strings.get(R.string.msg_purchase_closed_no_expense)
                 }
                 _editor.update { it.copy(message = text, isError = false) }
                 onDone()
             } catch (_: IllegalArgumentException) {
                 _closeForm.update {
-                    it.copy(submitting = false, errorMessage = "Отметьте купленные позиции и проверьте дату")
+                    it.copy(submitting = false, errorMessage = strings.get(R.string.err_close_check))
                 }
             } catch (_: Exception) {
                 _closeForm.update {
-                    it.copy(submitting = false, errorMessage = "Не удалось закрыть закуп")
+                    it.copy(submitting = false, errorMessage = strings.get(R.string.err_close_failed))
                 }
             }
         }
@@ -549,9 +559,9 @@ class ShoppingViewModel(
     private fun ShoppingListSummary.toRow(): ShoppingListRowUi {
         val total = if (list.isClosed) checkedTotalMinor else totalMinor
         val progress = if (list.isClosed) {
-            "куплено $checkedCount из $itemCount"
+            strings.get(R.string.shopping_progress_bought, checkedCount, itemCount)
         } else {
-            "$checkedCount из $itemCount"
+            strings.get(R.string.shopping_progress, checkedCount, itemCount)
         }
         val date = (list.closedAt ?: list.createdAt).format(DISPLAY_DATE)
         return ShoppingListRowUi(
@@ -584,11 +594,11 @@ class ShoppingViewModel(
             unit = unit,
             quantityInput = quantity,
             priceInput = if (unitPriceMinor > 0) Money.formatManat(unitPriceMinor) else "",
-            quantityLabel = "$quantity ${unit.label}",
+            quantityLabel = "$quantity ${strings.get(unit.labelRes())}",
             priceLabel = if (unitPriceMinor > 0) {
-                "${Money.formatManat(unitPriceMinor)} $currencyCode / ${unit.label}"
+                "${Money.formatManat(unitPriceMinor)} $currencyCode / ${strings.get(unit.labelRes())}"
             } else {
-                "без цены"
+                strings.get(R.string.shopping_no_price)
             },
             lineTotalLabel = if (unitPriceMinor > 0) "${Money.formatManat(lineTotalMinor)} $currencyCode" else "",
             checked = checked
@@ -596,11 +606,11 @@ class ShoppingViewModel(
     }
 
     companion object {
-        fun factory(ledger: Ledger, service: ShoppingService): ViewModelProvider.Factory =
+        fun factory(ledger: Ledger, service: ShoppingService, strings: AppStrings): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return ShoppingViewModel(ledger, service) as T
+                    return ShoppingViewModel(ledger, service, strings) as T
                 }
             }
     }

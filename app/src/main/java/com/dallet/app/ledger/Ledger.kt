@@ -76,7 +76,8 @@ class Ledger(
 
     suspend fun completeOnboarding(
         accounts: List<NewAccount>,
-        currency: Currency = Currency.DEFAULT
+        currency: Currency = Currency.DEFAULT,
+        categoryNames: List<String>? = null
     ) {
         require(accounts.isNotEmpty()) { "at least one account is required" }
         val cleaned = accounts.map { it.copy(name = it.name.trim()) }
@@ -96,7 +97,7 @@ class Ledger(
                 )
             }
         )
-        categoryRepository.replaceAll(CategorySeed.defaults())
+        categoryRepository.replaceAll(CategorySeed.defaults(categoryNames))
         settings.setMainCurrency(currency)
     }
 

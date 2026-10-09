@@ -1,6 +1,7 @@
 package com.dallet.app.data
 
 import android.content.Context
+import com.dallet.app.ledger.AppLanguage
 import com.dallet.app.ledger.Currency
 import com.dallet.app.ledger.ExchangeRate
 import com.dallet.app.ledger.SettingsStore
@@ -41,7 +42,15 @@ class SharedPreferencesSettingsStore(context: Context) : SettingsStore {
         prefs.edit().putString(KEY_RATES, text).apply()
     }
 
+    override fun language(): AppLanguage =
+        AppLanguage.fromName(prefs.getString(KEY_LANGUAGE, null))
+
+    override fun setLanguage(language: AppLanguage) {
+        prefs.edit().putString(KEY_LANGUAGE, language.name).apply()
+    }
+
     private companion object {
+        const val KEY_LANGUAGE = "language"
         const val KEY_RATES = "rates"
         const val KEY_THEME_MODE = "theme_mode"
         const val KEY_MAIN_CURRENCY = "main_currency"

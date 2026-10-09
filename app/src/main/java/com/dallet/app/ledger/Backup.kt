@@ -8,7 +8,15 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeParseException
 
-class InvalidBackupException(message: String) : Exception(message)
+enum class BackupProblem {
+    NOT_A_BACKUP,
+    TOO_NEW
+}
+
+class InvalidBackupException(
+    message: String,
+    val problem: BackupProblem = BackupProblem.NOT_A_BACKUP
+) : Exception(message)
 
 data class BackupData(
     val accounts: List<Account>,
@@ -197,7 +205,7 @@ object BackupCodec {
             val root = JSONObject(json)
             if (root.optString("app") != APP_MARKER) throw InvalidBackupException(NOT_A_BACKUP)
             val version = root.getInt("schemaVersion")
-            if (version > SCHEMA_VERSION) throw InvalidBackupException(TOO_NEW)
+            if (version > SCHEMA_VERSION) throw InvalidBackupException(TOO_NEW, BackupProblem.TOO_NEW)
             if (version < 1) throw InvalidBackupException(NOT_A_BACKUP)
 
             val accounts = root.getJSONArray("accounts").objects().map {

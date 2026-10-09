@@ -28,11 +28,25 @@ enum class ThemeMode {
     }
 }
 
+enum class AppLanguage(val tag: String) {
+    RU("ru"),
+    EN("en");
+
+    companion object {
+        val DEFAULT = RU
+
+        fun fromName(name: String?): AppLanguage =
+            values().firstOrNull { it.name == name } ?: DEFAULT
+    }
+}
+
 interface SettingsStore {
     fun mainCurrency(): Currency
     fun setMainCurrency(currency: Currency)
     fun themeMode(): ThemeMode
     fun setThemeMode(mode: ThemeMode)
+    fun language(): AppLanguage
+    fun setLanguage(language: AppLanguage)
     fun rates(): List<ExchangeRate>
     fun saveRates(rates: List<ExchangeRate>)
 }
@@ -51,6 +65,14 @@ class InMemorySettingsStore : SettingsStore {
 
     override fun setThemeMode(mode: ThemeMode) {
         theme = mode
+    }
+
+    private var lang: AppLanguage = AppLanguage.DEFAULT
+
+    override fun language(): AppLanguage = lang
+
+    override fun setLanguage(language: AppLanguage) {
+        lang = language
     }
 
     private var storedRates: List<ExchangeRate> = emptyList()

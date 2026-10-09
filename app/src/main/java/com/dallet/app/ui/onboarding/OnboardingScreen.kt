@@ -38,6 +38,7 @@ import com.dallet.app.R
 import com.dallet.app.ledger.Currency
 import com.dallet.app.ui.DataUiState
 import com.dallet.app.ui.OnboardingUiState
+import com.dallet.app.ui.templateNameRes
 
 private const val PAGE_WELCOME = 0
 private const val PAGE_CURRENCY = 1
@@ -149,7 +150,10 @@ fun OnboardingScreen(
                                 checked = row.enabled,
                                 onCheckedChange = { onTemplateToggled(row.name, it) }
                             )
-                            Text(text = row.name, style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                text = templateNameRes(row.name)?.let { stringResource(it) } ?: row.name,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
                         }
                     }
                     OutlinedTextField(
@@ -182,7 +186,7 @@ fun OnboardingScreen(
                             value = row.openingInput,
                             onValueChange = { onTemplateOpeningChange(row.name, it) },
                             modifier = Modifier.fillMaxWidth(),
-                            label = { Text(row.name) },
+                            label = { Text(templateNameRes(row.name)?.let { stringResource(it) } ?: row.name) },
                             suffix = { Text(state.currency.code) },
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)

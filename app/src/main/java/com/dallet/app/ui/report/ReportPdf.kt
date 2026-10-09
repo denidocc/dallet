@@ -4,6 +4,8 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
+import com.dallet.app.AppStrings
+import com.dallet.app.R
 import com.dallet.app.ledger.CategoryExpenseTotal
 import com.dallet.app.ledger.Money
 import com.dallet.app.ledger.OperationKind
@@ -50,37 +52,38 @@ object ReportPdf {
         title: String,
         createdOn: String,
         incompleteNote: String?,
-        currencyCode: String
+        currencyCode: String,
+        strings: AppStrings
     ): ByteArray {
         this.currencyCode = currencyCode
         val document = PdfDocument()
-        val writer = PageWriter(document)
+        val writer = PageWriter(document, strings)
         val current = report.comparison.current
         val previous = report.comparison.previous
 
-        writer.line("Отчёт: $title", titlePaint, gap = 26f)
-        writer.line("Dallet · создан $createdOn", mutedPaint, gap = 14f)
+        writer.line(strings.get(R.string.pdf_report_title, title), titlePaint, gap = 26f)
+        writer.line(strings.get(R.string.pdf_created, createdOn), mutedPaint, gap = 14f)
         if (incompleteNote != null) {
             writer.line(incompleteNote, mutedPaint, gap = 14f)
         }
         writer.space(14f)
 
-        writer.heading("Итоги")
+        writer.heading(strings.get(R.string.pdf_totals))
         writer.summaryRow(
-            label = "Доходы",
+            label = strings.get(R.string.analytics_income_label),
             value = money(current.incomeTotalMinor),
             valueColor = GREEN,
             change = percentChange(current.incomeTotalMinor, previous.incomeTotalMinor)
         )
         writer.summaryRow(
-            label = "Расходы",
+            label = strings.get(R.string.analytics_expense_label),
             value = money(current.expenseTotalMinor),
             valueColor = RED,
             change = percentChange(current.expenseTotalMinor, previous.expenseTotalMinor)
         )
         val balance = current.incomeTotalMinor - current.expenseTotalMinor
         writer.summaryRow(
-            label = "Итого за период",
+            label = strings.get(R.string.pdf_total_period),
             value = (if (balance < 0) "−" else "") + money(abs(balance)),
             valueColor = INK,
             change = null,
@@ -89,19 +92,19 @@ object ReportPdf {
         writer.space(10f)
 
         writer.categoryBlock(
-            "Расходы по категориям",
+            strings.get(R.string.analytics_by_category),
             current.expensesByCategory,
             current.expenseTotalMinor
         )
         writer.categoryBlock(
-            "Доходы по категориям",
+            strings.get(R.string.analytics_income_by_category),
             current.incomesByCategory,
             current.incomeTotalMinor
         )
 
-        writer.heading("Операции")
+        writer.heading(strings.get(R.string.pdf_operations))
         if (report.rows.isEmpty()) {
-            writer.line("Операций за период нет", mutedPaint, gap = 14f)
+            writer.line(strings.get(R.string.pdf_no_operations), mutedPaint, gap = 14f)
         } else {
             writer.tableHeader()
             report.rows.forEach { row ->
@@ -116,7 +119,13 @@ object ReportPdf {
                 writer.tableRow(
                     date = row.date.toString(),
                     time = ReportCsv.timeLabel(row.time),
-                    kind = ReportCsv.kindLabel(row.kind),
+                    kind = strings.get(
+                        when (row.kind) {
+                            OperationKind.EXPENSE -> R.string.add_kind_expense
+                            OperationKind.INCOME -> R.string.add_kind_income
+                            OperationKind.TRANSFER -> R.string.add_kind_transfer
+                        }
+                    ),
                     description = description,
                     comment = row.comment.orEmpty(),
                     amount = ReportCsv.signedAmount(row),
@@ -136,7 +145,10 @@ object ReportPdf {
 
     private fun money(minor: Long): String = Money.formatManat(minor) + " " + currencyCode
 
-    private class PageWriter(private val document: PdfDocument) {
+    private class PageWriter(
+        private val document: PdfDocument,
+        private val strings: AppStrings
+    ) {
         private var pageNumber = 0
         private var page: PdfDocument.Page? = null
         private lateinit var canvas: Canvas
@@ -207,9 +219,9 @@ object ReportPdf {
             )
             if (change != null) {
                 val text = when {
-                    change > 0 -> "+$change% к прошлому периоду"
-                    change < 0 -> "−${abs(change)}% к прошлому периоду"
-                    else -> "без изменений к прошлому периоду"
+                    change > 0 -> strings.get(R.string.pdf_change_up, change)
+                    change < 0 -> strings.get(R.string.pdf_change_down, abs(change))
+                    else -> strings.get(R.string.pdf_change_same)
                 }
                 canvas.drawText(
                     text,
@@ -261,11 +273,11 @@ object ReportPdf {
 
         fun tableHeader() {
             ensure(20f)
-            canvas.drawText("Дата", MARGIN, y + 10f, mutedPaint)
-            canvas.drawText("Время", MARGIN + 62f, y + 10f, mutedPaint)
-            canvas.drawText("Вид", MARGIN + 100f, y + 10f, mutedPaint)
-            canvas.drawText("Счёт · категория", MARGIN + 156f, y + 10f, mutedPaint)
-            val head = "Сумма"
+            canvas.drawText(strings.get(R.string.add_date_label), MARGIN, y + 10f, mutedPaint)
+            canvas.drawText(strings.get(R.string.add_time_label), MARGIN + 62f, y + 10f, mutedPaint)
+            canvas.drawText(strings.get(R.string.pdf_col_kind), MARGIN + 100f, y + 10f, mutedPaint)
+            canvas.drawText(strings.get(R.string.pdf_col_account_category), MARGIN + 156f, y + 10f, mutedPaint)
+            val head = strings.get(R.string.add_amount_label)
             canvas.drawText(head, CONTENT_RIGHT - mutedPaint.measureText(head), y + 10f, mutedPaint)
             y += 16f
         }

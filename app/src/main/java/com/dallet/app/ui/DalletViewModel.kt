@@ -5,7 +5,10 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.dallet.app.ledger.AccountHasOperationsException
 import com.dallet.app.ledger.CategoryHasOperationsException
+import com.dallet.app.AppStrings
+import com.dallet.app.R
 import com.dallet.app.ledger.AccountBalance
+import com.dallet.app.ledger.BackupProblem
 import com.dallet.app.ledger.AccountTemplates
 import com.dallet.app.ledger.Currency
 import com.dallet.app.ledger.ExchangeRate
@@ -274,15 +277,22 @@ private fun currentTimeText(): String = LocalTime.now().format(TIME_FORMAT)
 private fun parseTimeOrNull(text: String): LocalTime? =
     text.trim().takeIf { it.isNotEmpty() }?.let { LocalTime.parse(it, TIME_FORMAT) }
 
-private fun Operation.dateTimeLabel(): String {
+private fun kindRes(kind: OperationKind): Int = when (kind) {
+    OperationKind.EXPENSE -> R.string.add_kind_expense
+    OperationKind.INCOME -> R.string.add_kind_income
+    OperationKind.TRANSFER -> R.string.add_kind_transfer
+}
+
+private fun Operation.dateTimeLabel(locale: Locale): String {
     val pattern = if (date.year == LocalDate.now().year) "d MMM" else "d MMM yyyy"
-    val day = date.format(DateTimeFormatter.ofPattern(pattern, Locale.forLanguageTag("ru")))
+    val day = date.format(DateTimeFormatter.ofPattern(pattern, locale))
     return day + (time?.let { " " + it.format(TIME_FORMAT) } ?: "")
 }
 
 class DalletViewModel(
     private val ledger: Ledger,
-    private val pinLock: PinLock
+    private val pinLock: PinLock,
+    private val strings: AppStrings
 ) : ViewModel() {
 
     private val _currency = MutableStateFlow(Currency.DEFAULT)
@@ -350,7 +360,7 @@ class DalletViewModel(
         val current = _lock.value
         if (current.input.length >= PinLock.PIN_LENGTH) return
         if (System.currentTimeMillis() < blockedUntilMillis) {
-            _lock.update { it.copy(errorMessage = "Слишком много попыток. Подождите немного") }
+            _lock.update { it.copy(errorMessage = strings.get(R.string.lock_too_many)) }
             return
         }
         val input = current.input + digit
@@ -368,9 +378,9 @@ class DalletViewModel(
                 _lock.value = LockUiState(
                     locked = true,
                     errorMessage = if (tooMany) {
-                        "Слишком много попыток. Подождите 30 секунд"
+                        strings.get(R.string.lock_too_many_30)
                     } else {
-                        "Неверный PIN"
+                        strings.get(R.string.security_wrong)
                     }
                 )
             }
@@ -396,7 +406,7 @@ class DalletViewModel(
                 _lock.value = LockUiState(locked = false)
                 refreshHome()
             } catch (error: Exception) {
-                _lock.update { it.copy(errorMessage = "Не удалось сбросить данные") }
+                _lock.update { it.copy(errorMessage = strings.get(R.string.err_reset_failed)) }
             }
         }
     }
@@ -436,9 +446,9 @@ class DalletViewModel(
             _data.value = DataUiState(busy = true)
             try {
                 write(ledger.exportBackup())
-                _data.value = DataUiState(message = "Резервная копия сохранена")
+                _data.value = DataUiState(message = strings.get(R.string.msg_backup_saved))
             } catch (error: Exception) {
-                _data.value = DataUiState(message = "Не удалось сохранить файл", isError = true)
+                _data.value = DataUiState(message = strings.get(R.string.err_save_file), isError = true)
             }
         }
     }
@@ -457,20 +467,33 @@ class DalletViewModel(
                 val currencyCode = ledger.mainCurrency().code
                 val bytes = withContext(Dispatchers.Default) {
                     when (format) {
-                        ReportFormat.CSV -> ReportCsv.encode(report.rows).toByteArray(Charsets.UTF_8)
+                        ReportFormat.CSV -> ReportCsv.encode(
+                            rows = report.rows,
+                            header = listOf(
+                                strings.get(R.string.add_date_label),
+                                strings.get(R.string.add_time_label),
+                                strings.get(R.string.pdf_col_kind),
+                                strings.get(R.string.add_account_label),
+                                strings.get(R.string.add_category_label),
+                                strings.get(R.string.add_amount_label),
+                                strings.get(R.string.add_comment_label)
+                            ),
+                            kindLabel = { kind -> strings.get(kindRes(kind)) }
+                        ).toByteArray(Charsets.UTF_8)
                         ReportFormat.PDF -> ReportPdf.render(
                             report = report,
                             title = state.periodLabel,
                             createdOn = today.toString(),
-                            incompleteNote = if (state.isComplete) null else "Период ещё не закончился",
-                            currencyCode = currencyCode
+                            incompleteNote = if (state.isComplete) null else strings.get(R.string.analytics_incomplete),
+                            currencyCode = currencyCode,
+                            strings = strings
                         )
                     }
                 }
                 write(bytes)
-                _data.value = DataUiState(message = "Отчёт сохранён")
+                _data.value = DataUiState(message = strings.get(R.string.msg_report_saved))
             } catch (error: Exception) {
-                _data.value = DataUiState(message = "Не удалось сохранить отчёт", isError = true)
+                _data.value = DataUiState(message = strings.get(R.string.err_save_report), isError = true)
             }
         }
     }
@@ -481,15 +504,18 @@ class DalletViewModel(
             try {
                 ledger.importBackup(read())
                 resetTransientStates()
-                _data.value = DataUiState(message = "Данные восстановлены")
+                _data.value = DataUiState(message = strings.get(R.string.msg_data_restored))
                 refreshHome()
             } catch (error: InvalidBackupException) {
                 _data.value = DataUiState(
-                    message = error.message ?: "Файл не похож на резервную копию Dallet",
+                    message = strings.get(
+                        if (error.problem == BackupProblem.TOO_NEW) R.string.err_backup_too_new
+                        else R.string.err_not_backup
+                    ),
                     isError = true
                 )
             } catch (error: Exception) {
-                _data.value = DataUiState(message = "Не удалось прочитать файл", isError = true)
+                _data.value = DataUiState(message = strings.get(R.string.err_read_file), isError = true)
             }
         }
     }
@@ -505,7 +531,7 @@ class DalletViewModel(
                 _data.value = DataUiState()
                 refreshHome()
             } catch (error: Exception) {
-                _data.value = DataUiState(message = "Не удалось сбросить данные", isError = true)
+                _data.value = DataUiState(message = strings.get(R.string.err_reset_failed), isError = true)
             }
         }
     }
@@ -584,7 +610,7 @@ class DalletViewModel(
                 }
             } catch (error: Exception) {
                 _home.update {
-                    it.copy(loading = false, errorMessage = error.message ?: "Ошибка")
+                    it.copy(loading = false, errorMessage = error.message ?: strings.get(R.string.err_generic))
                 }
             }
         }
@@ -621,7 +647,7 @@ class DalletViewModel(
         viewModelScope.launch {
             val account = ledger.accountBalances().firstOrNull { it.account.id == accountId }?.account
             if (account == null) {
-                _accountEditor.value = AccountEditorUiState(errorMessage = "Счёт не найден")
+                _accountEditor.value = AccountEditorUiState(errorMessage = strings.get(R.string.err_account_not_found))
                 return@launch
             }
             _accountEditor.value = AccountEditorUiState(
@@ -664,7 +690,7 @@ class DalletViewModel(
                 refreshHome()
             } catch (error: Exception) {
                 _accountEditor.update {
-                    it.copy(submitting = false, errorMessage = "Проверьте название и сумму")
+                    it.copy(submitting = false, errorMessage = strings.get(R.string.err_check_name_amount))
                 }
             }
         }
@@ -681,11 +707,11 @@ class DalletViewModel(
                 refreshHome()
             } catch (error: AccountHasOperationsException) {
                 _accountEditor.update {
-                    it.copy(submitting = false, errorMessage = error.message)
+                    it.copy(submitting = false, errorMessage = strings.get(R.string.err_account_has_ops))
                 }
             } catch (error: Exception) {
                 _accountEditor.update {
-                    it.copy(submitting = false, errorMessage = "Не удалось удалить")
+                    it.copy(submitting = false, errorMessage = strings.get(R.string.err_delete_failed))
                 }
             }
         }
@@ -737,7 +763,7 @@ class DalletViewModel(
                 .plus(ledger.categories(CategoryKind.INCOME))
                 .firstOrNull { it.id == categoryId }
             if (category == null) {
-                _categoryEditor.value = CategoryEditorUiState(errorMessage = "Категория не найдена")
+                _categoryEditor.value = CategoryEditorUiState(errorMessage = strings.get(R.string.err_category_not_found))
                 return@launch
             }
             _categoryEditor.value = CategoryEditorUiState(
@@ -791,7 +817,7 @@ class DalletViewModel(
                 refreshHome()
             } catch (error: Exception) {
                 _categoryEditor.update {
-                    it.copy(submitting = false, errorMessage = "Проверьте название")
+                    it.copy(submitting = false, errorMessage = strings.get(R.string.err_check_name))
                 }
             }
         }
@@ -808,11 +834,11 @@ class DalletViewModel(
                 refreshHome()
             } catch (error: CategoryHasOperationsException) {
                 _categoryEditor.update {
-                    it.copy(submitting = false, errorMessage = error.message)
+                    it.copy(submitting = false, errorMessage = strings.get(R.string.err_category_has_ops))
                 }
             } catch (error: Exception) {
                 _categoryEditor.update {
-                    it.copy(submitting = false, errorMessage = "Не удалось удалить")
+                    it.copy(submitting = false, errorMessage = strings.get(R.string.err_delete_failed))
                 }
             }
         }
@@ -895,7 +921,7 @@ class DalletViewModel(
     }
 
     private fun periodLabel(period: AnalyticsPeriod, from: LocalDate, to: LocalDate): String {
-        val ru = Locale.forLanguageTag("ru")
+        val ru = strings.locale
         return when (period) {
             AnalyticsPeriod.WEEK -> {
                 val format = DateTimeFormatter.ofPattern("d MMM", ru)
@@ -1000,7 +1026,7 @@ class DalletViewModel(
                 commentInput = if (keepSharedInputs) previous.commentInput else ""
             )
         } catch (error: Exception) {
-            _addExpense.update { it.copy(errorMessage = error.message ?: "Ошибка") }
+            _addExpense.update { it.copy(errorMessage = error.message ?: strings.get(R.string.err_generic)) }
         }
     }
 
@@ -1039,7 +1065,7 @@ class DalletViewModel(
                 )
             } catch (error: Exception) {
                 _edit.update {
-                    it.copy(loading = false, errorMessage = error.message ?: "Ошибка")
+                    it.copy(loading = false, errorMessage = error.message ?: strings.get(R.string.err_generic))
                 }
             }
         }
@@ -1081,7 +1107,12 @@ class DalletViewModel(
             _onboarding.update { it.copy(submitting = true, errorMessage = null) }
             try {
                 val chosen = state.rows.filter { it.enabled }
-                    .map { NewAccount(it.name, Money.parseManat(it.openingInput.ifBlank { "0" })) } +
+                    .map {
+                        NewAccount(
+                            templateNameRes(it.name)?.let { id -> strings.get(id) } ?: it.name,
+                            Money.parseManat(it.openingInput.ifBlank { "0" })
+                        )
+                    } +
                     listOfNotNull(
                         state.customName.trim().takeIf { it.isNotEmpty() }?.let {
                             NewAccount(it, Money.parseManat(state.customOpening.ifBlank { "0" }))
@@ -1089,23 +1120,34 @@ class DalletViewModel(
                     )
                 if (chosen.isEmpty()) {
                     _onboarding.update {
-                        it.copy(submitting = false, errorMessage = "Выберите хотя бы один счёт")
+                        it.copy(submitting = false, errorMessage = strings.get(R.string.onboarding_pick_one))
                     }
                     return@launch
                 }
-                ledger.completeOnboarding(chosen, state.currency)
+                ledger.completeOnboarding(
+                    chosen,
+                    state.currency,
+                    listOf(
+                        R.string.cat_salary,
+                        R.string.cat_side_job,
+                        R.string.cat_food,
+                        R.string.cat_transport,
+                        R.string.cat_home,
+                        R.string.cat_other
+                    ).map { strings.get(it) }
+                )
                 _onboarding.value = OnboardingUiState()
                 refreshHome()
             } catch (error: IllegalArgumentException) {
                 _onboarding.update {
                     it.copy(
                         submitting = false,
-                        errorMessage = "Проверьте названия и суммы. Названия счетов не должны повторяться. Пример суммы: 10.50"
+                        errorMessage = strings.get(R.string.onboarding_error_names)
                     )
                 }
             } catch (error: Exception) {
                 _onboarding.update {
-                    it.copy(submitting = false, errorMessage = "Проверьте суммы. Пример: 10.50")
+                    it.copy(submitting = false, errorMessage = strings.get(R.string.onboarding_error_amounts))
                 }
             }
         }
@@ -1190,12 +1232,12 @@ class DalletViewModel(
                 }
                 refreshHome()
             } catch (error: SameAccountTransferException) {
-                _addExpense.update { it.copy(submitting = false, errorMessage = error.message) }
+                _addExpense.update { it.copy(submitting = false, errorMessage = strings.get(R.string.err_same_account)) }
             } catch (error: DateTimeParseException) {
-                _addExpense.update { it.copy(submitting = false, errorMessage = "Проверьте дату и время") }
+                _addExpense.update { it.copy(submitting = false, errorMessage = strings.get(R.string.err_check_datetime)) }
             } catch (error: Exception) {
                 _addExpense.update {
-                    it.copy(submitting = false, errorMessage = "Проверьте сумму и выбранные поля")
+                    it.copy(submitting = false, errorMessage = strings.get(R.string.err_check_amount_fields))
                 }
             }
         }
@@ -1277,12 +1319,12 @@ class DalletViewModel(
                 _edit.update { it.copy(submitting = false, done = true) }
                 refreshHome()
             } catch (error: SameAccountTransferException) {
-                _edit.update { it.copy(submitting = false, errorMessage = error.message) }
+                _edit.update { it.copy(submitting = false, errorMessage = strings.get(R.string.err_same_account)) }
             } catch (error: DateTimeParseException) {
-                _edit.update { it.copy(submitting = false, errorMessage = "Проверьте дату и время") }
+                _edit.update { it.copy(submitting = false, errorMessage = strings.get(R.string.err_check_datetime)) }
             } catch (error: Exception) {
                 _edit.update {
-                    it.copy(submitting = false, errorMessage = "Не удалось сохранить")
+                    it.copy(submitting = false, errorMessage = strings.get(R.string.err_save_failed))
                 }
             }
         }
@@ -1298,7 +1340,7 @@ class DalletViewModel(
                 refreshHome()
             } catch (error: Exception) {
                 _edit.update {
-                    it.copy(submitting = false, errorMessage = "Не удалось удалить")
+                    it.copy(submitting = false, errorMessage = strings.get(R.string.err_delete_failed))
                 }
             }
         }
@@ -1315,8 +1357,8 @@ class DalletViewModel(
         val account = accountId?.let { accountNames[it] }.orEmpty()
         return ExpenseRowUi(
             id = id,
-            title = category?.name?.ifBlank { null } ?: "Расход",
-            subtitle = listOf(account, dateTimeLabel())
+            title = category?.name?.ifBlank { null } ?: strings.get(R.string.add_kind_expense),
+            subtitle = listOf(account, dateTimeLabel(strings.locale))
                 .filter { it.isNotBlank() }
                 .joinToString(" · "),
             amountLabel = Money.formatManat(amountMinor),
@@ -1335,9 +1377,9 @@ class DalletViewModel(
             OperationKind.TRANSFER -> HistoryKindUi.TRANSFER
         }
         val kindLabel = when (kind) {
-            OperationKind.EXPENSE -> "Расход"
-            OperationKind.INCOME -> "Доход"
-            OperationKind.TRANSFER -> "Перевод"
+            OperationKind.EXPENSE -> strings.get(R.string.add_kind_expense)
+            OperationKind.INCOME -> strings.get(R.string.add_kind_income)
+            OperationKind.TRANSFER -> strings.get(R.string.add_kind_transfer)
         }
         val title = when (kind) {
             OperationKind.TRANSFER -> {
@@ -1353,7 +1395,7 @@ class DalletViewModel(
             kind = kindUi,
             kindLabel = kindLabel,
             title = title,
-            subtitle = listOf(accountPart, dateTimeLabel(), comment.orEmpty())
+            subtitle = listOf(accountPart, dateTimeLabel(strings.locale), comment.orEmpty())
                 .filter { it.isNotBlank() }
                 .joinToString(" · "),
             amountLabel = Money.formatManat(amountMinor)
@@ -1364,11 +1406,11 @@ class DalletViewModel(
         private const val MAX_ATTEMPTS = 5
         private const val BLOCK_MILLIS = 30_000L
 
-        fun factory(ledger: Ledger, pinLock: PinLock): ViewModelProvider.Factory =
+        fun factory(ledger: Ledger, pinLock: PinLock, strings: AppStrings): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return DalletViewModel(ledger, pinLock) as T
+                    return DalletViewModel(ledger, pinLock, strings) as T
                 }
             }
     }

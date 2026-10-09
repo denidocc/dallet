@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dallet.app.R
+import com.dallet.app.ledger.AppLanguage
 import com.dallet.app.ledger.Currency
 import com.dallet.app.ledger.ThemeMode
 import com.dallet.app.ui.common.SurfaceCard
@@ -34,7 +35,9 @@ fun SettingsScreen(
     currency: Currency,
     themeMode: ThemeMode,
     onCurrencyChange: (Currency) -> Unit,
-    onThemeModeChange: (ThemeMode) -> Unit
+    onThemeModeChange: (ThemeMode) -> Unit,
+    language: AppLanguage,
+    onLanguageChange: (AppLanguage) -> Unit
 ) {
     var pendingCurrency by remember { mutableStateOf<Currency?>(null) }
 
@@ -71,6 +74,35 @@ fun SettingsScreen(
                         selected = option == currency,
                         onClick = { if (option != currency) pendingCurrency = option },
                         label = { Text(option.code) }
+                    )
+                }
+            }
+        }
+        SurfaceCard {
+            Text(
+                text = stringResource(R.string.settings_language),
+                style = MaterialTheme.typography.titleMedium
+            )
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp)
+            ) {
+                AppLanguage.values().forEach { option ->
+                    FilterChip(
+                        selected = option == language,
+                        onClick = { if (option != language) onLanguageChange(option) },
+                        label = {
+                            Text(
+                                stringResource(
+                                    when (option) {
+                                        AppLanguage.RU -> R.string.lang_ru
+                                        AppLanguage.EN -> R.string.lang_en
+                                    }
+                                )
+                            )
+                        }
                     )
                 }
             }

@@ -58,6 +58,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.dallet.app.R
 import com.dallet.app.ledger.Ledger
+import com.dallet.app.AppStrings
+import com.dallet.app.ledger.AppLanguage
 import com.dallet.app.ledger.ThemeMode
 import com.dallet.app.ledger.Currency
 import com.dallet.app.ui.settings.SettingsScreen
@@ -109,14 +111,24 @@ fun DalletApp(
     ledger: Ledger,
     pinLock: PinLock,
     shopping: ShoppingService,
+    strings: AppStrings,
     themeMode: ThemeMode,
     onThemeModeChange: (ThemeMode) -> Unit,
-    viewModel: DalletViewModel = viewModel(factory = DalletViewModel.factory(ledger, pinLock)),
-    shoppingViewModel: ShoppingViewModel = viewModel(factory = ShoppingViewModel.factory(ledger, shopping))
+    language: AppLanguage,
+    onLanguageChange: (AppLanguage) -> Unit,
+    viewModel: DalletViewModel = viewModel(factory = DalletViewModel.factory(ledger, pinLock, strings)),
+    shoppingViewModel: ShoppingViewModel = viewModel(factory = ShoppingViewModel.factory(ledger, shopping, strings))
 ) {
     val currency by viewModel.currency.collectAsStateWithLifecycle()
     CompositionLocalProvider(LocalCurrency provides currency) {
-        DalletAppContent(viewModel, shoppingViewModel, themeMode, onThemeModeChange)
+        DalletAppContent(
+            viewModel,
+            shoppingViewModel,
+            themeMode,
+            onThemeModeChange,
+            language,
+            onLanguageChange
+        )
     }
 }
 
@@ -125,7 +137,9 @@ private fun DalletAppContent(
     viewModel: DalletViewModel,
     shoppingViewModel: ShoppingViewModel,
     themeMode: ThemeMode,
-    onThemeModeChange: (ThemeMode) -> Unit
+    onThemeModeChange: (ThemeMode) -> Unit,
+    language: AppLanguage,
+    onLanguageChange: (AppLanguage) -> Unit
 ) {
     val homeState by viewModel.home.collectAsStateWithLifecycle()
     val onboardingState by viewModel.onboarding.collectAsStateWithLifecycle()
@@ -398,7 +412,9 @@ private fun DalletAppContent(
                     currency = currentCurrency,
                     themeMode = themeMode,
                     onCurrencyChange = viewModel::setMainCurrency,
-                    onThemeModeChange = onThemeModeChange
+                    onThemeModeChange = onThemeModeChange,
+                    language = language,
+                    onLanguageChange = onLanguageChange
                 )
             }
             composable(SECURITY_ROUTE) {

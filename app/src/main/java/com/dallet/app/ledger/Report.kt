@@ -25,9 +25,13 @@ object ReportCsv {
     private val HEADER =
         listOf("Дата", "Время", "Вид", "Счёт", "Категория", "Сумма", "Комментарий")
 
-    fun encode(rows: List<ReportRow>): String {
+    fun encode(
+        rows: List<ReportRow>,
+        header: List<String> = HEADER,
+        kindLabel: (OperationKind) -> String = this::kindLabel
+    ): String {
         val builder = StringBuilder(BOM)
-        builder.append(HEADER.joinToString(SEPARATOR)).append(LINE_BREAK)
+        builder.append(header.joinToString(SEPARATOR)).append(LINE_BREAK)
         rows.forEach { row ->
             val fields = listOf(
                 row.date.toString(),

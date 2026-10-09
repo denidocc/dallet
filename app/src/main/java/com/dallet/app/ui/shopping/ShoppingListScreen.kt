@@ -51,6 +51,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.dallet.app.R
+import com.dallet.app.ui.labelRes
 import com.dallet.app.ui.moneyText
 import com.dallet.app.ledger.Money
 import com.dallet.app.ledger.QuantityUnit
@@ -358,7 +359,7 @@ private fun AddItemForm(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = suggestion.name + " · " + suggestion.unit.label,
+                                text = suggestion.name + " · " + stringResource(suggestion.unit.labelRes()),
                                 style = MaterialTheme.typography.bodyLarge
                             )
                             suggestion.lastPriceMinor?.let { price ->
@@ -418,13 +419,13 @@ private fun UnitPicker(
             modifier = Modifier.height(56.dp),
             contentPadding = PaddingValues(horizontal = 10.dp)
         ) {
-            Text(unit.label)
+            Text(stringResource(unit.labelRes()))
             Icon(imageVector = Icons.Filled.ArrowDropDown, contentDescription = null)
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             QuantityUnit.values().forEach { option ->
                 DropdownMenuItem(
-                    text = { Text(option.label) },
+                    text = { Text(stringResource(option.labelRes())) },
                     onClick = {
                         onSelected(option)
                         expanded = false
