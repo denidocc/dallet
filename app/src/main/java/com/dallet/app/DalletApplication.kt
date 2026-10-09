@@ -20,7 +20,8 @@ class DalletApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        pinLock = PinLock(SharedPreferencesSecurityStorage(this))
+        CrashReporter.install(this)
+        pinLock =PinLock(SharedPreferencesSecurityStorage(this))
         val database = Room.databaseBuilder(
             this,
             DalletDatabase::class.java,

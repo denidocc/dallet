@@ -4,9 +4,26 @@ import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
 import com.dallet.app.ui.DalletApp
 import com.dallet.app.ui.theme.DalletTheme
@@ -24,8 +41,47 @@ class MainActivity : FragmentActivity() {
                     contentColor = MaterialTheme.colorScheme.onBackground
                 ) {
                     DalletApp(ledger = app.ledger, pinLock = app.pinLock)
+                    CrashReportDialog()
                 }
             }
         }
     }
+}
+
+@Composable
+private fun CrashReportDialog() {
+    val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
+    var report by remember { mutableStateOf(CrashReporter.read(context)) }
+    val text = report ?: return
+    AlertDialog(
+        onDismissRequest = {},
+        title = { Text("Приложение закрылось с ошибкой") },
+        text = {
+            Text(
+                text = text,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 10.sp,
+                lineHeight = 13.sp,
+                modifier = Modifier
+                    .heightIn(max = 360.dp)
+                    .verticalScroll(rememberScrollState())
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { clipboard.setText(AnnotatedString(text)) }) {
+                Text("Копировать")
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = {
+                    CrashReporter.clear(context)
+                    report = null
+                }
+            ) {
+                Text("Закрыть")
+            }
+        }
+    )
 }
