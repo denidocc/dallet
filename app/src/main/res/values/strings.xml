@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Dallet</string>
+    <string name="back">Назад</string>
     <string name="nav_home">Главная</string>
     <string name="nav_history">История</string>
     <string name="nav_add">+</string>
@@ -96,14 +97,14 @@
     <string name="more_import">Импорт</string>
     <string name="more_import_hint">Восстановить данные из файла</string>
     <string name="more_reset">Сбросить всё</string>
-    <string name="more_reset_hint">Удалить все счета, категории и операции</string>
+    <string name="more_reset_hint">Удалить все данные приложения</string>
     <string name="import_dialog_title">Заменить данные?</string>
-    <string name="import_dialog_text">Все текущие счета, категории и операции будут заменены данными из файла.</string>
+    <string name="import_dialog_text">Все текущие данные (счета, категории, операции и покупки) будут заменены данными из файла.</string>
     <string name="import_choose_file">Выбрать файл</string>
     <string name="dialog_export_first">Сначала экспортировать</string>
     <string name="dialog_cancel">Отмена</string>
     <string name="reset_dialog_title">Сбросить всё?</string>
-    <string name="reset_dialog_text">Будут удалены все счета, категории и операции. Для подтверждения введите слово СБРОС.</string>
+    <string name="reset_dialog_text">Будут удалены все счета, категории, операции и покупки. Для подтверждения введите слово СБРОС.</string>
     <string name="reset_word">СБРОС</string>
     <string name="reset_confirm">Сбросить</string>
     <string name="onboarding_restore">Восстановить из файла</string>

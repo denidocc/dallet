@@ -259,8 +259,11 @@ private fun currentTimeText(): String = LocalTime.now().format(TIME_FORMAT)
 private fun parseTimeOrNull(text: String): LocalTime? =
     text.trim().takeIf { it.isNotEmpty() }?.let { LocalTime.parse(it, TIME_FORMAT) }
 
-private fun Operation.dateTimeLabel(): String =
-    date.toString() + (time?.let { " " + it.format(TIME_FORMAT) } ?: "")
+private fun Operation.dateTimeLabel(): String {
+    val pattern = if (date.year == LocalDate.now().year) "d MMM" else "d MMM yyyy"
+    val day = date.format(DateTimeFormatter.ofPattern(pattern, Locale.forLanguageTag("ru")))
+    return day + (time?.let { " " + it.format(TIME_FORMAT) } ?: "")
+}
 
 class DalletViewModel(
     private val ledger: Ledger,
