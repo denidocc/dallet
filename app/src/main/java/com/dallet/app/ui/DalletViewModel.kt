@@ -32,8 +32,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
+import java.time.temporal.ChronoUnit
 import java.util.Locale
 
 enum class ReportFormat {
@@ -130,6 +132,8 @@ data class AddExpenseUiState(
     val selectedCategoryId: Long? = null,
     val amountInput: String = "",
     val dateInput: String = LocalDate.now().format(DATE_FORMAT),
+    val timeInput: String = currentTimeText(),
+    val timeEdited: Boolean = false,
     val commentInput: String = "",
     val submitting: Boolean = false,
     val errorMessage: String? = null,
@@ -148,6 +152,7 @@ data class EditOperationUiState(
     val selectedCategoryId: Long? = null,
     val amountInput: String = "",
     val dateInput: String = "",
+    val timeInput: String = "",
     val commentInput: String = "",
     val submitting: Boolean = false,
     val errorMessage: String? = null,
@@ -247,6 +252,15 @@ data class AnalyticsFlowPointUi(
 )
 
 private val DATE_FORMAT: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE
+private val TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+
+private fun currentTimeText(): String = LocalTime.now().format(TIME_FORMAT)
+
+private fun parseTimeOrNull(text: String): LocalTime? =
+    text.trim().takeIf { it.isNotEmpty() }?.let { LocalTime.parse(it, TIME_FORMAT) }
+
+private fun Operation.dateTimeLabel(): String =
+    date.toString() + (time?.let { " " + it.format(TIME_FORMAT) } ?: "")
 
 class DalletViewModel(
     private val ledger: Ledger,
@@ -919,6 +933,8 @@ class DalletViewModel(
                 selectedCategoryId = categories.firstOrNull()?.id,
                 amountInput = if (keepSharedInputs) previous.amountInput else "",
                 dateInput = if (keepSharedInputs) previous.dateInput else LocalDate.now().format(DATE_FORMAT),
+                timeInput = if (keepSharedInputs) previous.timeInput else currentTimeText(),
+                timeEdited = if (keepSharedInputs) previous.timeEdited else false,
                 commentInput = if (keepSharedInputs) previous.commentInput else ""
             )
         } catch (error: Exception) {
@@ -956,6 +972,7 @@ class DalletViewModel(
                     selectedCategoryId = operation.categoryId ?: categories.firstOrNull()?.id,
                     amountInput = Money.formatManat(operation.amountMinor),
                     dateInput = operation.date.format(DATE_FORMAT),
+                    timeInput = operation.time?.format(TIME_FORMAT).orEmpty(),
                     commentInput = operation.comment.orEmpty()
                 )
             } catch (error: Exception) {
@@ -1018,6 +1035,10 @@ class DalletViewModel(
         _addExpense.update { it.copy(dateInput = value, errorMessage = null) }
     }
 
+    fun onExpenseTimeChange(value: String) {
+        _addExpense.update { it.copy(timeInput = value, timeEdited = true, errorMessage = null) }
+    }
+
     fun onExpenseCommentChange(value: String) {
         _addExpense.update { it.copy(commentInput = value, errorMessage = null) }
     }
@@ -1033,12 +1054,18 @@ class DalletViewModel(
             try {
                 val amount = Money.parseManat(state.amountInput)
                 val date = LocalDate.parse(state.dateInput.trim(), DATE_FORMAT)
+                val time = if (state.timeEdited) {
+                    parseTimeOrNull(state.timeInput)
+                } else {
+                    LocalTime.now().truncatedTo(ChronoUnit.MINUTES)
+                }
                 when (state.kind) {
                     AddOperationKind.EXPENSE -> ledger.addExpense(
                         accountId = state.selectedAccountId ?: error("account"),
                         categoryId = state.selectedCategoryId ?: error("category"),
                         amountMinor = amount,
                         date = date,
+                        time = time,
                         comment = state.commentInput
                     )
                     AddOperationKind.INCOME -> ledger.addIncome(
@@ -1046,6 +1073,7 @@ class DalletViewModel(
                         categoryId = state.selectedCategoryId ?: error("category"),
                         amountMinor = amount,
                         date = date,
+                        time = time,
                         comment = state.commentInput
                     )
                     AddOperationKind.TRANSFER -> ledger.addTransfer(
@@ -1053,6 +1081,7 @@ class DalletViewModel(
                         toAccountId = state.selectedToAccountId ?: error("to"),
                         amountMinor = amount,
                         date = date,
+                        time = time,
                         comment = state.commentInput
                     )
                 }
@@ -1063,7 +1092,7 @@ class DalletViewModel(
             } catch (error: SameAccountTransferException) {
                 _addExpense.update { it.copy(submitting = false, errorMessage = error.message) }
             } catch (error: DateTimeParseException) {
-                _addExpense.update { it.copy(submitting = false, errorMessage = "Дата: ГГГГ-ММ-ДД") }
+                _addExpense.update { it.copy(submitting = false, errorMessage = "Проверьте дату и время") }
             } catch (error: Exception) {
                 _addExpense.update {
                     it.copy(submitting = false, errorMessage = "Проверьте сумму и выбранные поля")
@@ -1096,6 +1125,10 @@ class DalletViewModel(
         _edit.update { it.copy(dateInput = value, errorMessage = null) }
     }
 
+    fun onEditTimeChange(value: String) {
+        _edit.update { it.copy(timeInput = value, errorMessage = null) }
+    }
+
     fun onEditCommentChange(value: String) {
         _edit.update { it.copy(commentInput = value, errorMessage = null) }
     }
@@ -1111,6 +1144,7 @@ class DalletViewModel(
             try {
                 val amount = Money.parseManat(state.amountInput)
                 val date = LocalDate.parse(state.dateInput.trim(), DATE_FORMAT)
+                val time = parseTimeOrNull(state.timeInput)
                 when (state.kind) {
                     OperationKind.EXPENSE -> ledger.updateExpense(
                         operationId = state.operationId,
@@ -1118,6 +1152,7 @@ class DalletViewModel(
                         categoryId = state.selectedCategoryId ?: error("category"),
                         amountMinor = amount,
                         date = date,
+                        time = time,
                         comment = state.commentInput
                     )
                     OperationKind.INCOME -> ledger.updateIncome(
@@ -1126,6 +1161,7 @@ class DalletViewModel(
                         categoryId = state.selectedCategoryId ?: error("category"),
                         amountMinor = amount,
                         date = date,
+                        time = time,
                         comment = state.commentInput
                     )
                     OperationKind.TRANSFER -> ledger.updateTransfer(
@@ -1134,6 +1170,7 @@ class DalletViewModel(
                         toAccountId = state.selectedToAccountId ?: error("to"),
                         amountMinor = amount,
                         date = date,
+                        time = time,
                         comment = state.commentInput
                     )
                 }
@@ -1142,7 +1179,7 @@ class DalletViewModel(
             } catch (error: SameAccountTransferException) {
                 _edit.update { it.copy(submitting = false, errorMessage = error.message) }
             } catch (error: DateTimeParseException) {
-                _edit.update { it.copy(submitting = false, errorMessage = "Дата: ГГГГ-ММ-ДД") }
+                _edit.update { it.copy(submitting = false, errorMessage = "Проверьте дату и время") }
             } catch (error: Exception) {
                 _edit.update {
                     it.copy(submitting = false, errorMessage = "Не удалось сохранить")
@@ -1179,7 +1216,7 @@ class DalletViewModel(
         return ExpenseRowUi(
             id = id,
             title = category?.name?.ifBlank { null } ?: "Расход",
-            subtitle = listOf(account, date.toString())
+            subtitle = listOf(account, dateTimeLabel())
                 .filter { it.isNotBlank() }
                 .joinToString(" · "),
             amountLabel = Money.formatManat(amountMinor),
@@ -1216,7 +1253,7 @@ class DalletViewModel(
             kind = kindUi,
             kindLabel = kindLabel,
             title = title,
-            subtitle = listOf(accountPart, date.toString(), comment.orEmpty())
+            subtitle = listOf(accountPart, dateTimeLabel(), comment.orEmpty())
                 .filter { it.isNotBlank() }
                 .joinToString(" · "),
             amountLabel = Money.formatManat(amountMinor)

@@ -5,7 +5,7 @@ import androidx.room.RoomDatabase
 
 @Database(
     entities = [AccountEntity::class, CategoryEntity::class, OperationEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class DalletDatabase : RoomDatabase() {

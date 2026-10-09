@@ -1,6 +1,7 @@
 package com.dallet.app.ledger
 
 import java.time.LocalDate
+import java.time.LocalTime
 
 enum class OperationKind {
     INCOME,
@@ -17,5 +18,6 @@ data class Operation(
     val accountId: Long?,
     val categoryId: Long?,
     val fromAccountId: Long? = null,
-    val toAccountId: Long? = null
+    val toAccountId: Long? = null,
+    val time: LocalTime? = null
 )

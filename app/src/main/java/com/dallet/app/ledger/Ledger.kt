@@ -2,6 +2,7 @@ package com.dallet.app.ledger
 
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
@@ -72,7 +73,8 @@ class Ledger(
         categoryId: Long,
         amountMinor: Long,
         date: LocalDate,
-        comment: String?
+        comment: String?,
+        time: LocalTime? = null
     ): Long {
         require(amountMinor > 0) { "amount must be positive" }
         ensureCategoriesSeeded()
@@ -87,6 +89,7 @@ class Ledger(
                 kind = OperationKind.EXPENSE,
                 amountMinor = amountMinor,
                 date = date,
+                time = time,
                 comment = comment?.takeIf { it.isNotBlank() },
                 accountId = accountId,
                 categoryId = categoryId
@@ -99,7 +102,8 @@ class Ledger(
         categoryId: Long,
         amountMinor: Long,
         date: LocalDate,
-        comment: String?
+        comment: String?,
+        time: LocalTime? = null
     ): Long {
         require(amountMinor > 0) { "amount must be positive" }
         ensureCategoriesSeeded()
@@ -114,6 +118,7 @@ class Ledger(
                 kind = OperationKind.INCOME,
                 amountMinor = amountMinor,
                 date = date,
+                time = time,
                 comment = comment?.takeIf { it.isNotBlank() },
                 accountId = accountId,
                 categoryId = categoryId
@@ -126,7 +131,8 @@ class Ledger(
         toAccountId: Long,
         amountMinor: Long,
         date: LocalDate,
-        comment: String?
+        comment: String?,
+        time: LocalTime? = null
     ): Long {
         require(amountMinor > 0) { "amount must be positive" }
         if (fromAccountId == toAccountId) {
@@ -142,6 +148,7 @@ class Ledger(
                 kind = OperationKind.TRANSFER,
                 amountMinor = amountMinor,
                 date = date,
+                time = time,
                 comment = comment?.takeIf { it.isNotBlank() },
                 accountId = null,
                 categoryId = null,
@@ -155,13 +162,13 @@ class Ledger(
         require(limit > 0)
         return operationRepository.getAll()
             .filter { it.kind == OperationKind.EXPENSE }
-            .sortedWith(compareByDescending<Operation> { it.date }.thenByDescending { it.id })
+            .sortedWith(compareByDescending<Operation> { it.date }.thenByDescending { it.time ?: LocalTime.MIN }.thenByDescending { it.id })
             .take(limit)
     }
 
     suspend fun allOperations(): List<Operation> =
         operationRepository.getAll()
-            .sortedWith(compareByDescending<Operation> { it.date }.thenByDescending { it.id })
+            .sortedWith(compareByDescending<Operation> { it.date }.thenByDescending { it.time ?: LocalTime.MIN }.thenByDescending { it.id })
 
     suspend fun operation(operationId: Long): Operation? =
         operationRepository.getAll().firstOrNull { it.id == operationId }
@@ -172,7 +179,8 @@ class Ledger(
         categoryId: Long,
         amountMinor: Long,
         date: LocalDate,
-        comment: String?
+        comment: String?,
+        time: LocalTime? = null
     ) {
         require(amountMinor > 0) { "amount must be positive" }
         val existing = operation(operationId) ?: error("operation not found")
@@ -187,6 +195,7 @@ class Ledger(
             existing.copy(
                 amountMinor = amountMinor,
                 date = date,
+                time = time,
                 comment = comment?.takeIf { it.isNotBlank() },
                 accountId = accountId,
                 categoryId = categoryId
@@ -200,7 +209,8 @@ class Ledger(
         categoryId: Long,
         amountMinor: Long,
         date: LocalDate,
-        comment: String?
+        comment: String?,
+        time: LocalTime? = null
     ) {
         require(amountMinor > 0) { "amount must be positive" }
         val existing = operation(operationId) ?: error("operation not found")
@@ -215,6 +225,7 @@ class Ledger(
             existing.copy(
                 amountMinor = amountMinor,
                 date = date,
+                time = time,
                 comment = comment?.takeIf { it.isNotBlank() },
                 accountId = accountId,
                 categoryId = categoryId
@@ -228,7 +239,8 @@ class Ledger(
         toAccountId: Long,
         amountMinor: Long,
         date: LocalDate,
-        comment: String?
+        comment: String?,
+        time: LocalTime? = null
     ) {
         require(amountMinor > 0) { "amount must be positive" }
         val existing = operation(operationId) ?: error("operation not found")
@@ -244,6 +256,7 @@ class Ledger(
             existing.copy(
                 amountMinor = amountMinor,
                 date = date,
+                time = time,
                 comment = comment?.takeIf { it.isNotBlank() },
                 fromAccountId = fromAccountId,
                 toAccountId = toAccountId,
@@ -409,7 +422,7 @@ class Ledger(
         val categoryNames = categoryRepository.getAll().associate { it.id to it.name }
         val rows = operationRepository.getAll()
             .filter { !it.date.isBefore(from) && !it.date.isAfter(to) }
-            .sortedWith(compareBy({ it.date }, { it.id }))
+            .sortedWith(compareBy<Operation>({ it.date }, { it.time ?: LocalTime.MIN }, { it.id }))
             .map { operation ->
                 val account = when (operation.kind) {
                     OperationKind.TRANSFER ->
@@ -419,6 +432,7 @@ class Ledger(
                 }
                 ReportRow(
                     date = operation.date,
+                    time = operation.time,
                     kind = operation.kind,
                     accountName = account,
                     categoryName = categoryNames[operation.categoryId].orEmpty(),

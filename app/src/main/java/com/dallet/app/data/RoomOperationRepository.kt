@@ -4,6 +4,7 @@ import com.dallet.app.ledger.Operation
 import com.dallet.app.ledger.OperationKind
 import com.dallet.app.ledger.OperationRepository
 import java.time.LocalDate
+import java.time.LocalTime
 
 class RoomOperationRepository(
     private val dao: OperationDao
@@ -37,7 +38,8 @@ private fun OperationEntity.toDomain(): Operation =
         accountId = accountId,
         categoryId = categoryId,
         fromAccountId = fromAccountId,
-        toAccountId = toAccountId
+        toAccountId = toAccountId,
+        time = timeSecondOfDay?.let { LocalTime.ofSecondOfDay(it.toLong()) }
     )
 
 private fun Operation.toEntity(): OperationEntity =
@@ -50,5 +52,6 @@ private fun Operation.toEntity(): OperationEntity =
         accountId = accountId,
         categoryId = categoryId,
         fromAccountId = fromAccountId,
-        toAccountId = toAccountId
+        toAccountId = toAccountId,
+        timeSecondOfDay = time?.toSecondOfDay()
     )

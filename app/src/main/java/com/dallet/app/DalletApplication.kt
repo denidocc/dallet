@@ -3,6 +3,7 @@ package com.dallet.app
 import android.app.Application
 import androidx.room.Room
 import com.dallet.app.data.DalletDatabase
+import com.dallet.app.data.MIGRATION_2_3
 import com.dallet.app.data.RoomAccountRepository
 import com.dallet.app.data.RoomCategoryRepository
 import com.dallet.app.data.RoomLedgerDataStore
@@ -26,7 +27,9 @@ class DalletApplication : Application() {
             this,
             DalletDatabase::class.java,
             "dallet.db"
-        ).fallbackToDestructiveMigration().build()
+        ).addMigrations(MIGRATION_2_3)
+            .fallbackToDestructiveMigrationFrom(1)
+            .build()
         val accountRepository = RoomAccountRepository(database.accountDao())
         val categoryRepository = RoomCategoryRepository(database.categoryDao())
         val operationRepository = RoomOperationRepository(database.operationDao())

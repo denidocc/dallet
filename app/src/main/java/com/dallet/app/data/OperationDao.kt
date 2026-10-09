@@ -8,7 +8,10 @@ import androidx.room.Update
 
 @Dao
 interface OperationDao {
-    @Query("SELECT * FROM operations ORDER BY dateEpochDay DESC, id DESC")
+    @Query(
+        "SELECT * FROM operations " +
+            "ORDER BY dateEpochDay DESC, COALESCE(timeSecondOfDay, -1) DESC, id DESC"
+    )
     suspend fun getAll(): List<OperationEntity>
 
     @Insert

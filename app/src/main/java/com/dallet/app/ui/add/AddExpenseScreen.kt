@@ -27,6 +27,7 @@ import com.dallet.app.ui.AddExpenseUiState
 import com.dallet.app.ui.AddOperationKind
 import com.dallet.app.ui.SelectableOption
 import com.dallet.app.ui.common.FormDateField
+import com.dallet.app.ui.common.FormTimeField
 import com.dallet.app.ui.common.FormScrollColumn
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -40,6 +41,7 @@ fun AddExpenseScreen(
     onCategorySelected: (Long) -> Unit,
     onAmountChange: (String) -> Unit,
     onDateChange: (String) -> Unit,
+    onTimeChange: (String) -> Unit,
     onCommentChange: (String) -> Unit,
     onSubmit: () -> Unit
 ) {
@@ -106,10 +108,18 @@ fun AddExpenseScreen(
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
         )
-        FormDateField(
-            dateInput = state.dateInput,
-            onDateSelected = onDateChange
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            FormDateField(
+                dateInput = state.dateInput,
+                onDateSelected = onDateChange,
+                modifier = Modifier.weight(1.4f)
+            )
+            FormTimeField(
+                timeInput = state.timeInput,
+                onTimeSelected = onTimeChange,
+                modifier = Modifier.weight(1f)
+            )
+        }
         OutlinedTextField(
             value = state.commentInput,
             onValueChange = onCommentChange,

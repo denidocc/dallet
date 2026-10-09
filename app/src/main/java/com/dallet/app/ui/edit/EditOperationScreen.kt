@@ -2,6 +2,8 @@ package com.dallet.app.ui.edit
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
@@ -30,6 +32,7 @@ import com.dallet.app.ledger.OperationKind
 import com.dallet.app.ui.EditOperationUiState
 import com.dallet.app.ui.SelectableOption
 import com.dallet.app.ui.common.FormDateField
+import com.dallet.app.ui.common.FormTimeField
 import com.dallet.app.ui.common.FormScrollColumn
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,6 +45,7 @@ fun EditOperationScreen(
     onCategorySelected: (Long) -> Unit,
     onAmountChange: (String) -> Unit,
     onDateChange: (String) -> Unit,
+    onTimeChange: (String) -> Unit,
     onCommentChange: (String) -> Unit,
     onSave: () -> Unit,
     onDelete: () -> Unit
@@ -110,10 +114,18 @@ fun EditOperationScreen(
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
         )
-        FormDateField(
-            dateInput = state.dateInput,
-            onDateSelected = onDateChange
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            FormDateField(
+                dateInput = state.dateInput,
+                onDateSelected = onDateChange,
+                modifier = Modifier.weight(1.4f)
+            )
+            FormTimeField(
+                timeInput = state.timeInput,
+                onTimeSelected = onTimeChange,
+                modifier = Modifier.weight(1f)
+            )
+        }
         OutlinedTextField(
             value = state.commentInput,
             onValueChange = onCommentChange,

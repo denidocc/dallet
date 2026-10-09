@@ -34,6 +34,8 @@
     <string name="add_category_label">Категория</string>
     <string name="add_amount_label">Сумма</string>
     <string name="add_date_label">Дата</string>
+    <string name="add_time_label">Время</string>
+    <string name="add_time_none">Не указано</string>
     <string name="add_date_picker_hint">Нажмите, чтобы выбрать дату</string>
     <string name="date_picker_ok">ОК</string>
     <string name="date_picker_cancel">Отмена</string>

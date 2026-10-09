@@ -13,5 +13,6 @@ data class OperationEntity(
     val accountId: Long?,
     val categoryId: Long?,
     val fromAccountId: Long?,
-    val toAccountId: Long?
+    val toAccountId: Long?,
+    val timeSecondOfDay: Int? = null
 )

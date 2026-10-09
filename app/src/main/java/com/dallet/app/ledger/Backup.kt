@@ -4,6 +4,7 @@ import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.format.DateTimeParseException
 
 class InvalidBackupException(message: String) : Exception(message)
@@ -53,6 +54,7 @@ object BackupCodec {
                     .put("kind", operation.kind.name)
                     .put("amountMinor", operation.amountMinor)
                     .put("date", operation.date.toString())
+                operation.time?.let { item.put("time", ReportCsv.timeLabel(it)) }
                 operation.comment?.let { item.put("comment", it) }
                 operation.accountId?.let { item.put("accountId", it) }
                 operation.categoryId?.let { item.put("categoryId", it) }
@@ -98,7 +100,8 @@ object BackupCodec {
                     accountId = it.optNullableLong("accountId"),
                     categoryId = it.optNullableLong("categoryId"),
                     fromAccountId = it.optNullableLong("fromAccountId"),
-                    toAccountId = it.optNullableLong("toAccountId")
+                    toAccountId = it.optNullableLong("toAccountId"),
+                    time = it.optNullableString("time")?.let { text -> LocalTime.parse(text) }
                 )
             }
             return BackupData(accounts, categories, operations)

@@ -113,6 +113,7 @@ object ReportPdf {
                 }
                 writer.tableRow(
                     date = row.date.toString(),
+                    time = ReportCsv.timeLabel(row.time),
                     kind = ReportCsv.kindLabel(row.kind),
                     description = description,
                     comment = row.comment.orEmpty(),
@@ -257,8 +258,9 @@ object ReportPdf {
         fun tableHeader() {
             ensure(20f)
             canvas.drawText("Дата", MARGIN, y + 10f, mutedPaint)
-            canvas.drawText("Вид", MARGIN + 66f, y + 10f, mutedPaint)
-            canvas.drawText("Счёт · категория", MARGIN + 126f, y + 10f, mutedPaint)
+            canvas.drawText("Время", MARGIN + 62f, y + 10f, mutedPaint)
+            canvas.drawText("Вид", MARGIN + 100f, y + 10f, mutedPaint)
+            canvas.drawText("Счёт · категория", MARGIN + 156f, y + 10f, mutedPaint)
             val head = "Сумма"
             canvas.drawText(head, CONTENT_RIGHT - mutedPaint.measureText(head), y + 10f, mutedPaint)
             y += 16f
@@ -266,6 +268,7 @@ object ReportPdf {
 
         fun tableRow(
             date: String,
+            time: String,
             kind: String,
             description: String,
             comment: String,
@@ -275,8 +278,9 @@ object ReportPdf {
             val hasComment = comment.isNotBlank()
             ensure(if (hasComment) 34f else 20f)
             canvas.drawText(date, MARGIN, y + 11f, bodyPaint)
-            canvas.drawText(kind, MARGIN + 66f, y + 11f, bodyPaint)
-            canvas.drawText(fit(description, bodyPaint, 230f), MARGIN + 126f, y + 11f, bodyPaint)
+            canvas.drawText(time, MARGIN + 62f, y + 11f, bodyPaint)
+            canvas.drawText(kind, MARGIN + 100f, y + 11f, bodyPaint)
+            canvas.drawText(fit(description, bodyPaint, 200f), MARGIN + 156f, y + 11f, bodyPaint)
             val amountPaint = paint(11f, bold = true, color = amountColor)
             canvas.drawText(
                 amount,
@@ -286,7 +290,7 @@ object ReportPdf {
             )
             y += 15f
             if (hasComment) {
-                canvas.drawText(fit(comment, mutedPaint, 330f), MARGIN + 126f, y + 9f, mutedPaint)
+                canvas.drawText(fit(comment, mutedPaint, 300f), MARGIN + 156f, y + 9f, mutedPaint)
                 y += 13f
             }
             canvas.drawLine(MARGIN, y + 2f, CONTENT_RIGHT, y + 2f, linePaint)

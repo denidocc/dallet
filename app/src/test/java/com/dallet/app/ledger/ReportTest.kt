@@ -4,6 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import java.time.LocalDate
+import java.time.LocalTime
 
 class ReportTest {
 
@@ -19,8 +20,9 @@ class ReportTest {
         account: String = "Наличные",
         category: String = "Еда",
         comment: String? = null,
-        date: LocalDate = LocalDate.of(2026, 7, 1)
-    ) = ReportRow(date, kind, account, category, amountMinor, comment)
+        date: LocalDate = LocalDate.of(2026, 7, 1),
+        time: LocalTime? = null
+    ) = ReportRow(date, kind, account, category, amountMinor, comment, time)
 
     @Test
     fun csv_startsWithBomAndHeader() {
@@ -28,7 +30,7 @@ class ReportTest {
 
         assertThat(csv).startsWith("﻿")
         assertThat(csv.removePrefix("﻿").lines().first())
-            .isEqualTo("Дата;Вид;Счёт;Категория;Сумма;Комментарий")
+            .isEqualTo("Дата;Время;Вид;Счёт;Категория;Сумма;Комментарий")
     }
 
     @Test
@@ -41,8 +43,16 @@ class ReportTest {
         )
         val lines = csv.removePrefix("﻿").trim().lines()
 
-        assertThat(lines[1]).isEqualTo("2026-07-01;Расход;Наличные;Еда;-12.50;")
-        assertThat(lines[2]).isEqualTo("2026-07-01;Доход;Наличные;Зарплата;100.00;")
+        assertThat(lines[1]).isEqualTo("2026-07-01;;Расход;Наличные;Еда;-12.50;")
+        assertThat(lines[2]).isEqualTo("2026-07-01;;Доход;Наличные;Зарплата;100.00;")
+    }
+
+    @Test
+    fun csv_includesTimeWhenKnown() {
+        val csv = ReportCsv.encode(listOf(row(time = LocalTime.of(14, 30))))
+
+        assertThat(csv.removePrefix("﻿").trim().lines()[1])
+            .isEqualTo("2026-07-01;14:30;Расход;Наличные;Еда;-12.50;")
     }
 
     @Test
@@ -59,7 +69,7 @@ class ReportTest {
         )
 
         assertThat(csv.removePrefix("﻿").trim().lines()[1])
-            .isEqualTo("2026-07-01;Перевод;ЗП карта → Наличные;;5.00;")
+            .isEqualTo("2026-07-01;;Перевод;ЗП карта → Наличные;;5.00;")
     }
 
     @Test

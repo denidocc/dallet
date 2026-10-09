@@ -252,6 +252,7 @@ fun DalletApp(
                     onCategorySelected = viewModel::onExpenseCategorySelected,
                     onAmountChange = viewModel::onExpenseAmountChange,
                     onDateChange = viewModel::onExpenseDateChange,
+                    onTimeChange = viewModel::onExpenseTimeChange,
                     onCommentChange = viewModel::onExpenseCommentChange,
                     onSubmit = viewModel::submitExpense
                 )
@@ -379,6 +380,7 @@ fun DalletApp(
                     onCategorySelected = viewModel::onEditCategorySelected,
                     onAmountChange = viewModel::onEditAmountChange,
                     onDateChange = viewModel::onEditDateChange,
+                    onTimeChange = viewModel::onEditTimeChange,
                     onCommentChange = viewModel::onEditCommentChange,
                     onSave = viewModel::saveEdit,
                     onDelete = viewModel::deleteEdit

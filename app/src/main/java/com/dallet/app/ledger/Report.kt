@@ -1,6 +1,7 @@
 package com.dallet.app.ledger
 
 import java.time.LocalDate
+import java.time.LocalTime
 
 data class ReportRow(
     val date: LocalDate,
@@ -8,7 +9,8 @@ data class ReportRow(
     val accountName: String,
     val categoryName: String,
     val amountMinor: Long,
-    val comment: String?
+    val comment: String?,
+    val time: LocalTime? = null
 )
 
 data class PeriodReport(
@@ -20,7 +22,8 @@ object ReportCsv {
     private const val BOM = "﻿"
     private const val SEPARATOR = ";"
     private const val LINE_BREAK = "\r\n"
-    private val HEADER = listOf("Дата", "Вид", "Счёт", "Категория", "Сумма", "Комментарий")
+    private val HEADER =
+        listOf("Дата", "Время", "Вид", "Счёт", "Категория", "Сумма", "Комментарий")
 
     fun encode(rows: List<ReportRow>): String {
         val builder = StringBuilder(BOM)
@@ -28,6 +31,7 @@ object ReportCsv {
         rows.forEach { row ->
             val fields = listOf(
                 row.date.toString(),
+                timeLabel(row.time),
                 kindLabel(row.kind),
                 row.accountName,
                 row.categoryName,
@@ -38,6 +42,10 @@ object ReportCsv {
         }
         return builder.toString()
     }
+
+    /** "HH:mm" or an empty string for operations saved before time was recorded. */
+    fun timeLabel(time: LocalTime?): String =
+        time?.let { String.format("%02d:%02d", it.hour, it.minute) }.orEmpty()
 
     fun kindLabel(kind: OperationKind): String = when (kind) {
         OperationKind.INCOME -> "Доход"
