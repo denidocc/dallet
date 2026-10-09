@@ -18,6 +18,16 @@
     <string name="onboarding_currency">Основная валюта</string>
     <string name="onboarding_accounts">Счета</string>
     <string name="onboarding_custom_account">Свой счёт (название)</string>
+    <string name="onboarding_welcome_title">Добро пожаловать в Dallet</string>
+    <string name="onboarding_welcome_text">Учёт личных денег без интернета и аккаунтов. Все данные остаются на вашем телефоне.</string>
+    <string name="onboarding_start">Начать</string>
+    <string name="onboarding_next">Далее</string>
+    <string name="onboarding_back">Назад</string>
+    <string name="onboarding_finish">Готово</string>
+    <string name="onboarding_currency_hint">Все суммы будут в этой валюте.</string>
+    <string name="onboarding_accounts_hint">Отметьте, где у вас лежат деньги.</string>
+    <string name="onboarding_balances_hint">Сколько сейчас на каждом счёте? Можно оставить пустым, пример: 10.50</string>
+    <string name="onboarding_pick_one">Выберите хотя бы один счёт</string>
     <string name="onboarding_continue">Продолжить</string>
     <string name="home_total_label">Общий баланс</string>
     <string name="home_month_income">Доходы за месяц</string>
