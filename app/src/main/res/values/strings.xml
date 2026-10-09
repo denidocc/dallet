@@ -75,6 +75,10 @@
     <string name="analytics_income_by_category">Доходы по категориям</string>
     <string name="analytics_income_flow">Доходы по времени</string>
     <string name="analytics_by_account">По счетам</string>
+    <string name="report_export">Экспорт отчёта</string>
+    <string name="report_export_hint">CSV или PDF за выбранный период</string>
+    <string name="report_format_pdf">PDF — отчёт с итогами и операциями</string>
+    <string name="report_format_csv">CSV — таблица операций для Excel</string>
     <string name="analytics_prev">Назад</string>
     <string name="analytics_next">Вперёд</string>
     <string name="analytics_incomplete">Период ещё не закончился</string>

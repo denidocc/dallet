@@ -14,6 +14,14 @@ object BackupFiles {
         }
     }
 
+    suspend fun writeBytes(context: Context, uri: Uri, bytes: ByteArray) {
+        withContext(Dispatchers.IO) {
+            val stream = context.contentResolver.openOutputStream(uri, "wt")
+                ?: error("cannot open file for writing")
+            stream.use { it.write(bytes) }
+        }
+    }
+
     suspend fun read(context: Context, uri: Uri): String =
         withContext(Dispatchers.IO) {
             val stream = context.contentResolver.openInputStream(uri)

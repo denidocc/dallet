@@ -103,6 +103,31 @@ fun DalletApp(
             viewModel.importBackup { BackupFiles.read(context, uri) }
         }
     }
+    val csvReportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("text/csv")
+    ) { uri ->
+        if (uri != null) {
+            viewModel.exportReport(ReportFormat.CSV) { bytes ->
+                BackupFiles.writeBytes(context, uri, bytes)
+            }
+        }
+    }
+    val pdfReportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/pdf")
+    ) { uri ->
+        if (uri != null) {
+            viewModel.exportReport(ReportFormat.PDF) { bytes ->
+                BackupFiles.writeBytes(context, uri, bytes)
+            }
+        }
+    }
+    val launchReport = { format: ReportFormat ->
+        viewModel.consumeDataMessage()
+        when (format) {
+            ReportFormat.CSV -> csvReportLauncher.launch("Dallet-report-${LocalDate.now()}.csv")
+            ReportFormat.PDF -> pdfReportLauncher.launch("Dallet-report-${LocalDate.now()}.pdf")
+        }
+    }
     val launchExport = {
         viewModel.consumeDataMessage()
         exportLauncher.launch("Dallet-backup-${LocalDate.now()}.json")
@@ -237,7 +262,9 @@ fun DalletApp(
                     state = analyticsState,
                     onPeriodSelected = viewModel::onAnalyticsPeriodSelected,
                     onModeSelected = viewModel::onAnalyticsModeSelected,
-                    onStep = viewModel::onAnalyticsStep
+                    onStep = viewModel::onAnalyticsStep,
+                    dataState = dataState,
+                    onExportReport = launchReport
                 )
             }
             composable(DalletDestination.More.route) {

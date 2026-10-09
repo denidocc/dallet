@@ -397,6 +397,38 @@ class Ledger(
         )
     }
 
+    suspend fun periodReport(
+        period: AnalyticsPeriod,
+        asOf: LocalDate,
+        today: LocalDate
+    ): PeriodReport {
+        val comparison = analyticsComparison(period, asOf, today)
+        val from = comparison.current.fromInclusive
+        val to = comparison.current.toInclusive
+        val accountNames = accountRepository.getAll().associate { it.id to it.name }
+        val categoryNames = categoryRepository.getAll().associate { it.id to it.name }
+        val rows = operationRepository.getAll()
+            .filter { !it.date.isBefore(from) && !it.date.isAfter(to) }
+            .sortedWith(compareBy({ it.date }, { it.id }))
+            .map { operation ->
+                val account = when (operation.kind) {
+                    OperationKind.TRANSFER ->
+                        "${accountNames[operation.fromAccountId].orEmpty()} → " +
+                            accountNames[operation.toAccountId].orEmpty()
+                    else -> accountNames[operation.accountId].orEmpty()
+                }
+                ReportRow(
+                    date = operation.date,
+                    kind = operation.kind,
+                    accountName = account,
+                    categoryName = categoryNames[operation.categoryId].orEmpty(),
+                    amountMinor = operation.amountMinor,
+                    comment = operation.comment
+                )
+            }
+        return PeriodReport(comparison = comparison, rows = rows)
+    }
+
     private fun categoryTotals(
         operations: List<Operation>,
         categoriesById: Map<Long, Category>

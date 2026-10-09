@@ -19,9 +19,11 @@ import com.dallet.app.ledger.Money
 import com.dallet.app.ledger.Operation
 import com.dallet.app.ledger.OperationKind
 import com.dallet.app.ledger.SameAccountTransferException
+import com.dallet.app.ledger.ReportCsv
 import com.dallet.app.ledger.percentChange
 import com.dallet.app.ledger.shiftAsOf
 import com.dallet.app.security.PinLock
+import com.dallet.app.ui.report.ReportPdf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,6 +35,11 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import java.util.Locale
+
+enum class ReportFormat {
+    CSV,
+    PDF
+}
 
 enum class AddOperationKind {
     EXPENSE,
@@ -394,6 +401,36 @@ class DalletViewModel(
                 _data.value = DataUiState(message = "Резервная копия сохранена")
             } catch (error: Exception) {
                 _data.value = DataUiState(message = "Не удалось сохранить файл", isError = true)
+            }
+        }
+    }
+
+    fun exportReport(format: ReportFormat, write: suspend (ByteArray) -> Unit) {
+        viewModelScope.launch {
+            _data.value = DataUiState(busy = true)
+            try {
+                val state = _analytics.value
+                val today = LocalDate.now()
+                val report = ledger.periodReport(
+                    period = state.period,
+                    asOf = shiftAsOf(state.period, today, state.offset.toLong()),
+                    today = today
+                )
+                val bytes = withContext(Dispatchers.Default) {
+                    when (format) {
+                        ReportFormat.CSV -> ReportCsv.encode(report.rows).toByteArray(Charsets.UTF_8)
+                        ReportFormat.PDF -> ReportPdf.render(
+                            report = report,
+                            title = state.periodLabel,
+                            createdOn = today.toString(),
+                            incompleteNote = if (state.isComplete) null else "Период ещё не закончился"
+                        )
+                    }
+                }
+                write(bytes)
+                _data.value = DataUiState(message = "Отчёт сохранён")
+            } catch (error: Exception) {
+                _data.value = DataUiState(message = "Не удалось сохранить отчёт", isError = true)
             }
         }
     }
