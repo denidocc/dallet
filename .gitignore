@@ -37,3 +37,10 @@ captures/
 
 # Local test builds and personal backups (never commit)
 builds/
+
+# Personal exports from the app (finance data) - never commit
+Dallet-backup-*.json
+Dallet-report-*.pdf
+Dallet-report-*.csv
+backups/
+*.bundle
