@@ -40,7 +40,11 @@ class MainActivity : FragmentActivity() {
                     color = MaterialTheme.colorScheme.background,
                     contentColor = MaterialTheme.colorScheme.onBackground
                 ) {
-                    DalletApp(ledger = app.ledger, pinLock = app.pinLock)
+                    DalletApp(
+                        ledger = app.ledger,
+                        pinLock = app.pinLock,
+                        shopping = app.shopping
+                    )
                     CrashReportDialog()
                 }
             }

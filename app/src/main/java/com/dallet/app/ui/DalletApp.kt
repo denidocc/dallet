@@ -3,7 +3,10 @@ package com.dallet.app.ui
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -13,8 +16,10 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -22,6 +27,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,7 +47,14 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.dallet.app.R
 import com.dallet.app.ledger.Ledger
+import com.dallet.app.ledger.ShoppingService
+import com.dallet.app.ui.common.SurfaceCard
+import com.dallet.app.ui.shopping.ShoppingHubScreen
+import com.dallet.app.ui.shopping.ShoppingListActions
+import com.dallet.app.ui.shopping.ShoppingListScreen
+import com.dallet.app.ui.shopping.ShoppingViewModel
 import com.dallet.app.security.PinLock
 import com.dallet.app.ui.accounts.AccountEditorScreen
 import com.dallet.app.ui.accounts.AccountsScreen
@@ -63,6 +78,8 @@ private const val ACCOUNTS_ROUTE = "accounts"
 private const val ACCOUNT_NEW_ROUTE = "account/new"
 private const val ACCOUNT_EDIT_ROUTE = "account/{accountId}"
 private const val SECURITY_ROUTE = "security"
+private const val SHOPPING_ROUTE = "shopping"
+private const val SHOPPING_LIST_ROUTE = "shopping/{listId}"
 private const val CATEGORIES_ROUTE = "categories"
 private const val CATEGORY_NEW_ROUTE = "category/new"
 private const val CATEGORY_EDIT_ROUTE = "category/{categoryId}"
@@ -72,7 +89,9 @@ private const val CATEGORY_EDIT_ROUTE = "category/{categoryId}"
 fun DalletApp(
     ledger: Ledger,
     pinLock: PinLock,
-    viewModel: DalletViewModel = viewModel(factory = DalletViewModel.factory(ledger, pinLock))
+    shopping: ShoppingService,
+    viewModel: DalletViewModel = viewModel(factory = DalletViewModel.factory(ledger, pinLock)),
+    shoppingViewModel: ShoppingViewModel = viewModel(factory = ShoppingViewModel.factory(ledger, shopping))
 ) {
     val homeState by viewModel.home.collectAsStateWithLifecycle()
     val onboardingState by viewModel.onboarding.collectAsStateWithLifecycle()
@@ -164,6 +183,10 @@ fun DalletApp(
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route ?: DalletDestination.Home.route
+    var showAddSheet by remember { mutableStateOf(false) }
+    val hubState by shoppingViewModel.hub.collectAsStateWithLifecycle()
+    val editorState by shoppingViewModel.editor.collectAsStateWithLifecycle()
+    val closeFormState by shoppingViewModel.closeForm.collectAsStateWithLifecycle()
 
     fun navigateTo(destination: DalletDestination) {
         navController.navigate(destination.route) {
@@ -209,8 +232,23 @@ fun DalletApp(
 
     val hideBottomBar = currentRoute?.startsWith("edit/") == true ||
         currentRoute == SECURITY_ROUTE ||
+        currentRoute?.startsWith("shopping") == true ||
         currentRoute?.startsWith("account") == true ||
         currentRoute?.startsWith("categor") == true
+
+    if (showAddSheet) {
+        AddChoiceSheet(
+            onDismiss = { showAddSheet = false },
+            onOperation = {
+                showAddSheet = false
+                navigateTo(DalletDestination.Add)
+            },
+            onShopping = {
+                showAddSheet = false
+                shoppingViewModel.createList { id -> navController.navigate("shopping/$id") }
+            }
+        )
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -218,7 +256,13 @@ fun DalletApp(
             if (!hideBottomBar) {
                 DalletBottomBar(
                     currentRoute = currentRoute ?: DalletDestination.Home.route,
-                    onNavigate = ::navigateTo
+                    onNavigate = { destination ->
+                        if (destination == DalletDestination.Add) {
+                            showAddSheet = true
+                        } else {
+                            navigateTo(destination)
+                        }
+                    }
                 )
             }
         }
@@ -274,6 +318,10 @@ fun DalletApp(
                     onAccountsClick = { navController.navigate(ACCOUNTS_ROUTE) },
                     onCategoriesClick = { navController.navigate(CATEGORIES_ROUTE) },
                     onSecurityClick = { navController.navigate(SECURITY_ROUTE) },
+                    onShoppingClick = {
+                        shoppingViewModel.refreshHub()
+                        navController.navigate(SHOPPING_ROUTE)
+                    },
                     onExportClick = launchExport,
                     onImportClick = launchImport,
                     onResetConfirmed = viewModel::resetAll,
@@ -287,6 +335,56 @@ fun DalletApp(
                     onEnablePin = viewModel::enablePin,
                     onDisablePin = viewModel::disablePin,
                     onBiometricChange = viewModel::setBiometricEnabled
+                )
+            }
+            composable(SHOPPING_ROUTE) {
+                LaunchedEffect(Unit) { shoppingViewModel.refreshHub() }
+                ShoppingHubScreen(
+                    state = hubState,
+                    onTabSelected = shoppingViewModel::selectTab,
+                    onNewList = {
+                        shoppingViewModel.createList { id ->
+                            navController.navigate("shopping/$id")
+                        }
+                    },
+                    onListClick = { id -> navController.navigate("shopping/$id") },
+                    onDeleteProduct = shoppingViewModel::deleteProduct
+                )
+            }
+            composable(
+                route = SHOPPING_LIST_ROUTE,
+                arguments = listOf(navArgument("listId") { type = NavType.LongType })
+            ) { entry ->
+                val listId = entry.arguments?.getLong("listId") ?: return@composable
+                LaunchedEffect(listId) { shoppingViewModel.openList(listId) }
+                ShoppingListScreen(
+                    state = editorState,
+                    closeForm = closeFormState,
+                    actions = ShoppingListActions(
+                        onRename = shoppingViewModel::renameList,
+                        onNameChange = shoppingViewModel::onNameChange,
+                        onQuantityChange = shoppingViewModel::onQuantityChange,
+                        onUnitSelected = shoppingViewModel::onUnitSelected,
+                        onPriceChange = shoppingViewModel::onPriceChange,
+                        onSuggestionSelected = shoppingViewModel::onSuggestionSelected,
+                        onAddItem = shoppingViewModel::addItem,
+                        onToggle = shoppingViewModel::toggleItem,
+                        onUpdateItem = shoppingViewModel::updateItem,
+                        onDeleteItem = shoppingViewModel::deleteItem,
+                        onSavePrices = shoppingViewModel::savePrices,
+                        onPrepareClose = shoppingViewModel::prepareClose,
+                        onCloseAccount = shoppingViewModel::onCloseAccountSelected,
+                        onCloseCategory = shoppingViewModel::onCloseCategorySelected,
+                        onCloseDate = shoppingViewModel::onCloseDateChange,
+                        onCloseTime = shoppingViewModel::onCloseTimeChange,
+                        onCloseCarryOver = shoppingViewModel::onCloseCarryOverChange,
+                        onConfirmClose = {
+                            shoppingViewModel.closePurchase { viewModel.refreshHome() }
+                        },
+                        onDeleteList = {
+                            shoppingViewModel.deleteList(listId) { navController.popBackStack() }
+                        }
+                    )
                 )
             }
             composable(ACCOUNTS_ROUTE) {
@@ -384,6 +482,51 @@ fun DalletApp(
                     onCommentChange = viewModel::onEditCommentChange,
                     onSave = viewModel::saveEdit,
                     onDelete = viewModel::deleteEdit
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AddChoiceSheet(
+    onDismiss: () -> Unit,
+    onOperation: () -> Unit,
+    onShopping: () -> Unit
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.add_sheet_title),
+                style = MaterialTheme.typography.titleLarge
+            )
+            SurfaceCard(onClick = onOperation) {
+                Text(
+                    text = stringResource(R.string.add_sheet_operation),
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = stringResource(R.string.add_sheet_operation_hint),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            SurfaceCard(onClick = onShopping) {
+                Text(
+                    text = stringResource(R.string.add_sheet_shopping),
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = stringResource(R.string.add_sheet_shopping_hint),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
