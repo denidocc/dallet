@@ -34,3 +34,6 @@ captures/
 .externalNativeBuild/
 .cxx/
 *.hprof
+
+# Local test builds and personal backups (never commit)
+builds/
