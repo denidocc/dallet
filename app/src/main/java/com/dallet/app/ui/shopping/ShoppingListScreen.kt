@@ -188,12 +188,6 @@ fun ShoppingListScreen(
                             )
                         }
                     }
-                    IconButton(onClick = { showDelete = true }) {
-                        Icon(
-                            imageVector = Icons.Filled.Delete,
-                            contentDescription = stringResource(R.string.shopping_delete)
-                        )
-                    }
                 }
             }
 
@@ -252,6 +246,17 @@ fun ShoppingListScreen(
                         }
                         Text(text = item.lineTotalLabel, style = MaterialTheme.typography.titleMedium)
                     }
+                }
+            }
+            item {
+                TextButton(
+                    onClick = { showDelete = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = stringResource(R.string.shopping_delete_list_action),
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
             }
         }

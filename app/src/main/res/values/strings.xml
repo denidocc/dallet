@@ -141,6 +141,7 @@
     <string name="shopping_items_empty">Добавьте первую позицию</string>
     <string name="shopping_rename_title">Название списка</string>
     <string name="shopping_save">Сохранить</string>
+    <string name="shopping_delete_list_action">Удалить список</string>
     <string name="shopping_delete_list_title">Удалить список?</string>
     <string name="shopping_delete_list_text">Созданный расход останется.</string>
     <string name="shopping_add_name">Что купить</string>

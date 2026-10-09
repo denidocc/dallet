@@ -2,10 +2,14 @@ package com.dallet.app.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -78,6 +82,8 @@ import com.dallet.app.ui.onboarding.OnboardingScreen
 import com.dallet.app.ui.security.SecurityScreen
 import java.time.LocalDate
 
+private const val NAV_FADE_IN_MS = 110
+private const val NAV_FADE_OUT_MS = 90
 private const val EDIT_ROUTE = "edit/{operationId}"
 private const val ACCOUNTS_ROUTE = "accounts"
 private const val ACCOUNT_NEW_ROUTE = "account/new"
@@ -259,11 +265,6 @@ fun DalletApp(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            if (hideBottomBar) {
-                BackBar(onBack = { navController.popBackStack() })
-            }
-        },
         bottomBar = {
             if (!hideBottomBar) {
                 DalletBottomBar(
@@ -279,10 +280,19 @@ fun DalletApp(
             }
         }
     ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize()
+        ) {
         NavHost(
             navController = navController,
             startDestination = DalletDestination.Home.route,
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier.fillMaxSize(),
+            enterTransition = { fadeIn(tween(NAV_FADE_IN_MS)) },
+            exitTransition = { fadeOut(tween(NAV_FADE_OUT_MS)) },
+            popEnterTransition = { fadeIn(tween(NAV_FADE_IN_MS)) },
+            popExitTransition = { fadeOut(tween(NAV_FADE_OUT_MS)) }
         ) {
             composable(DalletDestination.Home.route) {
                 HomeScreen(
@@ -516,6 +526,15 @@ fun DalletApp(
                 )
             }
         }
+        if (hideBottomBar) {
+            BackArrow(
+                onBack = { navController.popBackStack() },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 4.dp, end = 4.dp)
+            )
+        }
+        }
     }
 }
 
@@ -564,23 +583,14 @@ private fun AddChoiceSheet(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun BackBar(onBack: () -> Unit) {
-    TopAppBar(
-        title = {},
-        navigationIcon = {
-            IconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(R.string.back)
-                )
-            }
-        },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.background
+private fun BackArrow(onBack: () -> Unit, modifier: Modifier = Modifier) {
+    IconButton(onClick = onBack, modifier = modifier) {
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+            contentDescription = stringResource(R.string.back)
         )
-    )
+    }
 }
 
 @Composable
