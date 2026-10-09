@@ -28,6 +28,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.dallet.app.R
+import androidx.compose.material3.TextButton
+import com.dallet.app.ui.rates.ConvertDialog
+import com.dallet.app.ledger.ExchangeRate
 import com.dallet.app.ui.LocalCurrency
 import com.dallet.app.ledger.OperationKind
 import com.dallet.app.ui.EditOperationUiState
@@ -45,6 +48,7 @@ fun EditOperationScreen(
     onToAccountSelected: (Long) -> Unit,
     onCategorySelected: (Long) -> Unit,
     onAmountChange: (String) -> Unit,
+    rates: List<ExchangeRate>,
     onDateChange: (String) -> Unit,
     onTimeChange: (String) -> Unit,
     onCommentChange: (String) -> Unit,
@@ -115,6 +119,23 @@ fun EditOperationScreen(
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
         )
+        if (state.kind != OperationKind.TRANSFER) {
+            var showConvert by remember { mutableStateOf(false) }
+            TextButton(onClick = { showConvert = true }) {
+                Text(stringResource(R.string.rates_convert))
+            }
+            if (showConvert) {
+                ConvertDialog(
+                    main = LocalCurrency.current,
+                    rates = rates,
+                    onApply = {
+                        onAmountChange(it)
+                        showConvert = false
+                    },
+                    onDismiss = { showConvert = false }
+                )
+            }
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             FormDateField(
                 dateInput = state.dateInput,

@@ -33,6 +33,8 @@ interface SettingsStore {
     fun setMainCurrency(currency: Currency)
     fun themeMode(): ThemeMode
     fun setThemeMode(mode: ThemeMode)
+    fun rates(): List<ExchangeRate>
+    fun saveRates(rates: List<ExchangeRate>)
 }
 
 class InMemorySettingsStore : SettingsStore {
@@ -49,6 +51,14 @@ class InMemorySettingsStore : SettingsStore {
 
     override fun setThemeMode(mode: ThemeMode) {
         theme = mode
+    }
+
+    private var storedRates: List<ExchangeRate> = emptyList()
+
+    override fun rates(): List<ExchangeRate> = storedRates
+
+    override fun saveRates(rates: List<ExchangeRate>) {
+        storedRates = rates
     }
 }
 

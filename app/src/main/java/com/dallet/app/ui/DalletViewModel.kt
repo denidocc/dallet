@@ -8,6 +8,8 @@ import com.dallet.app.ledger.CategoryHasOperationsException
 import com.dallet.app.ledger.AccountBalance
 import com.dallet.app.ledger.AccountTemplates
 import com.dallet.app.ledger.Currency
+import com.dallet.app.ledger.ExchangeRate
+import com.dallet.app.ledger.RateMath
 import com.dallet.app.ledger.NewAccount
 import com.dallet.app.ledger.AccountPeriodTotal
 import com.dallet.app.ui.categories.CategoryStyleOptions
@@ -286,6 +288,9 @@ class DalletViewModel(
     private val _currency = MutableStateFlow(Currency.DEFAULT)
     val currency: StateFlow<Currency> = _currency.asStateFlow()
 
+    private val _rates = MutableStateFlow<List<ExchangeRate>>(emptyList())
+    val rates: StateFlow<List<ExchangeRate>> = _rates.asStateFlow()
+
     private val _home = MutableStateFlow(HomeUiState())
     val home: StateFlow<HomeUiState> = _home.asStateFlow()
 
@@ -513,10 +518,37 @@ class DalletViewModel(
         _categoryEditor.value = CategoryEditorUiState()
     }
 
+    fun refreshRates() {
+        viewModelScope.launch { _rates.value = ledger.rates() }
+    }
+
+    fun saveRates(inputs: Map<Currency, String>, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val parsed = mutableMapOf<Currency, Long>()
+            for ((currency, text) in inputs) {
+                if (text.isBlank()) continue
+                val scaled = RateMath.parse(text)
+                if (scaled == null) {
+                    onResult(false)
+                    return@launch
+                }
+                parsed[currency] = scaled
+            }
+            try {
+                ledger.saveRates(parsed, LocalDate.now())
+                _rates.value = ledger.rates()
+                onResult(true)
+            } catch (error: Exception) {
+                onResult(false)
+            }
+        }
+    }
+
     fun setMainCurrency(currency: Currency) {
         viewModelScope.launch {
             ledger.setMainCurrency(currency)
             _currency.value = currency
+            _rates.value = emptyList()
         }
     }
 
@@ -525,6 +557,7 @@ class DalletViewModel(
             _home.update { it.copy(loading = true, errorMessage = null) }
             try {
                 _currency.value = ledger.mainCurrency()
+                _rates.value = ledger.rates()
                 val needsOnboarding = !ledger.hasCompletedOnboarding()
                 if (needsOnboarding) {
                     _home.value = HomeUiState(loading = false, needsOnboarding = true)

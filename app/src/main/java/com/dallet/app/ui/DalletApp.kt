@@ -61,6 +61,7 @@ import com.dallet.app.ledger.Ledger
 import com.dallet.app.ledger.ThemeMode
 import com.dallet.app.ledger.Currency
 import com.dallet.app.ui.settings.SettingsScreen
+import com.dallet.app.ui.rates.RatesScreen
 import com.dallet.app.ledger.ShoppingService
 import com.dallet.app.ui.common.SurfaceCard
 import com.dallet.app.ui.shopping.ProductDetailScreen
@@ -94,6 +95,7 @@ private const val ACCOUNT_NEW_ROUTE = "account/new"
 private const val ACCOUNT_EDIT_ROUTE = "account/{accountId}"
 private const val SECURITY_ROUTE = "security"
 private const val SETTINGS_ROUTE = "settings"
+private const val RATES_ROUTE = "rates"
 private const val SHOPPING_ROUTE = "shopping"
 private const val SHOPPING_LIST_ROUTE = "shopping/{listId}"
 private const val PRODUCT_ROUTE = "shopping/product/{productId}"
@@ -138,6 +140,8 @@ private fun DalletAppContent(
     val dataState by viewModel.data.collectAsStateWithLifecycle()
     val lockState by viewModel.lock.collectAsStateWithLifecycle()
     val securityState by viewModel.security.collectAsStateWithLifecycle()
+    val ratesState by viewModel.rates.collectAsStateWithLifecycle()
+    val mainCurrency = LocalCurrency.current
 
     val context = LocalContext.current
     val exportLauncher = rememberLauncherForActivityResult(
@@ -269,6 +273,7 @@ private fun DalletAppContent(
     val hideBottomBar = currentRoute?.startsWith("edit/") == true ||
         currentRoute == SECURITY_ROUTE ||
         currentRoute == SETTINGS_ROUTE ||
+        currentRoute == RATES_ROUTE ||
         currentRoute?.startsWith("shopping") == true ||
         currentRoute?.startsWith("account") == true ||
         currentRoute?.startsWith("categor") == true
@@ -341,6 +346,7 @@ private fun DalletAppContent(
                     onToAccountSelected = viewModel::onToAccountSelected,
                     onCategorySelected = viewModel::onExpenseCategorySelected,
                     onAmountChange = viewModel::onExpenseAmountChange,
+                    rates = ratesState,
                     onDateChange = viewModel::onExpenseDateChange,
                     onTimeChange = viewModel::onExpenseTimeChange,
                     onCommentChange = viewModel::onExpenseCommentChange,
@@ -365,6 +371,10 @@ private fun DalletAppContent(
                     onCategoriesClick = { navController.navigate(CATEGORIES_ROUTE) },
                     onSecurityClick = { navController.navigate(SECURITY_ROUTE) },
                     onSettingsClick = { navController.navigate(SETTINGS_ROUTE) },
+                    onRatesClick = {
+                        viewModel.refreshRates()
+                        navController.navigate(RATES_ROUTE)
+                    },
                     onShoppingClick = {
                         shoppingViewModel.refreshHub()
                         navController.navigate(SHOPPING_ROUTE)
@@ -373,6 +383,13 @@ private fun DalletAppContent(
                     onImportClick = launchImport,
                     onResetConfirmed = viewModel::resetAll,
                     onDataMessageShown = viewModel::consumeDataMessage
+                )
+            }
+            composable(RATES_ROUTE) {
+                RatesScreen(
+                    main = mainCurrency,
+                    rates = ratesState,
+                    onSave = viewModel::saveRates
                 )
             }
             composable(SETTINGS_ROUTE) {
@@ -552,6 +569,7 @@ private fun DalletAppContent(
                     onToAccountSelected = viewModel::onEditToAccountSelected,
                     onCategorySelected = viewModel::onEditCategorySelected,
                     onAmountChange = viewModel::onEditAmountChange,
+                    rates = ratesState,
                     onDateChange = viewModel::onEditDateChange,
                     onTimeChange = viewModel::onEditTimeChange,
                     onCommentChange = viewModel::onEditCommentChange,

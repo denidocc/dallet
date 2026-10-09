@@ -39,18 +39,39 @@ class Ledger(
         val data = BackupCodec.decode(json)
         BackupCodec.validate(data)
         dataStore.replaceAll(data.accounts, data.categories, data.operations, data.shopping)
+        settings.saveRates(emptyList())
         settings.setMainCurrency(data.mainCurrency)
     }
 
     suspend fun resetAll() {
         dataStore.replaceAll(emptyList(), emptyList(), emptyList(), ShoppingData.EMPTY)
+        settings.saveRates(emptyList())
         settings.setMainCurrency(Currency.DEFAULT)
     }
 
     suspend fun mainCurrency(): Currency = settings.mainCurrency()
 
     suspend fun setMainCurrency(currency: Currency) {
+        if (currency != settings.mainCurrency()) settings.saveRates(emptyList())
         settings.setMainCurrency(currency)
+    }
+
+    suspend fun rates(): List<ExchangeRate> = settings.rates()
+
+    suspend fun saveRates(rates: Map<Currency, Long>, today: java.time.LocalDate) {
+        val main = settings.mainCurrency()
+        require(rates.all { it.key != main && it.value > 0 }) { "invalid rates" }
+        val previous = settings.rates().associateBy { it.currency }
+        settings.saveRates(
+            rates.map { (currency, scaled) ->
+                val old = previous[currency]
+                ExchangeRate(
+                    currency,
+                    scaled,
+                    if (old != null && old.scaled == scaled) old.updatedOn else today
+                )
+            }.sortedBy { it.currency.ordinal }
+        )
     }
 
     suspend fun completeOnboarding(
