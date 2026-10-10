@@ -287,7 +287,7 @@ class ShoppingTest {
         val listId = source.service.createList("Базар", now)
         val itemId = source.service.addItem(listId, "Молоко", QuantityUnit.LITER, 1_500, 1_800)
         source.service.setChecked(itemId, true)
-        source.service.savePrices(listId, now)
+        source.service.savePrices(listId, LocalDateTime.now())
 
         val target = Env()
         target.ledger.importBackup(source.ledger.exportBackup())
