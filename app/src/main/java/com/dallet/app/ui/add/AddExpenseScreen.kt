@@ -164,7 +164,7 @@ fun AddExpenseScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun OptionDropdown(
+fun OptionDropdown(
     label: String,
     options: List<SelectableOption>,
     selectedId: Long?,

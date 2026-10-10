@@ -10,6 +10,7 @@ import com.dallet.app.R
 import com.dallet.app.ledger.AccountBalance
 import com.dallet.app.ledger.BackupProblem
 import com.dallet.app.ledger.BudgetStatus
+import com.dallet.app.ledger.Frequency
 import com.dallet.app.ledger.AccountTemplates
 import com.dallet.app.ledger.Currency
 import com.dallet.app.ledger.ExchangeRate
@@ -64,6 +65,52 @@ enum class HistoryKindUi {
     TRANSFER
 }
 
+data class DueItemUi(
+    val ruleId: Long,
+    val dueDate: String,
+    val dateLabel: String,
+    val title: String,
+    val accountName: String,
+    val amountInput: String,
+    val isIncome: Boolean,
+    val isFirst: Boolean
+)
+
+data class RecurringRuleUi(
+    val id: Long,
+    val title: String,
+    val subtitle: String,
+    val amountLabel: String,
+    val isIncome: Boolean
+)
+
+data class RecurringUiState(
+    val rules: List<RecurringRuleUi> = emptyList()
+)
+
+data class RecurringEditorUiState(
+    val isNew: Boolean = true,
+    val ruleId: Long? = null,
+    val kind: OperationKind = OperationKind.EXPENSE,
+    val accounts: List<SelectableOption> = emptyList(),
+    val categories: List<SelectableOption> = emptyList(),
+    val selectedAccountId: Long? = null,
+    val selectedCategoryId: Long? = null,
+    val amountInput: String = "",
+    val commentInput: String = "",
+    val frequency: Frequency = Frequency.MONTHLY,
+    val startDateInput: String = LocalDate.now().toString(),
+    val submitting: Boolean = false,
+    val errorMessage: String? = null,
+    val done: Boolean = false
+)
+
+private fun frequencyRes(frequency: Frequency): Int = when (frequency) {
+    Frequency.WEEKLY -> R.string.freq_weekly
+    Frequency.MONTHLY -> R.string.freq_monthly
+    Frequency.YEARLY -> R.string.freq_yearly
+}
+
 enum class BudgetState {
     OK,
     NEAR,
@@ -94,6 +141,7 @@ data class HomeUiState(
     val totalBalanceLabel: String = "0.00",
     val monthIncomeLabel: String = "0.00",
     val monthExpenseLabel: String = "0.00",
+    val dueItems: List<DueItemUi> = emptyList(),
     val budgetAlerts: List<BudgetRowUi> = emptyList(),
     val accountRows: List<AccountRowUi> = emptyList(),
     val recentExpenses: List<ExpenseRowUi> = emptyList(),
@@ -572,6 +620,7 @@ class DalletViewModel(
         _onboarding.value = OnboardingUiState()
         _addExpense.value = AddExpenseUiState()
         _edit.value = EditOperationUiState()
+        _recurringEditor.value = RecurringEditorUiState()
         _accountEditor.value = AccountEditorUiState()
         _categoryEditor.value = CategoryEditorUiState()
     }
@@ -658,6 +707,229 @@ class DalletViewModel(
         )
     }
 
+    private val _recurring = MutableStateFlow(RecurringUiState())
+    val recurring: StateFlow<RecurringUiState> = _recurring.asStateFlow()
+
+    private val _recurringEditor = MutableStateFlow(RecurringEditorUiState())
+    val recurringEditor: StateFlow<RecurringEditorUiState> = _recurringEditor.asStateFlow()
+
+    private suspend fun categoryLookup(): Map<Long, Category> =
+        (ledger.categories(CategoryKind.EXPENSE) + ledger.categories(CategoryKind.INCOME))
+            .associateBy { it.id }
+
+    private suspend fun accountOptions(): List<SelectableOption> =
+        ledger.accountBalances().map { SelectableOption(it.account.id, it.account.name) }
+
+    private suspend fun recurringCategoryOptions(kind: OperationKind): List<SelectableOption> =
+        ledger.categories(
+            if (kind == OperationKind.INCOME) CategoryKind.INCOME else CategoryKind.EXPENSE
+        ).map { SelectableOption(it.id, it.name) }
+
+    private suspend fun dueItemsUi(): List<DueItemUi> {
+        val categories = categoryLookup()
+        val accounts = ledger.accountBalances().associate { it.account.id to it.account.name }
+        val format = DateTimeFormatter.ofPattern("d MMM yyyy", strings.locale)
+        return ledger.dueItems(LocalDate.now()).map { item ->
+            val rule = item.rule
+            DueItemUi(
+                ruleId = rule.id,
+                dueDate = item.dueDate.toString(),
+                dateLabel = item.dueDate.format(format),
+                title = rule.comment ?: categories[rule.categoryId]?.name.orEmpty(),
+                accountName = accounts[rule.accountId].orEmpty(),
+                amountInput = Money.formatManat(rule.amountMinor),
+                isIncome = rule.kind == OperationKind.INCOME,
+                isFirst = item.isFirst
+            )
+        }
+    }
+
+    private suspend fun recurringUiState(): RecurringUiState {
+        val categories = categoryLookup()
+        val accounts = ledger.accountBalances().associate { it.account.id to it.account.name }
+        val format = DateTimeFormatter.ofPattern("d MMM yyyy", strings.locale)
+        return RecurringUiState(
+            rules = ledger.recurringRules().map { rule ->
+                RecurringRuleUi(
+                    id = rule.id,
+                    title = rule.comment ?: categories[rule.categoryId]?.name.orEmpty(),
+                    subtitle = listOf(
+                        accounts[rule.accountId].orEmpty(),
+                        strings.get(frequencyRes(rule.frequency)),
+                        strings.get(R.string.recurring_next, rule.nextDue.format(format))
+                    ).filter { it.isNotBlank() }.joinToString(" · "),
+                    amountLabel = Money.formatManat(rule.amountMinor),
+                    isIncome = rule.kind == OperationKind.INCOME
+                )
+            }
+        )
+    }
+
+    fun refreshRecurring() {
+        viewModelScope.launch {
+            try {
+                _recurring.value = recurringUiState()
+            } catch (_: Exception) {
+                _recurring.value = RecurringUiState()
+            }
+        }
+    }
+
+    fun confirmDue(ruleId: Long, dueDate: String, amountInput: String, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val date = LocalDate.parse(dueDate)
+                val rule = ledger.recurringRules().firstOrNull { it.id == ruleId }
+                ledger.confirmDue(ruleId, date, Money.parseManat(amountInput))
+                refreshHome()
+                refreshRecurring()
+                if (rule != null && rule.kind == OperationKind.EXPENSE) {
+                    warnIfBudgetTight(rule.categoryId, date)
+                }
+                onResult(true)
+            } catch (error: Exception) {
+                onResult(false)
+            }
+        }
+    }
+
+    fun skipDue(ruleId: Long, dueDate: String) {
+        viewModelScope.launch {
+            try {
+                ledger.skipDue(ruleId, LocalDate.parse(dueDate))
+                refreshHome()
+                refreshRecurring()
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    fun prepareNewRecurring() {
+        viewModelScope.launch {
+            val accounts = accountOptions()
+            val categories = recurringCategoryOptions(OperationKind.EXPENSE)
+            _recurringEditor.value = RecurringEditorUiState(
+                accounts = accounts,
+                categories = categories,
+                selectedAccountId = accounts.firstOrNull()?.id,
+                selectedCategoryId = categories.firstOrNull()?.id
+            )
+        }
+    }
+
+    fun prepareEditRecurring(id: Long) {
+        viewModelScope.launch {
+            val rule = ledger.recurringRules().firstOrNull { it.id == id } ?: return@launch
+            _recurringEditor.value = RecurringEditorUiState(
+                isNew = false,
+                ruleId = id,
+                kind = rule.kind,
+                accounts = accountOptions(),
+                categories = recurringCategoryOptions(rule.kind),
+                selectedAccountId = rule.accountId,
+                selectedCategoryId = rule.categoryId,
+                amountInput = Money.formatManat(rule.amountMinor),
+                commentInput = rule.comment.orEmpty(),
+                frequency = rule.frequency,
+                startDateInput = rule.startDate.toString()
+            )
+        }
+    }
+
+    fun onRecurringKindSelected(kind: OperationKind) {
+        viewModelScope.launch {
+            val categories = recurringCategoryOptions(kind)
+            _recurringEditor.update {
+                it.copy(
+                    kind = kind,
+                    categories = categories,
+                    selectedCategoryId = categories.firstOrNull()?.id,
+                    errorMessage = null
+                )
+            }
+        }
+    }
+
+    fun onRecurringAccountSelected(id: Long) {
+        _recurringEditor.update { it.copy(selectedAccountId = id, errorMessage = null) }
+    }
+
+    fun onRecurringCategorySelected(id: Long) {
+        _recurringEditor.update { it.copy(selectedCategoryId = id, errorMessage = null) }
+    }
+
+    fun onRecurringAmountChange(value: String) {
+        _recurringEditor.update { it.copy(amountInput = value, errorMessage = null) }
+    }
+
+    fun onRecurringCommentChange(value: String) {
+        _recurringEditor.update { it.copy(commentInput = value, errorMessage = null) }
+    }
+
+    fun onRecurringFrequencySelected(frequency: Frequency) {
+        _recurringEditor.update { it.copy(frequency = frequency, errorMessage = null) }
+    }
+
+    fun onRecurringStartDateChange(value: String) {
+        _recurringEditor.update { it.copy(startDateInput = value, errorMessage = null) }
+    }
+
+    fun saveRecurring() {
+        viewModelScope.launch {
+            val state = _recurringEditor.value
+            _recurringEditor.update { it.copy(submitting = true, errorMessage = null) }
+            try {
+                val amount = Money.parseManat(state.amountInput)
+                val start = LocalDate.parse(state.startDateInput.trim())
+                val accountId = state.selectedAccountId ?: error("account")
+                val categoryId = state.selectedCategoryId ?: error("category")
+                val ruleId = state.ruleId
+                if (ruleId == null) {
+                    ledger.addRecurring(
+                        state.kind, accountId, categoryId, amount,
+                        state.commentInput, state.frequency, start
+                    )
+                } else {
+                    ledger.updateRecurring(
+                        ruleId, state.kind, accountId, categoryId, amount,
+                        state.commentInput, state.frequency, start
+                    )
+                }
+                _recurringEditor.update { it.copy(submitting = false, done = true) }
+                refreshRecurring()
+                refreshHome()
+            } catch (error: DateTimeParseException) {
+                _recurringEditor.update {
+                    it.copy(submitting = false, errorMessage = strings.get(R.string.err_check_datetime))
+                }
+            } catch (error: Exception) {
+                _recurringEditor.update {
+                    it.copy(submitting = false, errorMessage = strings.get(R.string.err_check_amount_fields))
+                }
+            }
+        }
+    }
+
+    fun deleteRecurring() {
+        viewModelScope.launch {
+            val id = _recurringEditor.value.ruleId ?: return@launch
+            try {
+                ledger.deleteRecurring(id)
+                _recurringEditor.update { it.copy(done = true) }
+                refreshRecurring()
+                refreshHome()
+            } catch (_: Exception) {
+                _recurringEditor.update {
+                    it.copy(errorMessage = strings.get(R.string.err_delete_failed))
+                }
+            }
+        }
+    }
+
+    fun consumeRecurringEditorDone() {
+        _recurringEditor.update { it.copy(done = false) }
+    }
+
     fun refreshRates() {
         viewModelScope.launch { _rates.value = ledger.rates() }
     }
@@ -708,6 +980,7 @@ class DalletViewModel(
                         .associate { it.account.id to it.account.name }
                     val month = ledger.analytics(AnalyticsPeriod.MONTH, LocalDate.now())
                     val budgetStatuses = ledger.budgetStatuses(LocalDate.now())
+                    val dueUi = dueItemsUi()
                     _budgets.value = budgetsStateOf(budgetStatuses)
                     _home.value = HomeUiState(
                         loading = false,
@@ -715,6 +988,7 @@ class DalletViewModel(
                         totalBalanceLabel = Money.formatManat(ledger.totalBalanceMinor()),
                         monthIncomeLabel = Money.formatManat(month.incomeTotalMinor),
                         monthExpenseLabel = Money.formatManat(month.expenseTotalMinor),
+                        dueItems = dueUi,
                         budgetAlerts = budgetStatuses
                             .filter { it.isOver || it.isNear }
                             .map { it.toBudgetRow() },

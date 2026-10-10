@@ -30,6 +30,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dallet.app.R
 import com.dallet.app.ui.budgets.BudgetRowView
+import com.dallet.app.ui.DueItemUi
+import com.dallet.app.ui.recurring.DueSection
 import com.dallet.app.ui.moneyText
 import com.dallet.app.ui.AccountRowUi
 import com.dallet.app.ui.ExpenseRowUi
@@ -43,7 +45,9 @@ import com.dallet.app.ui.theme.incomeAmountColor
 fun HomeScreen(
     state: HomeUiState,
     onExpenseClick: (Long) -> Unit,
-    onBudgetsClick: () -> Unit
+    onBudgetsClick: () -> Unit,
+    onDueConfirm: (DueItemUi, String, (Boolean) -> Unit) -> Unit,
+    onDueSkip: (DueItemUi) -> Unit
 ) {
     if (state.loading) {
         Box(
@@ -93,6 +97,8 @@ fun HomeScreen(
                 )
             }
         }
+
+        DueSection(items = state.dueItems, onConfirm = onDueConfirm, onSkip = onDueSkip)
 
         if (state.budgetAlerts.isNotEmpty()) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {

@@ -51,6 +51,8 @@ interface SettingsStore {
     fun saveRates(rates: List<ExchangeRate>)
     fun budgets(): Map<Long, Long>
     fun saveBudgets(budgets: Map<Long, Long>)
+    fun recurring(): List<RecurringRule>
+    fun saveRecurring(rules: List<RecurringRule>)
 }
 
 class InMemorySettingsStore : SettingsStore {
@@ -75,6 +77,14 @@ class InMemorySettingsStore : SettingsStore {
 
     override fun setLanguage(language: AppLanguage) {
         lang = language
+    }
+
+    private var storedRecurring: List<RecurringRule> = emptyList()
+
+    override fun recurring(): List<RecurringRule> = storedRecurring
+
+    override fun saveRecurring(rules: List<RecurringRule>) {
+        storedRecurring = rules
     }
 
     private var storedBudgets: Map<Long, Long> = emptyMap()

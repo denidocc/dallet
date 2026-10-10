@@ -12,6 +12,7 @@ import com.dallet.app.data.RoomLedgerDataStore
 import com.dallet.app.data.RoomOperationRepository
 import com.dallet.app.data.RoomShoppingRepository
 import com.dallet.app.data.SharedPreferencesSettingsStore
+import com.dallet.app.notify.DueReminders
 import com.dallet.app.ledger.Ledger
 import com.dallet.app.ledger.SettingsStore
 import com.dallet.app.ledger.ShoppingService
@@ -47,6 +48,8 @@ class DalletApplication : Application() {
             .build()
         settings = SharedPreferencesSettingsStore(this)
         strings = AppStrings(this, settings)
+        DueReminders.createChannel(this, strings)
+        DueReminders.schedule(this)
         val accountRepository = RoomAccountRepository(database.accountDao())
         val categoryRepository = RoomCategoryRepository(database.categoryDao())
         val operationRepository = RoomOperationRepository(database.operationDao())

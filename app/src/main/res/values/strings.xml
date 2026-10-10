@@ -308,4 +308,23 @@
     <string name="budget_warning_title">Бюджет</string>
     <string name="budget_warning_over">Лимит «%1$s» превышен: потрачено %2$s из %3$s</string>
     <string name="budget_warning_near">Лимит «%1$s» почти исчерпан: потрачено %2$s из %3$s</string>
+    <string name="freq_weekly">Каждую неделю</string>
+    <string name="freq_monthly">Каждый месяц</string>
+    <string name="freq_yearly">Каждый год</string>
+    <string name="recurring_title">Регулярные операции</string>
+    <string name="recurring_hint">Аренда, подписки, зарплата. Когда подходит срок, операция появляется в «К оплате» на главной, вы подтверждаете её одним нажатием.</string>
+    <string name="recurring_empty">Регулярных операций пока нет</string>
+    <string name="recurring_add">Добавить регулярную операцию</string>
+    <string name="recurring_new_title">Новая регулярная операция</string>
+    <string name="recurring_edit_title">Регулярная операция</string>
+    <string name="recurring_frequency">Как часто</string>
+    <string name="recurring_start_hint">Дата первого срока. День месяца и дня недели берётся отсюда.</string>
+    <string name="recurring_next">Следующий: %1$s</string>
+    <string name="due_title">К оплате</string>
+    <string name="due_after_previous">после предыдущей</string>
+    <string name="due_confirm">Провести</string>
+    <string name="due_skip">Пропустить</string>
+    <string name="notif_channel_name">Напоминания об операциях</string>
+    <string name="notif_title">Dallet</string>
+    <string name="notif_text">Операций к оплате: %1$d</string>
 </resources>

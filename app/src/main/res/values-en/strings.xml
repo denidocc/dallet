@@ -308,4 +308,23 @@
     <string name="budget_warning_title">Budget</string>
     <string name="budget_warning_over">Limit “%1$s” exceeded: spent %2$s of %3$s</string>
     <string name="budget_warning_near">Limit “%1$s” almost used up: spent %2$s of %3$s</string>
+    <string name="freq_weekly">Every week</string>
+    <string name="freq_monthly">Every month</string>
+    <string name="freq_yearly">Every year</string>
+    <string name="recurring_title">Recurring operations</string>
+    <string name="recurring_hint">Rent, subscriptions, salary. When one is due it appears in “To pay” on the home screen and you confirm it with one tap.</string>
+    <string name="recurring_empty">No recurring operations yet</string>
+    <string name="recurring_add">Add recurring operation</string>
+    <string name="recurring_new_title">New recurring operation</string>
+    <string name="recurring_edit_title">Recurring operation</string>
+    <string name="recurring_frequency">How often</string>
+    <string name="recurring_start_hint">Date of the first due date. Day of month and weekday come from it.</string>
+    <string name="recurring_next">Next: %1$s</string>
+    <string name="due_title">To pay</string>
+    <string name="due_after_previous">after the previous one</string>
+    <string name="due_confirm">Post</string>
+    <string name="due_skip">Skip</string>
+    <string name="notif_channel_name">Operation reminders</string>
+    <string name="notif_title">Dallet</string>
+    <string name="notif_text">Operations to pay: %1$d</string>
 </resources>

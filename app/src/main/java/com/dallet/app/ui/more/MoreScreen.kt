@@ -31,6 +31,7 @@ fun MoreScreen(
     onCategoriesClick: () -> Unit,
     onSecurityClick: () -> Unit,
     onBudgetsClick: () -> Unit,
+    onRecurringClick: () -> Unit,
     onSettingsClick: () -> Unit,
     onRatesClick: () -> Unit,
     onShoppingClick: () -> Unit,
@@ -71,6 +72,12 @@ fun MoreScreen(
             )
         }
 
+        SurfaceCard(onClick = onRecurringClick) {
+            Text(
+                text = stringResource(R.string.recurring_title),
+                style = MaterialTheme.typography.titleMedium
+            )
+        }
         SurfaceCard(onClick = onBudgetsClick) {
             Text(
                 text = stringResource(R.string.budgets_title),

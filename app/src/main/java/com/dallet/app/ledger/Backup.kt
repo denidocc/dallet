@@ -24,7 +24,8 @@ data class BackupData(
     val operations: List<Operation>,
     val shopping: ShoppingData = ShoppingData.EMPTY,
     val mainCurrency: Currency = Currency.DEFAULT,
-    val budgets: Map<Long, Long> = emptyMap()
+    val budgets: Map<Long, Long> = emptyMap(),
+    val recurring: List<RecurringRule> = emptyList()
 )
 
 object BackupCodec {
@@ -77,6 +78,7 @@ object BackupCodec {
         })
         root.put("shopping", encodeShopping(data.shopping))
         root.put("mainCurrency", data.mainCurrency.name)
+        root.put("recurring", RecurringCodec.encode(data.recurring))
         root.put("budgets", JSONArray().apply {
             data.budgets.forEach { (categoryId, limit) ->
                 put(JSONObject().put("categoryId", categoryId).put("limitMinor", limit))
@@ -249,7 +251,8 @@ object BackupCodec {
             val currency = Currency.fromName(root.optNullableString("mainCurrency"))
             val budgets = root.optJSONArray("budgets").objectsOrEmpty()
                 .associate { it.getLong("categoryId") to it.getLong("limitMinor") }
-            return BackupData(accounts, categories, operations, shopping, currency, budgets)
+            val recurring = RecurringCodec.decode(root.optJSONArray("recurring"))
+            return BackupData(accounts, categories, operations, shopping, currency, budgets, recurring)
         } catch (error: InvalidBackupException) {
             throw error
         } catch (error: JSONException) {
@@ -271,6 +274,15 @@ object BackupCodec {
         validateShopping(data.shopping)
         val expenseIds = data.categories.filter { it.kind == CategoryKind.EXPENSE }.map { it.id }.toSet()
         requireValid(data.budgets.all { it.key in expenseIds && it.value > 0 })
+        val validAccountIds = data.accounts.map { it.id }.toSet()
+        val validCategoryIds = data.categories.map { it.id }.toSet()
+        requireValid(hasUniquePositiveIds(data.recurring.map { it.id }))
+        requireValid(
+            data.recurring.all {
+                it.accountId in validAccountIds && it.categoryId in validCategoryIds &&
+                    it.amountMinor > 0 && it.kind != OperationKind.TRANSFER
+            }
+        )
 
         val accountIds = data.accounts.map { it.id }.toSet()
         val categoriesById = data.categories.associateBy { it.id }

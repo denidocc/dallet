@@ -4,6 +4,8 @@ import android.content.Context
 import com.dallet.app.ledger.AppLanguage
 import com.dallet.app.ledger.Currency
 import com.dallet.app.ledger.ExchangeRate
+import com.dallet.app.ledger.RecurringCodec
+import com.dallet.app.ledger.RecurringRule
 import com.dallet.app.ledger.SettingsStore
 import com.dallet.app.ledger.ThemeMode
 import java.time.LocalDate
@@ -56,6 +58,13 @@ class SharedPreferencesSettingsStore(context: Context) : SettingsStore {
         prefs.edit().putString(KEY_BUDGETS, text).apply()
     }
 
+    override fun recurring(): List<RecurringRule> =
+        RecurringCodec.fromText(prefs.getString(KEY_RECURRING, null))
+
+    override fun saveRecurring(rules: List<RecurringRule>) {
+        prefs.edit().putString(KEY_RECURRING, RecurringCodec.toText(rules)).apply()
+    }
+
     override fun language(): AppLanguage =
         AppLanguage.fromName(prefs.getString(KEY_LANGUAGE, null))
 
@@ -66,6 +75,7 @@ class SharedPreferencesSettingsStore(context: Context) : SettingsStore {
     private companion object {
         const val KEY_LANGUAGE = "language"
         const val KEY_BUDGETS = "budgets"
+        const val KEY_RECURRING = "recurring"
         const val KEY_RATES = "rates"
         const val KEY_THEME_MODE = "theme_mode"
         const val KEY_MAIN_CURRENCY = "main_currency"

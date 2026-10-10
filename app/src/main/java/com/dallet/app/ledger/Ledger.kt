@@ -27,6 +27,8 @@ class Ledger(
     suspend fun exportBackup(): String {
         val categories = categoryRepository.getAll()
         val expenseIds = categories.filter { it.kind == CategoryKind.EXPENSE }.map { it.id }.toSet()
+        val categoryIds = categories.map { it.id }.toSet()
+        val accountIds = accountRepository.getAll().map { it.id }.toSet()
         return BackupCodec.encode(
             BackupData(
                 accounts = accountRepository.getAll(),
@@ -34,7 +36,10 @@ class Ledger(
                 operations = operationRepository.getAll(),
                 shopping = shoppingRepository.getAll(),
                 mainCurrency = settings.mainCurrency(),
-                budgets = settings.budgets().filterKeys { it in expenseIds }
+                budgets = settings.budgets().filterKeys { it in expenseIds },
+                recurring = settings.recurring().filter { rule ->
+                    rule.categoryId in categoryIds && rule.accountId in accountIds
+                }
             )
         )
     }
@@ -46,12 +51,14 @@ class Ledger(
         settings.saveRates(emptyList())
         settings.setMainCurrency(data.mainCurrency)
         settings.saveBudgets(data.budgets)
+        settings.saveRecurring(data.recurring)
     }
 
     suspend fun resetAll() {
         dataStore.replaceAll(emptyList(), emptyList(), emptyList(), ShoppingData.EMPTY)
         settings.saveRates(emptyList())
         settings.saveBudgets(emptyMap())
+        settings.saveRecurring(emptyList())
         settings.setMainCurrency(Currency.DEFAULT)
     }
 
@@ -96,6 +103,129 @@ class Ledger(
     suspend fun budgetStatus(categoryId: Long, today: LocalDate): BudgetStatus? =
         budgetStatuses(today).firstOrNull { it.category.id == categoryId }
 
+    suspend fun recurringRules(): List<RecurringRule> = settings.recurring()
+
+    private suspend fun requireRecurringTargets(
+        kind: OperationKind,
+        accountId: Long,
+        categoryId: Long,
+        amountMinor: Long
+    ) {
+        require(kind == OperationKind.EXPENSE || kind == OperationKind.INCOME) {
+            "only expense and income can repeat"
+        }
+        require(amountMinor > 0) { "amount must be positive" }
+        require(accountRepository.getAll().any { it.id == accountId }) { "account not found" }
+        val category = categoryRepository.getAll().firstOrNull { it.id == categoryId }
+            ?: error("category not found")
+        val expected =
+            if (kind == OperationKind.EXPENSE) CategoryKind.EXPENSE else CategoryKind.INCOME
+        require(category.kind == expected) { "category kind does not match" }
+    }
+
+    suspend fun addRecurring(
+        kind: OperationKind,
+        accountId: Long,
+        categoryId: Long,
+        amountMinor: Long,
+        comment: String?,
+        frequency: Frequency,
+        startDate: LocalDate
+    ): Long {
+        requireRecurringTargets(kind, accountId, categoryId, amountMinor)
+        val rules = settings.recurring()
+        val id = (rules.maxOfOrNull { it.id } ?: 0L) + 1L
+        settings.saveRecurring(
+            rules + RecurringRule(
+                id = id,
+                kind = kind,
+                accountId = accountId,
+                categoryId = categoryId,
+                amountMinor = amountMinor,
+                comment = comment?.takeIf { it.isNotBlank() },
+                frequency = frequency,
+                startDate = startDate,
+                nextDue = startDate
+            )
+        )
+        return id
+    }
+
+    suspend fun updateRecurring(
+        id: Long,
+        kind: OperationKind,
+        accountId: Long,
+        categoryId: Long,
+        amountMinor: Long,
+        comment: String?,
+        frequency: Frequency,
+        startDate: LocalDate
+    ) {
+        requireRecurringTargets(kind, accountId, categoryId, amountMinor)
+        val rules = settings.recurring()
+        val old = rules.firstOrNull { it.id == id } ?: error("rule not found")
+        val scheduleChanged = old.startDate != startDate || old.frequency != frequency
+        settings.saveRecurring(
+            rules.map {
+                if (it.id != id) {
+                    it
+                } else {
+                    it.copy(
+                        kind = kind,
+                        accountId = accountId,
+                        categoryId = categoryId,
+                        amountMinor = amountMinor,
+                        comment = comment?.takeIf { text -> text.isNotBlank() },
+                        frequency = frequency,
+                        startDate = startDate,
+                        nextDue = if (scheduleChanged) startDate else old.nextDue
+                    )
+                }
+            }
+        )
+    }
+
+    suspend fun deleteRecurring(id: Long) {
+        settings.saveRecurring(settings.recurring().filterNot { it.id == id })
+    }
+
+    suspend fun dueItems(today: LocalDate): List<DueItem> =
+        settings.recurring()
+            .flatMap { rule ->
+                RecurringSchedule.dueDates(rule, today).mapIndexed { index, date ->
+                    DueItem(rule, date, isFirst = index == 0)
+                }
+            }
+            .sortedWith(compareBy<DueItem> { it.dueDate }.thenBy { it.rule.id })
+
+    /** Creates the operation for the earliest due date of the rule and moves the schedule on. */
+    suspend fun confirmDue(ruleId: Long, dueDate: LocalDate, amountMinor: Long): Long {
+        val rules = settings.recurring()
+        val rule = rules.firstOrNull { it.id == ruleId } ?: error("rule not found")
+        require(rule.nextDue == dueDate) { "only the earliest due date can be handled" }
+        val operationId = when (rule.kind) {
+            OperationKind.EXPENSE ->
+                addExpense(rule.accountId, rule.categoryId, amountMinor, dueDate, rule.comment)
+            OperationKind.INCOME ->
+                addIncome(rule.accountId, rule.categoryId, amountMinor, dueDate, rule.comment)
+            OperationKind.TRANSFER -> error("transfers cannot repeat")
+        }
+        advanceRecurring(rules, rule, dueDate)
+        return operationId
+    }
+
+    suspend fun skipDue(ruleId: Long, dueDate: LocalDate) {
+        val rules = settings.recurring()
+        val rule = rules.firstOrNull { it.id == ruleId } ?: error("rule not found")
+        require(rule.nextDue == dueDate) { "only the earliest due date can be handled" }
+        advanceRecurring(rules, rule, dueDate)
+    }
+
+    private fun advanceRecurring(rules: List<RecurringRule>, rule: RecurringRule, handled: LocalDate) {
+        val next = RecurringSchedule.occurrenceAfter(rule, handled)
+        settings.saveRecurring(rules.map { if (it.id == rule.id) it.copy(nextDue = next) else it })
+    }
+
     suspend fun saveRates(rates: Map<Currency, Long>, today: java.time.LocalDate) {
         val main = settings.mainCurrency()
         require(rates.all { it.key != main && it.value > 0 }) { "invalid rates" }
@@ -137,6 +267,7 @@ class Ledger(
         )
         categoryRepository.replaceAll(CategorySeed.defaults(categoryNames))
         settings.saveBudgets(emptyMap())
+        settings.saveRecurring(emptyList())
         settings.setMainCurrency(currency)
     }
 

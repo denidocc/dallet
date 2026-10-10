@@ -67,6 +67,8 @@ import com.dallet.app.ledger.Currency
 import com.dallet.app.ui.settings.SettingsScreen
 import com.dallet.app.ui.rates.RatesScreen
 import com.dallet.app.ui.budgets.BudgetsScreen
+import com.dallet.app.ui.recurring.RecurringEditorScreen
+import com.dallet.app.ui.recurring.RecurringScreen
 import com.dallet.app.ledger.ShoppingService
 import com.dallet.app.ui.common.SurfaceCard
 import com.dallet.app.ui.shopping.ProductDetailScreen
@@ -102,6 +104,9 @@ private const val SECURITY_ROUTE = "security"
 private const val SETTINGS_ROUTE = "settings"
 private const val RATES_ROUTE = "rates"
 private const val BUDGETS_ROUTE = "budgets"
+private const val RECURRING_ROUTE = "recurring"
+private const val RECURRING_NEW_ROUTE = "recurring/new"
+private const val RECURRING_EDIT_ROUTE = "recurring/{ruleId}"
 private const val SHOPPING_ROUTE = "shopping"
 private const val SHOPPING_LIST_ROUTE = "shopping/{listId}"
 private const val PRODUCT_ROUTE = "shopping/product/{productId}"
@@ -137,6 +142,22 @@ fun DalletApp(
 }
 
 @Composable
+private fun RecurringEditor(viewModel: DalletViewModel, state: RecurringEditorUiState) {
+    RecurringEditorScreen(
+        state = state,
+        onKindSelected = viewModel::onRecurringKindSelected,
+        onAccountSelected = viewModel::onRecurringAccountSelected,
+        onCategorySelected = viewModel::onRecurringCategorySelected,
+        onAmountChange = viewModel::onRecurringAmountChange,
+        onCommentChange = viewModel::onRecurringCommentChange,
+        onFrequencySelected = viewModel::onRecurringFrequencySelected,
+        onStartDateChange = viewModel::onRecurringStartDateChange,
+        onSave = viewModel::saveRecurring,
+        onDelete = viewModel::deleteRecurring
+    )
+}
+
+@Composable
 private fun DalletAppContent(
     viewModel: DalletViewModel,
     shoppingViewModel: ShoppingViewModel,
@@ -160,6 +181,8 @@ private fun DalletAppContent(
     val securityState by viewModel.security.collectAsStateWithLifecycle()
     val ratesState by viewModel.rates.collectAsStateWithLifecycle()
     val budgetsState by viewModel.budgets.collectAsStateWithLifecycle()
+    val recurringState by viewModel.recurring.collectAsStateWithLifecycle()
+    val recurringEditorState by viewModel.recurringEditor.collectAsStateWithLifecycle()
     val budgetWarning by viewModel.budgetWarning.collectAsStateWithLifecycle()
     val mainCurrency = LocalCurrency.current
 
@@ -276,6 +299,13 @@ private fun DalletAppContent(
         }
     }
 
+    LaunchedEffect(recurringEditorState.done) {
+        if (recurringEditorState.done) {
+            viewModel.consumeRecurringEditorDone()
+            navController.popBackStack()
+        }
+    }
+
     LaunchedEffect(accountEditorState.done) {
         if (accountEditorState.done) {
             viewModel.consumeAccountEditorDone()
@@ -295,6 +325,7 @@ private fun DalletAppContent(
         currentRoute == SETTINGS_ROUTE ||
         currentRoute == RATES_ROUTE ||
         currentRoute == BUDGETS_ROUTE ||
+        currentRoute?.startsWith("recurring") == true ||
         currentRoute?.startsWith("shopping") == true ||
         currentRoute?.startsWith("account") == true ||
         currentRoute?.startsWith("categor") == true
@@ -364,7 +395,11 @@ private fun DalletAppContent(
                     onBudgetsClick = {
                         viewModel.refreshBudgets()
                         navController.navigate(BUDGETS_ROUTE)
-                    }
+                    },
+                    onDueConfirm = { item, amount, onResult ->
+                        viewModel.confirmDue(item.ruleId, item.dueDate, amount, onResult)
+                    },
+                    onDueSkip = { item -> viewModel.skipDue(item.ruleId, item.dueDate) }
                 )
             }
             composable(DalletDestination.History.route) {
@@ -409,6 +444,10 @@ private fun DalletAppContent(
                     onCategoriesClick = { navController.navigate(CATEGORIES_ROUTE) },
                     onSecurityClick = { navController.navigate(SECURITY_ROUTE) },
                     onSettingsClick = { navController.navigate(SETTINGS_ROUTE) },
+                    onRecurringClick = {
+                        viewModel.refreshRecurring()
+                        navController.navigate(RECURRING_ROUTE)
+                    },
                     onBudgetsClick = {
                         viewModel.refreshBudgets()
                         navController.navigate(BUDGETS_ROUTE)
@@ -426,6 +465,28 @@ private fun DalletAppContent(
                     onResetConfirmed = viewModel::resetAll,
                     onDataMessageShown = viewModel::consumeDataMessage
                 )
+            }
+            composable(RECURRING_ROUTE) {
+                RecurringScreen(
+                    state = recurringState,
+                    onAdd = {
+                        viewModel.prepareNewRecurring()
+                        navController.navigate(RECURRING_NEW_ROUTE)
+                    },
+                    onEdit = { ruleId ->
+                        viewModel.prepareEditRecurring(ruleId)
+                        navController.navigate("recurring/$ruleId")
+                    }
+                )
+            }
+            composable(RECURRING_NEW_ROUTE) {
+                RecurringEditor(viewModel, recurringEditorState)
+            }
+            composable(
+                route = RECURRING_EDIT_ROUTE,
+                arguments = listOf(navArgument("ruleId") { type = NavType.LongType })
+            ) {
+                RecurringEditor(viewModel, recurringEditorState)
             }
             composable(BUDGETS_ROUTE) {
                 BudgetsScreen(
