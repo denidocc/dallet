@@ -19,7 +19,7 @@
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
-                android:resource="/widget_balance_info" />
+                android:resource="@xml/widget_balance_info" />
         </receiver>
         <activity
             android:name=".MainActivity"
