@@ -67,6 +67,7 @@ import com.dallet.app.ledger.Currency
 import com.dallet.app.ui.settings.SettingsScreen
 import com.dallet.app.ui.rates.RatesScreen
 import com.dallet.app.ui.budgets.BudgetsScreen
+import com.dallet.app.widget.BalanceWidget
 import com.dallet.app.ui.recurring.RecurringEditorScreen
 import com.dallet.app.ui.recurring.RecurringScreen
 import com.dallet.app.ledger.ShoppingService
@@ -125,7 +126,9 @@ fun DalletApp(
     onThemeModeChange: (ThemeMode) -> Unit,
     language: AppLanguage,
     onLanguageChange: (AppLanguage) -> Unit,
-    viewModel: DalletViewModel = viewModel(factory = DalletViewModel.factory(ledger, pinLock, strings)),
+    openAddRequest: Boolean = false,
+    onOpenAddHandled: () -> Unit = {},
+    viewModel: DalletViewModel = viewModel(factory = DalletViewModel.factory(ledger, pinLock, strings, rememberWidgetRefresh())),
     shoppingViewModel: ShoppingViewModel = viewModel(factory = ShoppingViewModel.factory(ledger, shopping, strings))
 ) {
     val currency by viewModel.currency.collectAsStateWithLifecycle()
@@ -136,9 +139,17 @@ fun DalletApp(
             themeMode,
             onThemeModeChange,
             language,
-            onLanguageChange
+            onLanguageChange,
+            openAddRequest,
+            onOpenAddHandled
         )
     }
+}
+
+@Composable
+private fun rememberWidgetRefresh(): () -> Unit {
+    val appContext = LocalContext.current.applicationContext
+    return remember { { BalanceWidget.update(appContext) } }
 }
 
 @Composable
@@ -164,7 +175,9 @@ private fun DalletAppContent(
     themeMode: ThemeMode,
     onThemeModeChange: (ThemeMode) -> Unit,
     language: AppLanguage,
-    onLanguageChange: (AppLanguage) -> Unit
+    onLanguageChange: (AppLanguage) -> Unit,
+    openAddRequest: Boolean,
+    onOpenAddHandled: () -> Unit
 ) {
     val homeState by viewModel.home.collectAsStateWithLifecycle()
     val onboardingState by viewModel.onboarding.collectAsStateWithLifecycle()
@@ -283,6 +296,13 @@ private fun DalletAppContent(
 
     fun openEdit(operationId: Long) {
         navController.navigate("edit/$operationId")
+    }
+
+    LaunchedEffect(openAddRequest) {
+        if (openAddRequest) {
+            navigateTo(DalletDestination.Add)
+            onOpenAddHandled()
+        }
     }
 
     LaunchedEffect(addExpenseState.saved) {

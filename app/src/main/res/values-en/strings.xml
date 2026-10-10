@@ -327,4 +327,7 @@
     <string name="notif_channel_name">Operation reminders</string>
     <string name="notif_title">Dallet</string>
     <string name="notif_text">Operations to pay: %1$d</string>
+    <string name="widget_description">Balance, this month’s expenses and a “+ Expense” button</string>
+    <string name="widget_add_expense">+ Expense</string>
+    <string name="widget_month_expense">This month: %1$s</string>
 </resources>

@@ -366,7 +366,8 @@ private fun Operation.dateTimeLabel(locale: Locale): String {
 class DalletViewModel(
     private val ledger: Ledger,
     private val pinLock: PinLock,
-    private val strings: AppStrings
+    private val strings: AppStrings,
+    private val onDataChanged: () -> Unit = {}
 ) : ViewModel() {
 
     private val _currency = MutableStateFlow(Currency.DEFAULT)
@@ -519,6 +520,7 @@ class DalletViewModel(
             pinEnabled = pinLock.isEnabled,
             biometricEnabled = pinLock.biometricEnabled
         )
+        onDataChanged()
     }
 
     fun exportBackup(write: suspend (String) -> Unit) {
@@ -1000,6 +1002,7 @@ class DalletViewModel(
                     refreshHistoryInternal()
                     refreshAccountsInternal()
                     refreshCategoriesInternal(_categories.value.selectedKind)
+                    onDataChanged()
                 }
             } catch (error: Exception) {
                 _home.update {
@@ -1805,11 +1808,16 @@ class DalletViewModel(
         private const val MAX_ATTEMPTS = 5
         private const val BLOCK_MILLIS = 30_000L
 
-        fun factory(ledger: Ledger, pinLock: PinLock, strings: AppStrings): ViewModelProvider.Factory =
+        fun factory(
+            ledger: Ledger,
+            pinLock: PinLock,
+            strings: AppStrings,
+            onDataChanged: () -> Unit = {}
+        ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return DalletViewModel(ledger, pinLock, strings) as T
+                    return DalletViewModel(ledger, pinLock, strings, onDataChanged) as T
                 }
             }
     }

@@ -1,6 +1,7 @@
 package com.dallet.app
 
 import android.content.Context
+import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.compose.setContent
@@ -34,8 +35,17 @@ import com.dallet.app.data.SharedPreferencesSettingsStore
 import com.dallet.app.ledger.ThemeMode
 import com.dallet.app.ui.DalletApp
 import com.dallet.app.ui.theme.DalletTheme
+import com.dallet.app.widget.BalanceWidget
 
 class MainActivity : FragmentActivity() {
+    private var openAddRequest by mutableStateOf(false)
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.action == BalanceWidget.ACTION_ADD_EXPENSE) openAddRequest = true
+    }
+
     override fun attachBaseContext(newBase: Context) {
         val language = SharedPreferencesSettingsStore(newBase).language()
         val config = Configuration(newBase.resources.configuration)
@@ -46,6 +56,9 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        if (savedInstanceState == null && intent?.action == BalanceWidget.ACTION_ADD_EXPENSE) {
+            openAddRequest = true
+        }
         val app = application as DalletApplication
         setContent {
             var themeMode by remember { mutableStateOf(app.settings.themeMode()) }
@@ -70,6 +83,8 @@ class MainActivity : FragmentActivity() {
                             app.settings.setThemeMode(it)
                             themeMode = it
                         },
+                        openAddRequest = openAddRequest,
+                        onOpenAddHandled = { openAddRequest = false },
                         language = app.settings.language(),
                         onLanguageChange = {
                             app.settings.setLanguage(it)

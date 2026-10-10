@@ -11,6 +11,16 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Dallet">
+        <receiver
+            android:name=".widget.BalanceWidget"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="/widget_balance_info" />
+        </receiver>
         <activity
             android:name=".MainActivity"
             android:exported="true"

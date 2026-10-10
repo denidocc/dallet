@@ -327,4 +327,7 @@
     <string name="notif_channel_name">Напоминания об операциях</string>
     <string name="notif_title">Dallet</string>
     <string name="notif_text">Операций к оплате: %1$d</string>
+    <string name="widget_description">Баланс, расходы за месяц и кнопка «+ Расход»</string>
+    <string name="widget_add_expense">+ Расход</string>
+    <string name="widget_month_expense">За месяц: %1$s</string>
 </resources>
