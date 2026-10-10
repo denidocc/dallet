@@ -132,6 +132,13 @@ fun DalletApp(
     shoppingViewModel: ShoppingViewModel = viewModel(factory = ShoppingViewModel.factory(ledger, shopping, strings))
 ) {
     val currency by viewModel.currency.collectAsStateWithLifecycle()
+    var shownLanguage by remember { mutableStateOf(language) }
+    LaunchedEffect(language) {
+        if (shownLanguage != language) {
+            shownLanguage = language
+            viewModel.refreshHome()
+        }
+    }
     CompositionLocalProvider(LocalCurrency provides currency) {
         DalletAppContent(
             viewModel,
