@@ -320,7 +320,8 @@ private fun DalletAppContent(
         }
     }
 
-    val hideBottomBar = currentRoute?.startsWith("edit/") == true ||
+    val isInnerScreen = backStackEntry != null && (
+        currentRoute.startsWith("edit/") ||
         currentRoute == SECURITY_ROUTE ||
         currentRoute == SETTINGS_ROUTE ||
         currentRoute == RATES_ROUTE ||
@@ -329,6 +330,8 @@ private fun DalletAppContent(
         currentRoute?.startsWith("shopping") == true ||
         currentRoute?.startsWith("account") == true ||
         currentRoute?.startsWith("categor") == true
+    )
+    val hideBottomBar = backStackEntry == null || isInnerScreen
 
     budgetWarning?.let { message ->
         AlertDialog(
@@ -690,7 +693,7 @@ private fun DalletAppContent(
                 )
             }
         }
-        if (hideBottomBar) {
+        if (isInnerScreen) {
             BackArrow(
                 onBack = { navController.popBackStack() },
                 modifier = Modifier
