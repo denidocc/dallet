@@ -9,6 +9,7 @@ import com.dallet.app.AppStrings
 import com.dallet.app.R
 import com.dallet.app.ledger.AccountBalance
 import com.dallet.app.ledger.BackupProblem
+import com.dallet.app.ledger.BudgetStatus
 import com.dallet.app.ledger.AccountTemplates
 import com.dallet.app.ledger.Currency
 import com.dallet.app.ledger.ExchangeRate
@@ -63,12 +64,37 @@ enum class HistoryKindUi {
     TRANSFER
 }
 
+enum class BudgetState {
+    OK,
+    NEAR,
+    OVER
+}
+
+data class BudgetRowUi(
+    val categoryId: Long,
+    val name: String,
+    val colorArgb: Int,
+    val iconKey: String,
+    val limitInput: String,
+    val limitLabel: String,
+    val spentLabel: String,
+    val remainingLabel: String,
+    val fraction: Float,
+    val state: BudgetState
+)
+
+data class BudgetsUiState(
+    val rows: List<BudgetRowUi> = emptyList(),
+    val available: List<SelectableOption> = emptyList()
+)
+
 data class HomeUiState(
     val loading: Boolean = true,
     val needsOnboarding: Boolean = false,
     val totalBalanceLabel: String = "0.00",
     val monthIncomeLabel: String = "0.00",
     val monthExpenseLabel: String = "0.00",
+    val budgetAlerts: List<BudgetRowUi> = emptyList(),
     val accountRows: List<AccountRowUi> = emptyList(),
     val recentExpenses: List<ExpenseRowUi> = emptyList(),
     val errorMessage: String? = null
@@ -297,6 +323,12 @@ class DalletViewModel(
 
     private val _currency = MutableStateFlow(Currency.DEFAULT)
     val currency: StateFlow<Currency> = _currency.asStateFlow()
+
+    private val _budgets = MutableStateFlow(BudgetsUiState())
+    val budgets: StateFlow<BudgetsUiState> = _budgets.asStateFlow()
+
+    private val _budgetWarning = MutableStateFlow<String?>(null)
+    val budgetWarning: StateFlow<String?> = _budgetWarning.asStateFlow()
 
     private val _rates = MutableStateFlow<List<ExchangeRate>>(emptyList())
     val rates: StateFlow<List<ExchangeRate>> = _rates.asStateFlow()
@@ -544,6 +576,88 @@ class DalletViewModel(
         _categoryEditor.value = CategoryEditorUiState()
     }
 
+    fun consumeBudgetWarning() {
+        _budgetWarning.value = null
+    }
+
+    fun refreshBudgets() {
+        viewModelScope.launch {
+            try {
+                _budgets.value = budgetsStateOf(ledger.budgetStatuses(LocalDate.now()))
+            } catch (_: Exception) {
+                _budgets.value = BudgetsUiState()
+            }
+        }
+    }
+
+    fun saveBudget(categoryId: Long, input: String, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val limit = Money.parseManat(input)
+                if (limit <= 0L) {
+                    onResult(false)
+                    return@launch
+                }
+                ledger.setBudget(categoryId, limit)
+                _budgets.value = budgetsStateOf(ledger.budgetStatuses(LocalDate.now()))
+                refreshHome()
+                onResult(true)
+            } catch (error: Exception) {
+                onResult(false)
+            }
+        }
+    }
+
+    fun removeBudget(categoryId: Long) {
+        viewModelScope.launch {
+            try {
+                ledger.setBudget(categoryId, null)
+                _budgets.value = budgetsStateOf(ledger.budgetStatuses(LocalDate.now()))
+                refreshHome()
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    private suspend fun budgetsStateOf(statuses: List<BudgetStatus>): BudgetsUiState {
+        val withBudget = statuses.map { it.category.id }.toSet()
+        return BudgetsUiState(
+            rows = statuses.map { it.toBudgetRow() },
+            available = ledger.categories(CategoryKind.EXPENSE)
+                .filter { it.id !in withBudget }
+                .map { SelectableOption(it.id, it.name) }
+        )
+    }
+
+    private fun BudgetStatus.toBudgetRow(): BudgetRowUi = BudgetRowUi(
+        categoryId = category.id,
+        name = category.name,
+        colorArgb = category.colorArgb,
+        iconKey = category.iconKey,
+        limitInput = Money.formatManat(limitMinor),
+        limitLabel = Money.formatManat(limitMinor),
+        spentLabel = Money.formatManat(spentMinor),
+        remainingLabel = Money.formatManat(Math.abs(remainingMinor)),
+        fraction = fraction,
+        state = when {
+            isOver -> BudgetState.OVER
+            isNear -> BudgetState.NEAR
+            else -> BudgetState.OK
+        }
+    )
+
+    private suspend fun warnIfBudgetTight(categoryId: Long, date: LocalDate) {
+        val status = ledger.budgetStatus(categoryId, date) ?: return
+        if (!status.isOver && !status.isNear) return
+        val code = _currency.value.code
+        _budgetWarning.value = strings.get(
+            if (status.isOver) R.string.budget_warning_over else R.string.budget_warning_near,
+            status.category.name,
+            "${Money.formatManat(status.spentMinor)} $code",
+            "${Money.formatManat(status.limitMinor)} $code"
+        )
+    }
+
     fun refreshRates() {
         viewModelScope.launch { _rates.value = ledger.rates() }
     }
@@ -593,12 +707,17 @@ class DalletViewModel(
                     val accountNames = ledger.accountBalances()
                         .associate { it.account.id to it.account.name }
                     val month = ledger.analytics(AnalyticsPeriod.MONTH, LocalDate.now())
+                    val budgetStatuses = ledger.budgetStatuses(LocalDate.now())
+                    _budgets.value = budgetsStateOf(budgetStatuses)
                     _home.value = HomeUiState(
                         loading = false,
                         needsOnboarding = false,
                         totalBalanceLabel = Money.formatManat(ledger.totalBalanceMinor()),
                         monthIncomeLabel = Money.formatManat(month.incomeTotalMinor),
                         monthExpenseLabel = Money.formatManat(month.expenseTotalMinor),
+                        budgetAlerts = budgetStatuses
+                            .filter { it.isOver || it.isNear }
+                            .map { it.toBudgetRow() },
                         accountRows = ledger.accountBalances().map { it.toRow() },
                         recentExpenses = ledger.recentExpenses(limit = 10).map { operation ->
                             operation.toExpenseRow(categoriesById, accountNames)
@@ -1230,6 +1349,9 @@ class DalletViewModel(
                 _addExpense.update {
                     it.copy(submitting = false, saved = true, amountInput = "", commentInput = "")
                 }
+                if (state.kind == AddOperationKind.EXPENSE) {
+                    state.selectedCategoryId?.let { warnIfBudgetTight(it, date) }
+                }
                 refreshHome()
             } catch (error: SameAccountTransferException) {
                 _addExpense.update { it.copy(submitting = false, errorMessage = strings.get(R.string.err_same_account)) }
@@ -1317,6 +1439,9 @@ class DalletViewModel(
                     )
                 }
                 _edit.update { it.copy(submitting = false, done = true) }
+                if (state.kind == OperationKind.EXPENSE) {
+                    state.selectedCategoryId?.let { warnIfBudgetTight(it, date) }
+                }
                 refreshHome()
             } catch (error: SameAccountTransferException) {
                 _edit.update { it.copy(submitting = false, errorMessage = strings.get(R.string.err_same_account)) }

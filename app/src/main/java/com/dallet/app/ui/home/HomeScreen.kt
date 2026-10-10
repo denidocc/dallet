@@ -29,6 +29,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dallet.app.R
+import com.dallet.app.ui.budgets.BudgetRowView
 import com.dallet.app.ui.moneyText
 import com.dallet.app.ui.AccountRowUi
 import com.dallet.app.ui.ExpenseRowUi
@@ -41,7 +42,8 @@ import com.dallet.app.ui.theme.incomeAmountColor
 @Composable
 fun HomeScreen(
     state: HomeUiState,
-    onExpenseClick: (Long) -> Unit
+    onExpenseClick: (Long) -> Unit,
+    onBudgetsClick: () -> Unit
 ) {
     if (state.loading) {
         Box(
@@ -89,6 +91,18 @@ fun HomeScreen(
                     valueColor = expenseAmountColor(),
                     modifier = Modifier.weight(1f)
                 )
+            }
+        }
+
+        if (state.budgetAlerts.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = stringResource(R.string.budgets_title),
+                    style = MaterialTheme.typography.titleMedium
+                )
+                state.budgetAlerts.forEach { row ->
+                    BudgetRowView(row = row, onClick = onBudgetsClick)
+                }
             }
         }
 

@@ -295,4 +295,17 @@
     <string name="cat_transport">Транспорт</string>
     <string name="cat_home">Дом</string>
     <string name="cat_other">Прочее</string>
+    <string name="budgets_title">Бюджеты</string>
+    <string name="budgets_hint">Лимит расходов по категории на календарный месяц.</string>
+    <string name="budgets_empty">Бюджетов пока нет</string>
+    <string name="budgets_add">Добавить бюджет</string>
+    <string name="budgets_remove">Удалить бюджет</string>
+    <string name="budgets_limit">Лимит на месяц</string>
+    <string name="budgets_bad_limit">Введите сумму больше нуля, например 150.00</string>
+    <string name="budget_spent_of">Потрачено %1$s из %2$s</string>
+    <string name="budget_left">Осталось %1$s</string>
+    <string name="budget_over_by">Превышено на %1$s</string>
+    <string name="budget_warning_title">Бюджет</string>
+    <string name="budget_warning_over">Лимит «%1$s» превышен: потрачено %2$s из %3$s</string>
+    <string name="budget_warning_near">Лимит «%1$s» почти исчерпан: потрачено %2$s из %3$s</string>
 </resources>

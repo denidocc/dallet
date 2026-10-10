@@ -31,6 +31,8 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -64,6 +66,7 @@ import com.dallet.app.ledger.ThemeMode
 import com.dallet.app.ledger.Currency
 import com.dallet.app.ui.settings.SettingsScreen
 import com.dallet.app.ui.rates.RatesScreen
+import com.dallet.app.ui.budgets.BudgetsScreen
 import com.dallet.app.ledger.ShoppingService
 import com.dallet.app.ui.common.SurfaceCard
 import com.dallet.app.ui.shopping.ProductDetailScreen
@@ -98,6 +101,7 @@ private const val ACCOUNT_EDIT_ROUTE = "account/{accountId}"
 private const val SECURITY_ROUTE = "security"
 private const val SETTINGS_ROUTE = "settings"
 private const val RATES_ROUTE = "rates"
+private const val BUDGETS_ROUTE = "budgets"
 private const val SHOPPING_ROUTE = "shopping"
 private const val SHOPPING_LIST_ROUTE = "shopping/{listId}"
 private const val PRODUCT_ROUTE = "shopping/product/{productId}"
@@ -155,6 +159,8 @@ private fun DalletAppContent(
     val lockState by viewModel.lock.collectAsStateWithLifecycle()
     val securityState by viewModel.security.collectAsStateWithLifecycle()
     val ratesState by viewModel.rates.collectAsStateWithLifecycle()
+    val budgetsState by viewModel.budgets.collectAsStateWithLifecycle()
+    val budgetWarning by viewModel.budgetWarning.collectAsStateWithLifecycle()
     val mainCurrency = LocalCurrency.current
 
     val context = LocalContext.current
@@ -288,9 +294,23 @@ private fun DalletAppContent(
         currentRoute == SECURITY_ROUTE ||
         currentRoute == SETTINGS_ROUTE ||
         currentRoute == RATES_ROUTE ||
+        currentRoute == BUDGETS_ROUTE ||
         currentRoute?.startsWith("shopping") == true ||
         currentRoute?.startsWith("account") == true ||
         currentRoute?.startsWith("categor") == true
+
+    budgetWarning?.let { message ->
+        AlertDialog(
+            onDismissRequest = viewModel::consumeBudgetWarning,
+            title = { Text(stringResource(R.string.budget_warning_title)) },
+            text = { Text(message) },
+            confirmButton = {
+                TextButton(onClick = viewModel::consumeBudgetWarning) {
+                    Text(stringResource(R.string.date_picker_ok))
+                }
+            }
+        )
+    }
 
     if (showAddSheet) {
         AddChoiceSheet(
@@ -340,7 +360,11 @@ private fun DalletAppContent(
             composable(DalletDestination.Home.route) {
                 HomeScreen(
                     state = homeState,
-                    onExpenseClick = ::openEdit
+                    onExpenseClick = ::openEdit,
+                    onBudgetsClick = {
+                        viewModel.refreshBudgets()
+                        navController.navigate(BUDGETS_ROUTE)
+                    }
                 )
             }
             composable(DalletDestination.History.route) {
@@ -385,6 +409,10 @@ private fun DalletAppContent(
                     onCategoriesClick = { navController.navigate(CATEGORIES_ROUTE) },
                     onSecurityClick = { navController.navigate(SECURITY_ROUTE) },
                     onSettingsClick = { navController.navigate(SETTINGS_ROUTE) },
+                    onBudgetsClick = {
+                        viewModel.refreshBudgets()
+                        navController.navigate(BUDGETS_ROUTE)
+                    },
                     onRatesClick = {
                         viewModel.refreshRates()
                         navController.navigate(RATES_ROUTE)
@@ -397,6 +425,13 @@ private fun DalletAppContent(
                     onImportClick = launchImport,
                     onResetConfirmed = viewModel::resetAll,
                     onDataMessageShown = viewModel::consumeDataMessage
+                )
+            }
+            composable(BUDGETS_ROUTE) {
+                BudgetsScreen(
+                    state = budgetsState,
+                    onSave = viewModel::saveBudget,
+                    onRemove = viewModel::removeBudget
                 )
             }
             composable(RATES_ROUTE) {

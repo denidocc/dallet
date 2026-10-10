@@ -42,6 +42,20 @@ class SharedPreferencesSettingsStore(context: Context) : SettingsStore {
         prefs.edit().putString(KEY_RATES, text).apply()
     }
 
+    override fun budgets(): Map<Long, Long> =
+        prefs.getString(KEY_BUDGETS, null).orEmpty().split(";").mapNotNull { part ->
+            val fields = part.split(":")
+            if (fields.size != 2) return@mapNotNull null
+            val id = fields[0].toLongOrNull() ?: return@mapNotNull null
+            val limit = fields[1].toLongOrNull() ?: return@mapNotNull null
+            if (limit > 0) id to limit else null
+        }.toMap()
+
+    override fun saveBudgets(budgets: Map<Long, Long>) {
+        val text = budgets.entries.joinToString(";") { "${it.key}:${it.value}" }
+        prefs.edit().putString(KEY_BUDGETS, text).apply()
+    }
+
     override fun language(): AppLanguage =
         AppLanguage.fromName(prefs.getString(KEY_LANGUAGE, null))
 
@@ -51,6 +65,7 @@ class SharedPreferencesSettingsStore(context: Context) : SettingsStore {
 
     private companion object {
         const val KEY_LANGUAGE = "language"
+        const val KEY_BUDGETS = "budgets"
         const val KEY_RATES = "rates"
         const val KEY_THEME_MODE = "theme_mode"
         const val KEY_MAIN_CURRENCY = "main_currency"

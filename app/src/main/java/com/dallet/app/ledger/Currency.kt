@@ -49,6 +49,8 @@ interface SettingsStore {
     fun setLanguage(language: AppLanguage)
     fun rates(): List<ExchangeRate>
     fun saveRates(rates: List<ExchangeRate>)
+    fun budgets(): Map<Long, Long>
+    fun saveBudgets(budgets: Map<Long, Long>)
 }
 
 class InMemorySettingsStore : SettingsStore {
@@ -73,6 +75,14 @@ class InMemorySettingsStore : SettingsStore {
 
     override fun setLanguage(language: AppLanguage) {
         lang = language
+    }
+
+    private var storedBudgets: Map<Long, Long> = emptyMap()
+
+    override fun budgets(): Map<Long, Long> = storedBudgets
+
+    override fun saveBudgets(budgets: Map<Long, Long>) {
+        storedBudgets = budgets
     }
 
     private var storedRates: List<ExchangeRate> = emptyList()

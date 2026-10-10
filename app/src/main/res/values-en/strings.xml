@@ -295,4 +295,17 @@
     <string name="cat_transport">Transport</string>
     <string name="cat_home">Home</string>
     <string name="cat_other">Other</string>
+    <string name="budgets_title">Budgets</string>
+    <string name="budgets_hint">Spending limit per category for a calendar month.</string>
+    <string name="budgets_empty">No budgets yet</string>
+    <string name="budgets_add">Add budget</string>
+    <string name="budgets_remove">Delete budget</string>
+    <string name="budgets_limit">Monthly limit</string>
+    <string name="budgets_bad_limit">Enter an amount above zero, for example 150.00</string>
+    <string name="budget_spent_of">Spent %1$s of %2$s</string>
+    <string name="budget_left">%1$s left</string>
+    <string name="budget_over_by">Over by %1$s</string>
+    <string name="budget_warning_title">Budget</string>
+    <string name="budget_warning_over">Limit “%1$s” exceeded: spent %2$s of %3$s</string>
+    <string name="budget_warning_near">Limit “%1$s” almost used up: spent %2$s of %3$s</string>
 </resources>

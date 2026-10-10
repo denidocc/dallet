@@ -23,7 +23,8 @@ data class BackupData(
     val categories: List<Category>,
     val operations: List<Operation>,
     val shopping: ShoppingData = ShoppingData.EMPTY,
-    val mainCurrency: Currency = Currency.DEFAULT
+    val mainCurrency: Currency = Currency.DEFAULT,
+    val budgets: Map<Long, Long> = emptyMap()
 )
 
 object BackupCodec {
@@ -76,6 +77,11 @@ object BackupCodec {
         })
         root.put("shopping", encodeShopping(data.shopping))
         root.put("mainCurrency", data.mainCurrency.name)
+        root.put("budgets", JSONArray().apply {
+            data.budgets.forEach { (categoryId, limit) ->
+                put(JSONObject().put("categoryId", categoryId).put("limitMinor", limit))
+            }
+        })
         return root.toString()
     }
 
@@ -241,7 +247,9 @@ object BackupCodec {
             val shopping = root.optJSONObject("shopping")?.let { decodeShopping(it) }
                 ?: ShoppingData.EMPTY
             val currency = Currency.fromName(root.optNullableString("mainCurrency"))
-            return BackupData(accounts, categories, operations, shopping, currency)
+            val budgets = root.optJSONArray("budgets").objectsOrEmpty()
+                .associate { it.getLong("categoryId") to it.getLong("limitMinor") }
+            return BackupData(accounts, categories, operations, shopping, currency, budgets)
         } catch (error: InvalidBackupException) {
             throw error
         } catch (error: JSONException) {
@@ -261,6 +269,8 @@ object BackupCodec {
         requireValid(data.accounts.all { it.name.isNotBlank() && it.openingBalanceMinor >= 0 })
         requireValid(data.categories.all { it.name.isNotBlank() })
         validateShopping(data.shopping)
+        val expenseIds = data.categories.filter { it.kind == CategoryKind.EXPENSE }.map { it.id }.toSet()
+        requireValid(data.budgets.all { it.key in expenseIds && it.value > 0 })
 
         val accountIds = data.accounts.map { it.id }.toSet()
         val categoriesById = data.categories.associateBy { it.id }

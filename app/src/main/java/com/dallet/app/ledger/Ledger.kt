@@ -24,16 +24,20 @@ class Ledger(
 ) {
     suspend fun hasCompletedOnboarding(): Boolean = accountRepository.getAll().isNotEmpty()
 
-    suspend fun exportBackup(): String =
-        BackupCodec.encode(
+    suspend fun exportBackup(): String {
+        val categories = categoryRepository.getAll()
+        val expenseIds = categories.filter { it.kind == CategoryKind.EXPENSE }.map { it.id }.toSet()
+        return BackupCodec.encode(
             BackupData(
                 accounts = accountRepository.getAll(),
-                categories = categoryRepository.getAll(),
+                categories = categories,
                 operations = operationRepository.getAll(),
                 shopping = shoppingRepository.getAll(),
-                mainCurrency = settings.mainCurrency()
+                mainCurrency = settings.mainCurrency(),
+                budgets = settings.budgets().filterKeys { it in expenseIds }
             )
         )
+    }
 
     suspend fun importBackup(json: String) {
         val data = BackupCodec.decode(json)
@@ -41,11 +45,13 @@ class Ledger(
         dataStore.replaceAll(data.accounts, data.categories, data.operations, data.shopping)
         settings.saveRates(emptyList())
         settings.setMainCurrency(data.mainCurrency)
+        settings.saveBudgets(data.budgets)
     }
 
     suspend fun resetAll() {
         dataStore.replaceAll(emptyList(), emptyList(), emptyList(), ShoppingData.EMPTY)
         settings.saveRates(emptyList())
+        settings.saveBudgets(emptyMap())
         settings.setMainCurrency(Currency.DEFAULT)
     }
 
@@ -57,6 +63,38 @@ class Ledger(
     }
 
     suspend fun rates(): List<ExchangeRate> = settings.rates()
+
+    suspend fun budgets(): Map<Long, Long> = settings.budgets()
+
+    suspend fun setBudget(categoryId: Long, limitMinor: Long?) {
+        val current = settings.budgets().toMutableMap()
+        if (limitMinor == null || limitMinor <= 0L) {
+            current.remove(categoryId)
+        } else {
+            val category = categoryRepository.getAll().firstOrNull { it.id == categoryId }
+                ?: error("category not found")
+            require(category.kind == CategoryKind.EXPENSE) { "budget needs an expense category" }
+            current[categoryId] = limitMinor
+        }
+        settings.saveBudgets(current)
+    }
+
+    suspend fun budgetStatuses(today: LocalDate): List<BudgetStatus> {
+        val budgets = settings.budgets()
+        if (budgets.isEmpty()) return emptyList()
+        val month = YearMonth.from(today)
+        val spent = operationRepository.getAll()
+            .filter { it.kind == OperationKind.EXPENSE && YearMonth.from(it.date) == month }
+            .groupBy { it.categoryId }
+            .mapValues { entry -> entry.value.sumOf { it.amountMinor } }
+        return categoryRepository.getAll()
+            .filter { it.kind == CategoryKind.EXPENSE && budgets.containsKey(it.id) }
+            .map { BudgetStatus(it, budgets.getValue(it.id), spent[it.id] ?: 0L) }
+            .sortedByDescending { it.fraction }
+    }
+
+    suspend fun budgetStatus(categoryId: Long, today: LocalDate): BudgetStatus? =
+        budgetStatuses(today).firstOrNull { it.category.id == categoryId }
 
     suspend fun saveRates(rates: Map<Currency, Long>, today: java.time.LocalDate) {
         val main = settings.mainCurrency()
@@ -98,6 +136,7 @@ class Ledger(
             }
         )
         categoryRepository.replaceAll(CategorySeed.defaults(categoryNames))
+        settings.saveBudgets(emptyMap())
         settings.setMainCurrency(currency)
     }
 
