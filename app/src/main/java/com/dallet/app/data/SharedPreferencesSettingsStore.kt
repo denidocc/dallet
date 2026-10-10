@@ -66,7 +66,7 @@ class SharedPreferencesSettingsStore(context: Context) : SettingsStore {
     }
 
     override fun language(): AppLanguage =
-        AppLanguage.fromName(prefs.getString(KEY_LANGUAGE, null))
+        prefs.getString(KEY_LANGUAGE, null)?.let { AppLanguage.fromName(it) } ?: AppLanguage.system()
 
     override fun setLanguage(language: AppLanguage) {
         prefs.edit().putString(KEY_LANGUAGE, language.name).apply()

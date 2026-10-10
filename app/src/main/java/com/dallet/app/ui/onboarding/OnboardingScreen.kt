@@ -37,6 +37,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.dallet.app.R
+import com.dallet.app.ledger.AppLanguage
 import com.dallet.app.ledger.Currency
 import com.dallet.app.ui.DataUiState
 import com.dallet.app.ui.OnboardingUiState
@@ -59,6 +60,8 @@ fun OnboardingScreen(
     onCustomNameChange: (String) -> Unit,
     onCustomOpeningChange: (String) -> Unit,
     onSubmit: () -> Unit,
+    language: AppLanguage,
+    onLanguageChange: (AppLanguage) -> Unit,
     onRestoreClick: () -> Unit
 ) {
     var page by rememberSaveable { mutableIntStateOf(PAGE_WELCOME) }
@@ -111,6 +114,31 @@ fun OnboardingScreen(
                         text = stringResource(R.string.onboarding_welcome_text),
                         style = MaterialTheme.typography.bodyLarge
                     )
+                    Text(
+                        text = stringResource(R.string.settings_language),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        AppLanguage.values().forEach { option ->
+                            FilterChip(
+                                selected = option == language,
+                                onClick = { if (option != language) onLanguageChange(option) },
+                                label = {
+                                    Text(
+                                        stringResource(
+                                            when (option) {
+                                                AppLanguage.RU -> R.string.lang_ru
+                                                AppLanguage.EN -> R.string.lang_en
+                                            }
+                                        )
+                                    )
+                                }
+                            )
+                        }
+                    }
                 }
 
                 PAGE_CURRENCY -> {

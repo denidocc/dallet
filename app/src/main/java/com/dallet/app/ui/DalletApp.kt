@@ -276,6 +276,8 @@ private fun DalletAppContent(
             onTemplateOpeningChange = viewModel::onTemplateOpeningChange,
             onCustomNameChange = viewModel::onCustomNameChange,
             onCustomOpeningChange = viewModel::onCustomOpeningChange,
+            language = language,
+            onLanguageChange = onLanguageChange,
             onSubmit = viewModel::submitOnboarding,
             onRestoreClick = launchImport
         )

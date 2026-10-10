@@ -37,6 +37,10 @@ enum class AppLanguage(val tag: String) {
 
         fun fromName(name: String?): AppLanguage =
             values().firstOrNull { it.name == name } ?: DEFAULT
+
+        /** Russian for Russian phones, English for everything else. */
+        fun system(): AppLanguage =
+            if (java.util.Locale.getDefault().language == "ru") RU else EN
     }
 }
 
