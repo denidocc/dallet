@@ -149,6 +149,12 @@
     <string name="settings_theme_dark">Тёмная</string>
     <string name="more_security">Безопасность</string>
     <string name="more_shopping">Покупки</string>
+    <string name="about_title">О приложении</string>
+    <string name="about_version">Версия %1$s</string>
+    <string name="about_tagline">Без сбора данных, без рекламы, без подписок. Работает без интернета.</string>
+    <string name="about_source">Исходный код ↗</string>
+    <string name="about_license">Лицензия GPL-3.0</string>
+    <string name="about_privacy">Политика конфиденциальности ↗</string>
     <string name="shopping_title">Покупки</string>
     <string name="shopping_list_name">Название</string>
     <string name="shopping_list_note">Комментарий</string>

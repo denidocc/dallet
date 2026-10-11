@@ -6,14 +6,14 @@ plugins {
 
 android {
     namespace = "com.dallet.app"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.dallet.app"
         minSdk = 26
-        targetSdk = 34
-        versionCode = 26
-        versionName = "0.0.26"
+        targetSdk = 36
+        versionCode = 27
+        versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

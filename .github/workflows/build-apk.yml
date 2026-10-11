@@ -29,15 +29,15 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
-          packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.7'
+          gradle-version: '8.13'
 
       - name: Generate Gradle Wrapper
-        run: gradle wrapper --gradle-version 8.7 --distribution-type bin
+        run: gradle wrapper --gradle-version 8.13 --distribution-type bin
 
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
@@ -61,14 +61,14 @@ jobs:
           DALLET_DEBUG_KEY_ALIAS: ${{ secrets.DALLET_DEBUG_KEY_ALIAS }}
         run: ./gradlew :app:testDebugUnitTest --no-daemon --stacktrace
 
-      - name: Build release APK (R8, signed with the stable key)
+      - name: Build release APK and AAB (R8, signed with the stable key)
         env:
           DALLET_DEBUG_STORE_PASSWORD: ${{ secrets.DALLET_DEBUG_STORE_PASSWORD }}
           DALLET_DEBUG_KEY_PASSWORD: ${{ secrets.DALLET_DEBUG_KEY_PASSWORD }}
           DALLET_DEBUG_KEY_ALIAS: ${{ secrets.DALLET_DEBUG_KEY_ALIAS }}
-        run: ./gradlew :app:assembleRelease --no-daemon --stacktrace
+        run: ./gradlew :app:assembleRelease :app:bundleRelease --no-daemon --stacktrace
 
-      - name: Name APK with version
+      - name: Name APK and AAB with version
         id: apk
         run: |
           VERSION_NAME=$(sed -n 's/.*versionName[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' app/build.gradle.kts | head -n1)
@@ -79,25 +79,42 @@ jobs:
           mkdir -p dist
           SRC=$(find app/build/outputs/apk/release -type f -name '*.apk' | head -n1)
           if [ -z "$SRC" ]; then
-            echo "No debug APK found"
+            echo "No release APK found"
+            exit 1
+          fi
+          AAB_SRC=$(find app/build/outputs/bundle/release -type f -name '*.aab' | head -n1)
+          if [ -z "$AAB_SRC" ]; then
+            echo "No release AAB found"
             exit 1
           fi
           DEST="dist/Dallet-${VERSION_NAME}.apk"
+          AAB_DEST="dist/Dallet-${VERSION_NAME}.aab"
           cp "$SRC" "$DEST"
+          cp "$AAB_SRC" "$AAB_DEST"
           echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
           echo "apk_path=$DEST" >> "$GITHUB_OUTPUT"
+          echo "aab_path=$AAB_DEST" >> "$GITHUB_OUTPUT"
           ls -la dist/
 
-      - name: Upload debug APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Dallet-${{ steps.apk.outputs.version_name }}
           path: ${{ steps.apk.outputs.apk_path }}
           if-no-files-found: error
 
+      - name: Upload AAB (for Google Play)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Dallet-${{ steps.apk.outputs.version_name }}-aab
+          path: ${{ steps.apk.outputs.aab_path }}
+          if-no-files-found: error
+
       - name: Create GitHub Release (on git tag v*)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ steps.apk.outputs.apk_path }}
+          files: |
+            ${{ steps.apk.outputs.apk_path }}
+            ${{ steps.apk.outputs.aab_path }}
           generate_release_notes: true

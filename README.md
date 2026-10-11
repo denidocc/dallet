@@ -2,7 +2,7 @@
 
 Офлайн-учёт личных денег для Android: счета, операции с категориями, аналитика, бюджеты, регулярные операции, списки покупок и виджет. Основная валюта на выбор (по умолчанию ТМТ), интерфейс на русском и English. Все данные хранятся только на телефоне, интернет не нужен.
 
-Текущая версия: **0.0.26** (`versionCode` 26).
+Текущая версия: **0.1.0** (`versionCode` 27).
 
 ## Что умеет
 
@@ -23,44 +23,14 @@
 
 ## Сборка APK (GitHub Actions)
 
-После push в `main` откройте **Actions → Build Dallet APK → Artifacts → `Dallet-<versionName>`** (файл `Dallet-0.0.3.apk` и т.п.). Версию бампите вручную в `app/build.gradle.kts` (`versionName` / `versionCode`) перед значимым релизом.
+Сборка идёт в GitHub Actions: после push в `main` откройте **Actions → Build Dallet APK → Artifacts**. Там два файла: `Dallet-<versionName>` (APK для установки) и `Dallet-<versionName>-aab` (AAB для Google Play). Версия задаётся в `app/build.gradle.kts` (`versionName` / `versionCode`).
 
-Debug APK подписывается **одним стабильным keystore** из GitHub Secrets — обновление поверх предыдущей CI-сборки не требует удаления приложения и сохраняет данные (счета, категории, операции).
+CI подписывает релиз ключом из секретов репозитория (`DALLET_DEBUG_KEYSTORE_BASE64`, `DALLET_DEBUG_STORE_PASSWORD`, `DALLET_DEBUG_KEY_PASSWORD`, `DALLET_DEBUG_KEY_ALIAS`). Если вы собираете форк, создайте свой keystore и добавьте эти секреты.
 
-### Secrets (один раз)
-
-Нужны секреты репозитория:
-
-| Secret | Значение |
-|--------|----------|
-| `DALLET_DEBUG_KEYSTORE_BASE64` | `base64` от файла `.jks` |
-| `DALLET_DEBUG_STORE_PASSWORD` | пароль хранилища |
-| `DALLET_DEBUG_KEY_PASSWORD` | пароль ключа (для PKCS12 обычно = store password) |
-| `DALLET_DEBUG_KEY_ALIAS` | alias (например `dallet_debug`) |
-
-Сгенерировать keystore локально (не коммитить):
+Локально (нужны JDK 17 и Android SDK 36):
 
 ```bash
-keytool -genkeypair -v \
-  -keystore keystore/dallet-debug.jks \
-  -alias dallet_debug \
-  -keyalg RSA -keysize 2048 -validity 10000 \
-  -storepass 'YOUR_STORE_PASSWORD' \
-  -keypass 'YOUR_KEY_PASSWORD' \
-  -dname 'CN=Dallet Debug,O=Dallet,C=TM'
-
-base64 -w0 keystore/dallet-debug.jks   # Linux/macOS
-# PowerShell: [Convert]::ToBase64String([IO.File]::ReadAllBytes('keystore/dallet-debug.jks'))
-```
-
-Положить значения в **Settings → Secrets and variables → Actions**.
-
-> Если на телефоне уже стоит APK со **старой** (случайной) подписью, первый переход на стабильный ключ потребует одну переустановку. Дальше данные при обновлениях сохраняются.
-
-Локально (опционально):
-
-```powershell
-gradle wrapper --gradle-version 8.7
+gradle wrapper --gradle-version 8.13
 ./gradlew :app:assembleDebug
 ```
 
@@ -100,6 +70,22 @@ app/src/test/java/com/dallet/app/          юнит-тесты логики (led
 ## Тесты
 
 Юнит-тесты (`./gradlew testDebugUnitTest`) запускаются в GitHub Actions перед сборкой APK. Покрыты операции, переводы, аналитика и сравнение периодов, резервная копия и импорт, онбординг и шаблоны счетов, курсы и конвертер, бюджеты, регулярные операции и их расписание, покупки, отчёты, PIN. Экраны проверяются вручную на телефоне.
+
+## Приватность
+
+Dallet не собирает данные, не требует регистрации и не просит доступ в интернет. Нет рекламы и подписок. Подробнее: [PRIVACY.md](PRIVACY.md).
+
+## Лицензия
+
+[GNU GPL v3](LICENSE). Форки и производные версии обязаны публиковать исходный код под той же лицензией.
+
+Название «Dallet» и иконка приложения не передаются по лицензии: форк должен называться иначе и использовать свою иконку.
+
+## Поддержать проект
+
+Приложение бесплатное, без рекламы и без платных функций. Если оно вам полезно, можно поддержать разработку добровольным донатом.
+
+<!-- TODO: добавить ссылку на Boosty или Ko-fi -->
 
 ## Стек
 

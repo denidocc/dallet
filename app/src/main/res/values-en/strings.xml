@@ -149,6 +149,12 @@
     <string name="settings_theme_dark">Dark</string>
     <string name="more_security">Security</string>
     <string name="more_shopping">Shopping</string>
+    <string name="about_title">About</string>
+    <string name="about_version">Version %1$s</string>
+    <string name="about_tagline">No data collection, no ads, no subscriptions. Works without internet.</string>
+    <string name="about_source">Source code ↗</string>
+    <string name="about_license">GPL-3.0 license</string>
+    <string name="about_privacy">Privacy policy ↗</string>
     <string name="shopping_title">Shopping</string>
     <string name="shopping_list_name">Name</string>
     <string name="shopping_list_note">Comment</string>

@@ -1,5 +1,9 @@
 package com.dallet.app.ui.more
 
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,11 +22,23 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dallet.app.R
 import com.dallet.app.ui.DataUiState
 import com.dallet.app.ui.common.SurfaceCard
+
+private const val SOURCE_URL = "https://github.com/denidocc/dallet"
+private const val PRIVACY_URL = "https://github.com/denidocc/dallet/blob/main/PRIVACY.md"
+
+private fun openLink(context: Context, url: String) {
+    try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    } catch (_: ActivityNotFoundException) {
+        // Нет браузера: ссылка просто не откроется.
+    }
+}
 
 @Composable
 fun MoreScreen(
@@ -42,6 +58,12 @@ fun MoreScreen(
 ) {
     var showImportDialog by remember { mutableStateOf(false) }
     var showResetDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val versionName = remember {
+        runCatching {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        }.getOrNull().orEmpty()
+    }
 
     DisposableEffect(Unit) {
         onDispose { onDataMessageShown() }
@@ -157,6 +179,45 @@ fun MoreScreen(
                 text = stringResource(R.string.more_reset_hint),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Text(
+            text = stringResource(R.string.about_title),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(top = 12.dp)
+        )
+        SurfaceCard {
+            Text(
+                text = stringResource(R.string.app_name),
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = stringResource(R.string.about_version, versionName),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = stringResource(R.string.about_tagline),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        SurfaceCard(onClick = { openLink(context, SOURCE_URL) }) {
+            Text(
+                text = stringResource(R.string.about_source),
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = stringResource(R.string.about_license),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        SurfaceCard(onClick = { openLink(context, PRIVACY_URL) }) {
+            Text(
+                text = stringResource(R.string.about_privacy),
+                style = MaterialTheme.typography.titleMedium
             )
         }
     }
