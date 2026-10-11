@@ -8,6 +8,7 @@ import com.dallet.app.ledger.CategoryHasOperationsException
 import com.dallet.app.AppStrings
 import com.dallet.app.R
 import com.dallet.app.ledger.AccountBalance
+import com.dallet.app.ledger.BackupCodec
 import com.dallet.app.ledger.BackupProblem
 import com.dallet.app.ledger.BudgetStatus
 import com.dallet.app.ledger.Frequency
@@ -192,10 +193,18 @@ data class OnboardingUiState(
     val errorMessage: String? = null
 )
 
+/** What a backup file contains, shown before it replaces the current data. */
+data class ImportPreview(
+    val accounts: Int,
+    val categories: Int,
+    val operations: Int
+)
+
 data class DataUiState(
     val busy: Boolean = false,
     val message: String? = null,
-    val isError: Boolean = false
+    val isError: Boolean = false,
+    val pendingImport: ImportPreview? = null
 )
 
 data class LockUiState(
@@ -580,11 +589,50 @@ class DalletViewModel(
         }
     }
 
+    private var pendingImportJson: String? = null
+
+    /** Reads and checks the file, then waits for the user to confirm before replacing data. */
     fun importBackup(read: suspend () -> String) {
         viewModelScope.launch {
             _data.value = DataUiState(busy = true)
             try {
-                ledger.importBackup(read())
+                val json = read()
+                val backup = BackupCodec.decode(json)
+                BackupCodec.validate(backup)
+                pendingImportJson = json
+                _data.value = DataUiState(
+                    pendingImport = ImportPreview(
+                        accounts = backup.accounts.size,
+                        categories = backup.categories.size,
+                        operations = backup.operations.size
+                    )
+                )
+            } catch (error: InvalidBackupException) {
+                _data.value = DataUiState(
+                    message = strings.get(
+                        if (error.problem == BackupProblem.TOO_NEW) R.string.err_backup_too_new
+                        else R.string.err_not_backup
+                    ),
+                    isError = true
+                )
+            } catch (error: Exception) {
+                _data.value = DataUiState(message = strings.get(R.string.err_read_file), isError = true)
+            }
+        }
+    }
+
+    fun cancelImport() {
+        pendingImportJson = null
+        _data.value = DataUiState()
+    }
+
+    fun confirmImport() {
+        val json = pendingImportJson ?: return
+        pendingImportJson = null
+        viewModelScope.launch {
+            _data.value = DataUiState(busy = true)
+            try {
+                ledger.importBackup(json)
                 resetTransientStates()
                 _data.value = DataUiState(message = strings.get(R.string.msg_data_restored))
                 refreshHome()

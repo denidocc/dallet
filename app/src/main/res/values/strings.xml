@@ -112,6 +112,9 @@
     <string name="import_dialog_title">Заменить данные?</string>
     <string name="import_dialog_text">Все текущие данные (счета, категории, операции и покупки) будут заменены данными из файла.</string>
     <string name="import_choose_file">Выбрать файл</string>
+    <string name="import_preview_summary">В файле: счетов — %1$d, категорий — %2$d, операций — %3$d. Все текущие данные будут заменены.</string>
+    <string name="import_preview_empty">В файле нет операций. Возможно, это копия пустого приложения. Проверьте, что выбран нужный файл.</string>
+    <string name="import_replace">Заменить</string>
     <string name="dialog_export_first">Сначала экспортировать</string>
     <string name="dialog_cancel">Отмена</string>
     <string name="reset_dialog_title">Сбросить всё?</string>

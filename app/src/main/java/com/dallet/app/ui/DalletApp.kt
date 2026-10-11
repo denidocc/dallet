@@ -89,6 +89,7 @@ import com.dallet.app.ui.edit.EditOperationScreen
 import com.dallet.app.ui.history.HistoryScreen
 import com.dallet.app.ui.home.HomeScreen
 import com.dallet.app.ui.lock.LockScreen
+import com.dallet.app.ui.more.ImportConfirmDialog
 import com.dallet.app.ui.more.MoreScreen
 import com.dallet.app.ui.navigation.DalletDestination
 import com.dallet.app.ui.onboarding.OnboardingScreen
@@ -253,6 +254,14 @@ private fun DalletAppContent(
     val launchImport = {
         viewModel.consumeDataMessage()
         importLauncher.launch(arrayOf("*/*"))
+    }
+
+    dataState.pendingImport?.let { preview ->
+        ImportConfirmDialog(
+            preview = preview,
+            onConfirm = viewModel::confirmImport,
+            onCancel = viewModel::cancelImport
+        )
     }
 
     if (lockState.locked) {

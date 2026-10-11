@@ -1,92 +1,97 @@
-﻿# Dallet
+# Dallet
 
-Офлайн-учёт личных денег для Android: счета, операции с категориями, аналитика, бюджеты, регулярные операции, списки покупок и виджет. Основная валюта на выбор (по умолчанию ТМТ), интерфейс на русском и English. Все данные хранятся только на телефоне, интернет не нужен.
+**English** · [Русский](README.ru.md)
 
-Текущая версия: **0.1.0** (`versionCode` 27).
+Offline personal finance tracker for Android: accounts, categorized transactions, analytics, budgets, recurring transactions, shopping lists and a home screen widget. Choose your main currency (TMT by default); the interface is in English and Russian. All data stays on your phone and no internet is needed.
 
-## Что умеет
+**Free. No ads. No subscriptions. No accounts. No data collection. No internet permission.**
 
-- Онбординг по страницам с приветствием, выбором языка и полосой прогресса: основная валюта (ТМТ, USD, EUR, RUB, TRY, CNY, KZT), шаблоны счетов и стартовые остатки
-- Главная: общий баланс, доходы и расходы за месяц, блок «К оплате» (регулярные операции), бюджеты на грани лимита, счета в ряд, последние расходы с иконками категорий
-- «+»: выбор «Разовая операция» (Расход, Доход, Перевод с датой и временем) или «Список покупок»
-- История: все операции, правка и удаление; у операций есть время (по умолчанию время создания)
-- Аналитика: листание недель, месяцев и лет; переключатель «Доходы | Расходы» для donut и потока по времени; сравнение с прошлым периодом; блок «По счетам»; экспорт отчёта в PDF и CSV
-- Покупки (Ещё → Покупки): списки с названием и комментарием, количеством, единицей и ценой; подсказки из каталога товаров; цены сохраняются при отметке «куплено»; «Закрыть закуп» создаёт один расход; архив; каталог товаров с историей и графиком цен
-- Ещё → Счета и Категории (цвет + сетка графических иконок)
-- Ещё → Безопасность: PIN из 4 цифр и вход по отпечатку (при запуске)
-- Ещё → Данные: **Экспорт** (резервная копия в JSON-файл: счета, категории, операции, покупки, основная валюта, бюджеты, регулярные операции), **Импорт** (полная замена данных из файла; также кнопка «Восстановить из файла» на первой странице онбординга), **Сбросить всё** (с вводом слова «СБРОС» / «RESET»)
-- Ещё → Настройки: основная валюта (метка), тема (системная, светлая, тёмная), язык (русский, English)
-- Виджет на домашний экран: баланс, расходы за месяц, кнопка «+ Расход» (суммы скрыты, пока включён PIN)
-- Ещё → Регулярные операции: расход или доход раз в неделю, месяц или год; «К оплате» на главной, подтверждение одним нажатием, уведомление около 9:00
-- Ещё → Бюджеты: месячный лимит по категории расхода, полоски, блок на главной и предупреждение при сохранении расхода
-- Ещё → Курсы и конвертер: ручные курсы, калькулятор, кнопка «Пересчитать» в формах расхода и дохода
+Current version: **0.1.0** (`versionCode` 27).
 
-## Сборка APK (GitHub Actions)
+## Features
 
-Сборка идёт в GitHub Actions: после push в `main` откройте **Actions → Build Dallet APK → Artifacts**. Там два файла: `Dallet-<versionName>` (APK для установки) и `Dallet-<versionName>-aab` (AAB для Google Play). Версия задаётся в `app/build.gradle.kts` (`versionName` / `versionCode`).
+- Paged onboarding with a welcome page, language choice and a progress bar: main currency (TMT, USD, EUR, RUB, TRY, CNY, KZT), account templates and starting balances
+- Home: total balance, monthly income and expenses, a "Due" block (recurring transactions), budgets near their limit, accounts in a row, latest expenses with category icons
+- "+": choose "One-off transaction" (Expense, Income, Transfer with date and time) or "Shopping list"
+- History: all transactions, edit and delete; transactions have a time (creation time by default)
+- Analytics: browse weeks, months and years; "Income | Expenses" switch for the donut and the flow over time; comparison with the previous period; "By account" block; report export to PDF and CSV
+- Shopping (More → Shopping): lists with a name and comment, quantity, unit and price; suggestions from the product catalog; prices are saved when an item is checked; "Close purchase" creates a single expense; archive; product catalog with price history and chart
+- More → Accounts and Categories (color + a grid of graphic icons)
+- More → Security: 4-digit PIN and fingerprint login (at app start)
+- More → Data: **Export** (JSON backup: accounts, categories, transactions, shopping, main currency, budgets, recurring transactions), **Import** (full replacement from a file; also a "Restore from file" button on the first onboarding page), **Reset everything** (requires typing "RESET")
+- More → Settings: main currency (a label), theme (system, light, dark), language (English, Russian)
+- Home screen widget: balance, monthly expenses, "+ Expense" button (amounts are hidden while the PIN is on)
+- More → Recurring transactions: an expense or income every week, month or year; "Due" on the home screen, one-tap confirmation, a notification around 9:00
+- More → Budgets: a monthly limit per expense category, progress bars, a home block and a warning when saving an expense
+- More → Rates and converter: manual exchange rates, a calculator, a "Convert" button in the expense and income forms
 
-CI подписывает релиз ключом из секретов репозитория (`DALLET_DEBUG_KEYSTORE_BASE64`, `DALLET_DEBUG_STORE_PASSWORD`, `DALLET_DEBUG_KEY_PASSWORD`, `DALLET_DEBUG_KEY_ALIAS`). Если вы собираете форк, создайте свой keystore и добавьте эти секреты.
+## Building the APK (GitHub Actions)
 
-Локально (нужны JDK 17 и Android SDK 36):
+Builds run in GitHub Actions: after a push to `main`, open **Actions → Build Dallet APK → Artifacts**. There are two files: `Dallet-<versionName>` (APK to install) and `Dallet-<versionName>-aab` (AAB for Google Play). The version is set in `app/build.gradle.kts` (`versionName` / `versionCode`).
+
+CI signs the release with a key from repository secrets (`DALLET_DEBUG_KEYSTORE_BASE64`, `DALLET_DEBUG_STORE_PASSWORD`, `DALLET_DEBUG_KEY_PASSWORD`, `DALLET_DEBUG_KEY_ALIAS`). If you build a fork, create your own keystore and add these secrets.
+
+Locally (JDK 17 and Android SDK 36 are required):
 
 ```bash
 gradle wrapper --gradle-version 8.13
 ./gradlew :app:assembleDebug
 ```
 
-## Где хранятся данные
+## Where data is stored
 
-| Что | Где |
-|-----|-----|
-| Счета, категории, операции, списки покупок, каталог товаров, история цен | База Room (`dallet.db`, версия 5) |
-| Основная валюта, тема, язык, курсы, бюджеты, регулярные операции | SharedPreferences `dallet_settings` |
-| Соль и хеш PIN, флаг отпечатка | Отдельные SharedPreferences (в резервную копию не входят) |
+| What | Where |
+|------|-------|
+| Accounts, categories, transactions, shopping lists, product catalog, price history | Room database (`dallet.db`, version 5) |
+| Main currency, theme, language, rates, budgets, recurring transactions | SharedPreferences `dallet_settings` |
+| PIN salt and hash, fingerprint flag | Separate SharedPreferences (not included in the backup) |
 
-Резервная копия (JSON, схема 2) содержит базу, основную валюту, бюджеты и регулярные операции. Курсы, тема, язык и PIN в неё не входят. Копия не шифруется. Приложению не нужен доступ в интернет.
+A backup (JSON, schema 2) contains the database, main currency, budgets and recurring transactions. Rates, theme, language and PIN are not included. The backup is not encrypted. The app needs no internet access.
 
-## Структура проекта
+## Project structure
 
 ```
 app/src/main/java/com/dallet/app/
-  DalletApplication.kt, MainActivity.kt   запуск, тема, язык без перезапуска, вход из виджета
-  AppStrings.kt                            строки на выбранном языке для ViewModel и PDF
-  CrashReporter.kt                         окно с ошибкой после вылета
-  ledger/    чистая логика без Android: Ledger (операции, счета, категории, бюджеты,
-             регулярные операции), Analytics, Report (CSV), Backup (JSON), Currency и
-             настройки, Rates (курсы), Recurring (расписание), Budget, Shopping
-  data/      Room: сущности, DAO, миграции, репозитории; SharedPreferencesSettingsStore
+  DalletApplication.kt, MainActivity.kt   startup, theme, language without restart, widget entry
+  AppStrings.kt                            strings in the chosen language for the ViewModel and PDF
+  CrashReporter.kt                         error dialog after a crash
+  ledger/    pure logic without Android: Ledger (transactions, accounts, categories, budgets,
+             recurring transactions), Analytics, Report (CSV), Backup (JSON), Currency and
+             settings, Rates, Recurring (schedule), Budget, Shopping
+  data/      Room: entities, DAOs, migrations, repositories; SharedPreferencesSettingsStore
   security/  PinLock, BiometricAuth
-  notify/    уведомления «К оплате» (WorkManager)
-  widget/    виджет на домашний экран
-  ui/        Compose: DalletApp (навигация), DalletViewModel, экраны по папкам
+  notify/    "Due" notifications (WorkManager)
+  widget/    home screen widget
+  ui/        Compose: DalletApp (navigation), DalletViewModel, screens by folder
              (home, add, edit, history, analytics, accounts, categories, shopping,
              budgets, recurring, rates, settings, security, lock, onboarding, report, more)
-app/src/main/res/values, values-en         строки на русском и английском
-app/src/test/java/com/dallet/app/          юнит-тесты логики (ledger, security)
+app/src/main/res/values, values-en         strings in Russian and English
+app/src/test/java/com/dallet/app/          unit tests for the logic (ledger, security)
 ```
 
-Логика отделена от Android: `Ledger` работает с интерфейсами репозиториев и настроек, в тестах подставляются версии в памяти, поэтому тесты идут без эмулятора.
+The logic is separated from Android: `Ledger` works with repository and settings interfaces, and tests use in-memory versions, so tests run without an emulator.
 
-## Тесты
+## Tests
 
-Юнит-тесты (`./gradlew testDebugUnitTest`) запускаются в GitHub Actions перед сборкой APK. Покрыты операции, переводы, аналитика и сравнение периодов, резервная копия и импорт, онбординг и шаблоны счетов, курсы и конвертер, бюджеты, регулярные операции и их расписание, покупки, отчёты, PIN. Экраны проверяются вручную на телефоне.
+Unit tests (`./gradlew testDebugUnitTest`) run in GitHub Actions before the APK is built. They cover transactions, transfers, analytics and period comparison, backup and import, onboarding and account templates, rates and converter, budgets, recurring transactions and their schedule, shopping, reports and PIN. Screens are checked manually on a phone.
 
-## Приватность
+## Privacy
 
-Dallet не собирает данные, не требует регистрации и не просит доступ в интернет. Нет рекламы и подписок. Подробнее: [PRIVACY.md](PRIVACY.md).
+Dallet collects no data, needs no sign-up and does not request internet access. No ads, no subscriptions. Details: [PRIVACY.md](PRIVACY.md).
 
-## Лицензия
+## License
 
-[GNU GPL v3](LICENSE). Форки и производные версии обязаны публиковать исходный код под той же лицензией.
+[GNU GPL v3](LICENSE). Forks and derivative versions must publish their source code under the same license.
 
-Название «Dallet» и иконка приложения не передаются по лицензии: форк должен называться иначе и использовать свою иконку.
+The name "Dallet" and the app icon are not licensed: a fork must use a different name and its own icon.
 
-## Поддержать проект
+## Support the project
 
-Приложение бесплатное, без рекламы и без платных функций. Если оно вам полезно, можно поддержать разработку добровольным донатом.
+The app is free, with no ads and no paid features. If it is useful to you, you can support development with a voluntary donation.
 
-<!-- TODO: добавить ссылку на Boosty или Ko-fi -->
+- Ko-fi: [ko-fi.com/dallet](https://ko-fi.com/dallet)
+<!-- TODO: add a Boosty link -->
 
-## Стек
+## Stack
 
 Kotlin, Jetpack Compose, Material 3, Room, WorkManager, App Widget, JDK 17.

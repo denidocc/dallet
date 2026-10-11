@@ -112,6 +112,9 @@
     <string name="import_dialog_title">Replace data?</string>
     <string name="import_dialog_text">All current data (accounts, categories, operations and shopping) will be replaced with data from the file.</string>
     <string name="import_choose_file">Choose file</string>
+    <string name="import_preview_summary">The file contains: %1$d accounts, %2$d categories, %3$d operations. All current data will be replaced.</string>
+    <string name="import_preview_empty">The file has no operations. It may be a backup of an empty app. Make sure you chose the right file.</string>
+    <string name="import_replace">Replace</string>
     <string name="dialog_export_first">Export first</string>
     <string name="dialog_cancel">Cancel</string>
     <string name="reset_dialog_title">Reset everything?</string>
