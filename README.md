@@ -6,7 +6,7 @@ Offline personal finance tracker for Android: accounts, categorized transactions
 
 **Free. No ads. No subscriptions. No accounts. No data collection. No internet permission.**
 
-Current version: **0.1.0** (`versionCode` 27).
+Current version: **0.2.0** (`versionCode` 28).
 
 ## Features
 
