@@ -35,6 +35,7 @@ import com.dallet.app.R
 import com.dallet.app.ledger.HistoryPeriod
 import com.dallet.app.ledger.OperationKind
 import com.dallet.app.ui.moneyText
+import com.dallet.app.ui.toSheetData
 import com.dallet.app.ui.HistoryDayUi
 import com.dallet.app.ui.HistoryKindUi
 import com.dallet.app.ui.HistoryRowUi
@@ -157,7 +158,7 @@ fun HistoryScreen(
     }
     if (showFilters) {
         HistoryFilterSheet(
-            state = state,
+            state = state.toSheetData(),
             onKindSelected = actions.onKindSelected,
             onAccountToggled = actions.onAccountToggled,
             onCategoryToggled = actions.onCategoryToggled,

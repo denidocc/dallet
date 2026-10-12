@@ -86,6 +86,7 @@ import com.dallet.app.ui.categories.CategoriesScreen
 import com.dallet.app.ui.categories.CategoryEditorScreen
 import com.dallet.app.ui.common.BackupFiles
 import com.dallet.app.ui.edit.EditOperationScreen
+import com.dallet.app.ui.comparison.ComparisonActions
 import com.dallet.app.ui.comparison.ComparisonScreen
 import com.dallet.app.ui.history.HistoryFilterActions
 import com.dallet.app.ui.history.HistoryScreen
@@ -528,7 +529,19 @@ private fun DalletAppContent(
                 )
             }
             composable(COMPARISON_ROUTE) {
-                ComparisonScreen(state = comparisonState)
+                ComparisonScreen(
+                    state = comparisonState,
+                    actions = ComparisonActions(
+                        onKindSelected = viewModel::onComparisonKindSelected,
+                        onAccountToggled = viewModel::onComparisonAccountToggled,
+                        onCategoryToggled = viewModel::onComparisonCategoryToggled,
+                        onPeriodSelected = viewModel::onComparisonPeriodSelected,
+                        onCustomPeriod = viewModel::onComparisonCustomPeriod,
+                        onResetSide = viewModel::clearComparisonSide,
+                        onPeriodVsPeriod = viewModel::applyPeriodVsPeriod,
+                        onCategoryVsCategory = viewModel::applyCategoryVsCategory
+                    )
+                )
             }
             composable(RECURRING_ROUTE) {
                 RecurringScreen(

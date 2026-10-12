@@ -46,6 +46,32 @@ data class Comparison(
 
 private fun roundedDivide(total: Long, days: Long): Long = (total + days / 2) / days
 
+/**
+ * "Period against period": both sides look at the same categories and accounts of side [a],
+ * so only the dates differ. The text query plays no part in a comparison.
+ */
+fun periodVsPeriod(a: OperationFilter, b: OperationFilter): Pair<OperationFilter, OperationFilter> =
+    a.copy(query = "") to b.copy(
+        query = "",
+        kind = a.kind,
+        accountIds = a.accountIds,
+        categoryIds = a.categoryIds
+    )
+
+/**
+ * "Category against category": both sides look at the same period and accounts of side [a],
+ * so only the categories differ.
+ */
+fun categoryVsCategory(a: OperationFilter, b: OperationFilter): Pair<OperationFilter, OperationFilter> =
+    a.copy(query = "") to b.copy(
+        query = "",
+        kind = a.kind,
+        accountIds = a.accountIds,
+        period = a.period,
+        customFrom = a.customFrom,
+        customTo = a.customTo
+    )
+
 internal fun buildComparison(
     a: OperationFilter,
     b: OperationFilter,

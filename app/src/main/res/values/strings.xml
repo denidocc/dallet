@@ -104,6 +104,9 @@
     <string name="analytics_period_custom">Свой</string>
     <string name="analytics_compare">Сравнить</string>
     <string name="comparison_title">Сравнение</string>
+    <string name="comparison_edit">Изменить</string>
+    <string name="comparison_period_vs_period">Период с периодом</string>
+    <string name="comparison_category_vs_category">Категория с категорией</string>
     <string name="comparison_days">%1$d дн.</string>
     <string name="comparison_average_day">в среднем в день: %1$s</string>
     <string name="comparison_difference">Разница (A − B)</string>

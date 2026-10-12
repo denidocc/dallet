@@ -28,7 +28,7 @@ import com.dallet.app.R
 import com.dallet.app.ledger.CategoryKind
 import com.dallet.app.ledger.HistoryPeriod
 import com.dallet.app.ledger.OperationKind
-import com.dallet.app.ui.HistoryUiState
+import com.dallet.app.ui.FilterSheetData
 import com.dallet.app.ui.common.DateRangePickerDialog
 import java.time.LocalDate
 
@@ -36,7 +36,7 @@ import java.time.LocalDate
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun HistoryFilterSheet(
-    state: HistoryUiState,
+    state: FilterSheetData,
     onKindSelected: (OperationKind?) -> Unit,
     onAccountToggled: (Long) -> Unit,
     onCategoryToggled: (Long) -> Unit,

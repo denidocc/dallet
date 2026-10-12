@@ -34,6 +34,8 @@ import com.dallet.app.ledger.Operation
 import com.dallet.app.ledger.HistoryPeriod
 import com.dallet.app.ledger.OperationFilter
 import com.dallet.app.ledger.OperationKind
+import com.dallet.app.ledger.categoryVsCategory
+import com.dallet.app.ledger.periodVsPeriod
 import com.dallet.app.ledger.SameAccountTransferException
 import com.dallet.app.ledger.ReportCsv
 import com.dallet.app.ledger.percentChange
@@ -238,9 +240,13 @@ data class OnboardingUiState(
 )
 
 /** One side of the comparison, ready to show. */
+enum class ComparisonSideId { A, B }
+
 data class ComparisonSideUi(
     val label: String,
     val periodLabel: String,
+    /** Kind, accounts and categories of the side as one line; empty when it has none. */
+    val restrictionsLabel: String,
     val days: Long,
     val incomeLabel: String,
     val expenseLabel: String,
@@ -265,6 +271,8 @@ data class ComparisonUiState(
     val loaded: Boolean = false,
     val a: ComparisonSideUi? = null,
     val b: ComparisonSideUi? = null,
+    val sheetA: FilterSheetData = FilterSheetData(),
+    val sheetB: FilterSheetData = FilterSheetData(),
     val expenseDiffLabel: String = "",
     val expenseDiffSign: Int = 0,
     val expenseChangePercent: Int? = null,
@@ -1578,20 +1586,124 @@ class DalletViewModel(
             OperationFilter(period = fallback)
         }
 
+    private fun comparisonFilter(side: ComparisonSideId): OperationFilter =
+        if (side == ComparisonSideId.A) comparisonA else comparisonB
+
+    private fun changeComparison(side: ComparisonSideId, change: (OperationFilter) -> OperationFilter) {
+        val changed = change(comparisonFilter(side))
+        if (side == ComparisonSideId.A) comparisonA = changed else comparisonB = changed
+        refreshComparison()
+    }
+
+    private fun Set<Long>.toggled(id: Long): Set<Long> = if (id in this) this - id else this + id
+
+    fun onComparisonKindSelected(side: ComparisonSideId, kind: OperationKind?) {
+        viewModelScope.launch {
+            val kept = categoriesKeptFor(kind, comparisonFilter(side).categoryIds)
+            changeComparison(side) { it.copy(kind = kind, categoryIds = kept) }
+        }
+    }
+
+    fun onComparisonAccountToggled(side: ComparisonSideId, accountId: Long) =
+        changeComparison(side) { it.copy(accountIds = it.accountIds.toggled(accountId)) }
+
+    fun onComparisonCategoryToggled(side: ComparisonSideId, categoryId: Long) =
+        changeComparison(side) { it.copy(categoryIds = it.categoryIds.toggled(categoryId)) }
+
+    /** Presets and "all time"; a custom period comes through [onComparisonCustomPeriod]. */
+    fun onComparisonPeriodSelected(side: ComparisonSideId, period: HistoryPeriod) {
+        if (period == HistoryPeriod.CUSTOM) return
+        changeComparison(side) { it.copy(period = period) }
+    }
+
+    fun onComparisonCustomPeriod(side: ComparisonSideId, from: LocalDate, to: LocalDate) {
+        if (to.isBefore(from)) return
+        changeComparison(side) {
+            it.copy(period = HistoryPeriod.CUSTOM, customFrom = from, customTo = to)
+        }
+    }
+
+    fun clearComparisonSide(side: ComparisonSideId) = changeComparison(side) { OperationFilter() }
+
+    fun applyPeriodVsPeriod() {
+        val (a, b) = periodVsPeriod(comparisonA, comparisonB)
+        comparisonA = a
+        comparisonB = b
+        refreshComparison()
+    }
+
+    fun applyCategoryVsCategory() {
+        val (a, b) = categoryVsCategory(comparisonA, comparisonB)
+        comparisonA = a
+        comparisonB = b
+        refreshComparison()
+    }
+
     private fun refreshComparison() {
         viewModelScope.launch {
             try {
-                _comparison.value = ledger.compare(comparisonA, comparisonB).toUi()
+                _comparison.value = buildComparisonUi()
             } catch (_: Exception) {
                 _comparison.value = ComparisonUiState()
             }
         }
     }
 
-    private fun Comparison.toUi(): ComparisonUiState {
-        fun sideUi(label: String, s: ComparisonSide) = ComparisonSideUi(
+    private suspend fun buildComparisonUi(): ComparisonUiState {
+        val result = ledger.compare(comparisonA, comparisonB)
+        val accountOptions = ledger.accountBalances().map { SelectableOption(it.account.id, it.account.name) }
+        val categoryOptions = ledger.categories(CategoryKind.EXPENSE).map {
+            HistoryCategoryOption(it.id, it.name, CategoryKind.EXPENSE)
+        } + ledger.categories(CategoryKind.INCOME).map {
+            HistoryCategoryOption(it.id, it.name, CategoryKind.INCOME)
+        }
+        return result.toUi(
+            sheetA = filterSheetData(comparisonA, accountOptions, categoryOptions),
+            sheetB = filterSheetData(comparisonB, accountOptions, categoryOptions),
+            restrictionsA = restrictionsLabel(comparisonA, accountOptions, categoryOptions),
+            restrictionsB = restrictionsLabel(comparisonB, accountOptions, categoryOptions)
+        )
+    }
+
+    private fun filterSheetData(
+        filter: OperationFilter,
+        accountOptions: List<SelectableOption>,
+        categoryOptions: List<HistoryCategoryOption>
+    ) = FilterSheetData(
+        kind = filter.kind,
+        period = filter.period,
+        customFrom = filter.customFrom,
+        customTo = filter.customTo,
+        customPeriodLabel = customPeriodLabel(filter.customFrom, filter.customTo),
+        selectedAccountIds = filter.accountIds,
+        selectedCategoryIds = filter.categoryIds,
+        accountOptions = accountOptions,
+        categoryOptions = categoryOptions
+    )
+
+    /** The restrictions of a side besides its dates, as one line; empty when there are none. */
+    private fun restrictionsLabel(
+        filter: OperationFilter,
+        accountOptions: List<SelectableOption>,
+        categoryOptions: List<HistoryCategoryOption>
+    ): String {
+        val parts = mutableListOf<String>()
+        filter.kind?.let { parts += strings.get(kindRes(it)) }
+        parts += accountOptions.filter { it.id in filter.accountIds }.map { it.label }
+        parts += categoryOptions.filter { it.id in filter.categoryIds }.map { it.label }
+        return parts.joinToString(", ")
+    }
+
+    private fun Comparison.toUi(
+        sheetA: FilterSheetData,
+        sheetB: FilterSheetData,
+        restrictionsA: String,
+        restrictionsB: String
+    ): ComparisonUiState {
+        fun sideUi(label: String, s: ComparisonSide, restrictions: String) = ComparisonSideUi(
             label = label,
             periodLabel = dateRangeLabel(s.from, s.to),
+            restrictionsLabel = restrictions,
             days = s.days,
             incomeLabel = Money.formatManat(s.incomeMinor),
             expenseLabel = Money.formatManat(s.expenseMinor),
@@ -1601,8 +1713,10 @@ class DalletViewModel(
         )
         return ComparisonUiState(
             loaded = true,
-            a = sideUi("A", a),
-            b = sideUi("B", b),
+            a = sideUi("A", a, restrictionsA),
+            b = sideUi("B", b, restrictionsB),
+            sheetA = sheetA,
+            sheetB = sheetB,
             expenseDiffLabel = signedMoney(expenseDiffMinor),
             expenseDiffSign = expenseDiffMinor.signum(),
             expenseChangePercent = expenseChangePercent,
@@ -1698,20 +1812,21 @@ class DalletViewModel(
         refreshHistory()
     }
 
+    /** The chosen categories that still make sense once the kind of operation is [kind]. */
+    private suspend fun categoriesKeptFor(kind: OperationKind?, chosen: Set<Long>): Set<Long> {
+        if (kind == null) return chosen
+        // Transfers have no category, and categories of the other kind can no longer match.
+        val wanted = when (kind) {
+            OperationKind.EXPENSE -> CategoryKind.EXPENSE
+            OperationKind.INCOME -> CategoryKind.INCOME
+            OperationKind.TRANSFER -> return emptySet()
+        }
+        return ledger.categories(wanted).map { it.id }.filter { it in chosen }.toSet()
+    }
+
     fun onHistoryKindSelected(kind: OperationKind?) {
         viewModelScope.launch {
-            val categoryKinds = ledger.categories(CategoryKind.EXPENSE).map { it.id to CategoryKind.EXPENSE } +
-                ledger.categories(CategoryKind.INCOME).map { it.id to CategoryKind.INCOME }
-            val kindByCategory = categoryKinds.toMap()
-            // Categories of another kind (or any category, for transfers) can no longer match.
-            val keptCategories: Set<Long> = when (kind) {
-                null -> historyFilter.categoryIds
-                OperationKind.TRANSFER -> emptySet()
-                OperationKind.EXPENSE ->
-                    historyFilter.categoryIds.filter { kindByCategory[it] == CategoryKind.EXPENSE }.toSet()
-                OperationKind.INCOME ->
-                    historyFilter.categoryIds.filter { kindByCategory[it] == CategoryKind.INCOME }.toSet()
-            }
+            val keptCategories = categoriesKeptFor(kind, historyFilter.categoryIds)
             historyFilter = historyFilter.copy(kind = kind, categoryIds = keptCategories)
             refreshHistory()
         }
