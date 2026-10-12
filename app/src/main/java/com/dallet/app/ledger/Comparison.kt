@@ -47,30 +47,30 @@ data class Comparison(
 private fun roundedDivide(total: Long, days: Long): Long = (total + days / 2) / days
 
 /**
- * "Period against period": both sides look at the same categories and accounts of side [a],
- * so only the dates differ. The text query plays no part in a comparison.
+ * "Period against period": side B becomes a copy of side [a] moved to the window before it, of
+ * the same length (October against September). When [a] has no dates ("all time") there is no
+ * window before it and B keeps A's period. The text query plays no part in a comparison.
  */
-fun periodVsPeriod(a: OperationFilter, b: OperationFilter): Pair<OperationFilter, OperationFilter> =
-    a.copy(query = "") to b.copy(
-        query = "",
-        kind = a.kind,
-        accountIds = a.accountIds,
-        categoryIds = a.categoryIds
+fun periodVsPeriod(a: OperationFilter, today: LocalDate): Pair<OperationFilter, OperationFilter> {
+    val first = a.copy(query = "")
+    val range = first.dateRange(today)
+    if (range == null || range.second.isBefore(range.first)) return first to first
+    val before = DateWindow(range.first, range.second).shifted(-1)
+    return first to first.copy(
+        period = HistoryPeriod.CUSTOM,
+        customFrom = before.from,
+        customTo = before.to
     )
+}
 
 /**
- * "Category against category": both sides look at the same period and accounts of side [a],
- * so only the categories differ.
+ * "Category against category": side B becomes a copy of side [a] (same period, accounts and
+ * kind) with no categories chosen yet, ready for the user to pick the ones to compare with.
  */
-fun categoryVsCategory(a: OperationFilter, b: OperationFilter): Pair<OperationFilter, OperationFilter> =
-    a.copy(query = "") to b.copy(
-        query = "",
-        kind = a.kind,
-        accountIds = a.accountIds,
-        period = a.period,
-        customFrom = a.customFrom,
-        customTo = a.customTo
-    )
+fun categoryVsCategory(a: OperationFilter): Pair<OperationFilter, OperationFilter> {
+    val first = a.copy(query = "")
+    return first to first.copy(categoryIds = emptySet())
+}
 
 internal fun buildComparison(
     a: OperationFilter,

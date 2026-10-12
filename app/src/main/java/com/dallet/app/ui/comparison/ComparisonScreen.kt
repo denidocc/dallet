@@ -74,7 +74,14 @@ fun ComparisonScreen(state: ComparisonUiState, actions: ComparisonActions) {
             OutlinedButton(onClick = actions.onPeriodVsPeriod, modifier = Modifier.weight(1f)) {
                 Text(stringResource(R.string.comparison_period_vs_period))
             }
-            OutlinedButton(onClick = actions.onCategoryVsCategory, modifier = Modifier.weight(1f)) {
+            OutlinedButton(
+                onClick = {
+                    actions.onCategoryVsCategory()
+                    // B starts without categories: let the user pick the ones to compare with.
+                    editing = ComparisonSideId.B
+                },
+                modifier = Modifier.weight(1f)
+            ) {
                 Text(stringResource(R.string.comparison_category_vs_category))
             }
         }

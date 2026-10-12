@@ -60,6 +60,7 @@
     <string name="history_found_summary">Found: %1$d · Expenses %2$s · Income %3$s</string>
     <string name="history_not_found">Nothing found</string>
     <string name="history_reset_filter">Reset filter</string>
+    <string name="home_shopping_hint">Shopping lists, archive and product catalog</string>
     <string name="history_clear_search">Clear search</string>
     <string name="history_filters">Filters</string>
     <string name="history_filters_count">Filters (%1$d)</string>

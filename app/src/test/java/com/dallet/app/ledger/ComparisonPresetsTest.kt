@@ -6,70 +6,96 @@ import java.time.LocalDate
 
 class ComparisonPresetsTest {
 
-    private val september = OperationFilter(
-        period = HistoryPeriod.CUSTOM,
-        customFrom = LocalDate.of(2026, 9, 1),
-        customTo = LocalDate.of(2026, 9, 30),
-        accountIds = setOf(1L),
-        categoryIds = setOf(10L, 11L)
-    )
+    private val today = LocalDate.of(2026, 10, 12)
 
     private val october = OperationFilter(
         period = HistoryPeriod.CUSTOM,
         customFrom = LocalDate.of(2026, 10, 1),
         customTo = LocalDate.of(2026, 10, 31),
-        accountIds = setOf(2L),
-        categoryIds = setOf(12L)
+        accountIds = setOf(1L),
+        categoryIds = setOf(10L, 11L),
+        kind = OperationKind.EXPENSE
     )
 
-    @Test
-    fun periodVsPeriod_giveBTheCategoriesAndAccountsOfA_keepingItsOwnDates() {
-        val (a, b) = periodVsPeriod(september, october)
+    // --- period against period ------------------------------------------------------------
 
-        assertThat(a).isEqualTo(september)
+    @Test
+    fun periodVsPeriod_bIsACopyOfA_shiftedToThePreviousWindowOfTheSameLength() {
+        val (a, b) = periodVsPeriod(october, today)
+
+        assertThat(a).isEqualTo(october)
         assertThat(b.categoryIds).containsExactly(10L, 11L)
         assertThat(b.accountIds).containsExactly(1L)
+        assertThat(b.kind).isEqualTo(OperationKind.EXPENSE)
+        assertThat(b.period).isEqualTo(HistoryPeriod.CUSTOM)
+        // October has 31 days, so the window before it is 31 days ending on September 30.
+        assertThat(b.customFrom).isEqualTo(LocalDate.of(2026, 8, 31))
+        assertThat(b.customTo).isEqualTo(LocalDate.of(2026, 9, 30))
+    }
+
+    @Test
+    fun periodVsPeriod_worksForAPresetPeriod() {
+        val thisMonth = OperationFilter(period = HistoryPeriod.THIS_MONTH, accountIds = setOf(2L))
+
+        val (a, b) = periodVsPeriod(thisMonth, today)
+
+        assertThat(a.period).isEqualTo(HistoryPeriod.THIS_MONTH)
+        assertThat(b.period).isEqualTo(HistoryPeriod.CUSTOM)
+        assertThat(b.customFrom).isEqualTo(LocalDate.of(2026, 8, 31))
+        assertThat(b.customTo).isEqualTo(LocalDate.of(2026, 9, 30))
+        assertThat(b.accountIds).containsExactly(2L)
+    }
+
+    @Test
+    fun periodVsPeriod_withNoDatesOnA_leavesTheDatesAlone() {
+        val allTime = OperationFilter(accountIds = setOf(3L))
+
+        val (a, b) = periodVsPeriod(allTime, today)
+
+        assertThat(b.period).isEqualTo(HistoryPeriod.ALL_TIME)
+        assertThat(b.accountIds).containsExactly(3L)
+        assertThat(a).isEqualTo(allTime)
+    }
+
+    @Test
+    fun periodVsPeriod_dropsTheTextOfBothSides() {
+        val (a, b) = periodVsPeriod(october.copy(query = "tea"), today)
+
+        assertThat(a.query).isEmpty()
+        assertThat(b.query).isEmpty()
+    }
+
+    // --- category against category ----------------------------------------------------------
+
+    @Test
+    fun categoryVsCategory_bIsACopyOfA_withoutCategories() {
+        val (a, b) = categoryVsCategory(october)
+
+        assertThat(a).isEqualTo(october)
+        assertThat(a.categoryIds).containsExactly(10L, 11L)
+        assertThat(b.categoryIds).isEmpty()
+        assertThat(b.accountIds).containsExactly(1L)
+        assertThat(b.kind).isEqualTo(OperationKind.EXPENSE)
         assertThat(b.period).isEqualTo(HistoryPeriod.CUSTOM)
         assertThat(b.customFrom).isEqualTo(LocalDate.of(2026, 10, 1))
         assertThat(b.customTo).isEqualTo(LocalDate.of(2026, 10, 31))
     }
 
     @Test
-    fun categoryVsCategory_giveBThePeriodAndAccountsOfA_keepingItsOwnCategories() {
-        val (a, b) = categoryVsCategory(september, october)
+    fun categoryVsCategory_keepsAPresetPeriodAsAPreset() {
+        val thisMonth = OperationFilter(period = HistoryPeriod.THIS_MONTH, categoryIds = setOf(1L))
 
-        assertThat(a).isEqualTo(september)
-        assertThat(b.categoryIds).containsExactly(12L)
-        assertThat(b.accountIds).containsExactly(1L)
-        assertThat(b.period).isEqualTo(HistoryPeriod.CUSTOM)
-        assertThat(b.customFrom).isEqualTo(LocalDate.of(2026, 9, 1))
-        assertThat(b.customTo).isEqualTo(LocalDate.of(2026, 9, 30))
+        val (_, b) = categoryVsCategory(thisMonth)
+
+        assertThat(b.period).isEqualTo(HistoryPeriod.THIS_MONTH)
+        assertThat(b.categoryIds).isEmpty()
     }
 
     @Test
-    fun categoryVsCategory_withPresetPeriod_copiesThePreset() {
-        val a = OperationFilter(period = HistoryPeriod.THIS_MONTH, categoryIds = setOf(1L))
-        val b = OperationFilter(categoryIds = setOf(2L))
+    fun categoryVsCategory_dropsTheTextOfBothSides() {
+        val (a, b) = categoryVsCategory(october.copy(query = "bread"))
 
-        val result = categoryVsCategory(a, b)
-
-        assertThat(result.second.period).isEqualTo(HistoryPeriod.THIS_MONTH)
-        assertThat(result.second.categoryIds).containsExactly(2L)
-    }
-
-    @Test
-    fun bothPresets_dropTheTextAndKindOfBothSides() {
-        val noisyA = september.copy(query = "tea", kind = OperationKind.EXPENSE)
-        val noisyB = october.copy(query = "bread", kind = OperationKind.INCOME)
-
-        val periods = periodVsPeriod(noisyA, noisyB)
-        val categories = categoryVsCategory(noisyA, noisyB)
-
-        assertThat(periods.first.query).isEmpty()
-        assertThat(periods.second.query).isEmpty()
-        assertThat(categories.first.query).isEmpty()
-        assertThat(categories.second.query).isEmpty()
-        assertThat(periods.second.kind).isEqualTo(OperationKind.EXPENSE)
-        assertThat(categories.second.kind).isEqualTo(OperationKind.EXPENSE)
+        assertThat(a.query).isEmpty()
+        assertThat(b.query).isEmpty()
     }
 }

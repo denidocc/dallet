@@ -1632,14 +1632,14 @@ class DalletViewModel(
     fun clearComparisonSide(side: ComparisonSideId) = changeComparison(side) { OperationFilter() }
 
     fun applyPeriodVsPeriod() {
-        val (a, b) = periodVsPeriod(comparisonA, comparisonB)
+        val (a, b) = periodVsPeriod(comparisonA, LocalDate.now())
         comparisonA = a
         comparisonB = b
         refreshComparison()
     }
 
     fun applyCategoryVsCategory() {
-        val (a, b) = categoryVsCategory(comparisonA, comparisonB)
+        val (a, b) = categoryVsCategory(comparisonA)
         comparisonA = a
         comparisonB = b
         refreshComparison()

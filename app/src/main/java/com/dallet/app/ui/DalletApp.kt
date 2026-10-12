@@ -445,6 +445,10 @@ private fun DalletAppContent(
                         viewModel.refreshBudgets()
                         navController.navigate(BUDGETS_ROUTE)
                     },
+                    onShoppingClick = {
+                        shoppingViewModel.refreshHub()
+                        navController.navigate(SHOPPING_ROUTE)
+                    },
                     onDueConfirm = { item, amount, onResult ->
                         viewModel.confirmDue(item.ruleId, item.dueDate, amount, onResult)
                     },

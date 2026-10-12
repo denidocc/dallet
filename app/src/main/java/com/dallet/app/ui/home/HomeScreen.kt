@@ -46,6 +46,7 @@ fun HomeScreen(
     state: HomeUiState,
     onExpenseClick: (Long) -> Unit,
     onBudgetsClick: () -> Unit,
+    onShoppingClick: () -> Unit,
     onDueConfirm: (DueItemUi, String, (Boolean) -> Unit) -> Unit,
     onDueSkip: (DueItemUi) -> Unit
 ) {
@@ -125,6 +126,18 @@ fun HomeScreen(
                     AccountCard(row)
                 }
             }
+        }
+
+        SurfaceCard(onClick = onShoppingClick) {
+            Text(
+                text = stringResource(R.string.more_shopping),
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = stringResource(R.string.home_shopping_hint),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {

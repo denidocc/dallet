@@ -60,6 +60,7 @@
     <string name="history_found_summary">Найдено: %1$d · Расходы %2$s · Доходы %3$s</string>
     <string name="history_not_found">Ничего не найдено</string>
     <string name="history_reset_filter">Сбросить фильтр</string>
+    <string name="home_shopping_hint">Списки покупок, архив и каталог товаров</string>
     <string name="history_clear_search">Очистить поиск</string>
     <string name="history_filters">Фильтры</string>
     <string name="history_filters_count">Фильтры (%1$d)</string>
