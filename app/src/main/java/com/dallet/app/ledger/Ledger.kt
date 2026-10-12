@@ -764,7 +764,7 @@ class Ledger(
                 if (days <= CUSTOM_DAILY_FLOW_MAX_DAYS) {
                     dailyFlow(fromInclusive, toInclusive, expenses)
                 } else {
-                    monthlyFlow(fromInclusive, toInclusive, expenses)
+                    blockFlow(fromInclusive, toInclusive, expenses)
                 }
             }
             AnalyticsPeriod.YEAR -> {
@@ -803,24 +803,31 @@ class Ledger(
         }.toList()
     }
 
-    /** One point per calendar month touched by the range, with the year in the label. */
-    private fun monthlyFlow(
+    /**
+     * One point per block of [CUSTOM_BLOCK_DAYS] days counted from the start of the range (the
+     * last block may be shorter). Windows of equal length get equal numbers of blocks, so the
+     * blocks of a window and of the one before it pair up one to one.
+     */
+    private fun blockFlow(
         fromInclusive: LocalDate,
         toInclusive: LocalDate,
         operations: List<Operation>
     ): List<ExpenseFlowPoint> {
-        val byMonth = operations.groupBy { YearMonth.from(it.date) }
-            .mapValues { (_, ops) -> ops.sumOf { it.amountMinor } }
-        return generateSequence(YearMonth.from(fromInclusive)) { month ->
-            val next = month.plusMonths(1)
-            if (next.isAfter(YearMonth.from(toInclusive))) null else next
-        }.map { month ->
+        val totalDays = ChronoUnit.DAYS.between(fromInclusive, toInclusive) + 1
+        val blockCount = ((totalDays + CUSTOM_BLOCK_DAYS - 1) / CUSTOM_BLOCK_DAYS).toInt()
+        val amounts = LongArray(blockCount)
+        operations.forEach { operation ->
+            val block = (ChronoUnit.DAYS.between(fromInclusive, operation.date) / CUSTOM_BLOCK_DAYS).toInt()
+            if (block in 0 until blockCount) amounts[block] += operation.amountMinor
+        }
+        return (0 until blockCount).map { block ->
+            val start = fromInclusive.plusDays(block * CUSTOM_BLOCK_DAYS)
             ExpenseFlowPoint(
-                bucketStart = month.atDay(1),
-                label = month.format(CUSTOM_MONTH_FLOW_LABEL),
-                amountMinor = byMonth[month] ?: 0L
+                bucketStart = start,
+                label = start.format(DAY_FLOW_LABEL),
+                amountMinor = amounts[block]
             )
-        }.toList()
+        }
     }
 
     private fun periodBounds(
@@ -887,10 +894,8 @@ class Ledger(
             DateTimeFormatter.ofPattern("d.M")
         private val MONTH_FLOW_LABEL: DateTimeFormatter =
             DateTimeFormatter.ofPattern("LLL", Locale.forLanguageTag("ru"))
-        private val CUSTOM_MONTH_FLOW_LABEL: DateTimeFormatter =
-            DateTimeFormatter.ofPattern("LLL yy", Locale.forLanguageTag("ru"))
-
-        /** A custom window up to this long is charted per day, a longer one per month. */
+        /** A custom window up to this long is charted per day, a longer one in blocks of days. */
         private const val CUSTOM_DAILY_FLOW_MAX_DAYS = 62L
+        private const val CUSTOM_BLOCK_DAYS = 30L
     }
 }

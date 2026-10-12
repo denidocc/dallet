@@ -173,7 +173,7 @@ class AnalyticsCustomPeriodTest {
     }
 
     @Test
-    fun longWindow_isShownMonthByMonth() = runTest {
+    fun longWindow_isShownIn30DayBlocks() = runTest {
         val f = fixture()
         f.ledger.addExpense(f.cashId, f.foodId, 100L, date(1, 15), null)
         f.ledger.addExpense(f.cashId, f.foodId, 200L, date(1, 20), null)
@@ -186,13 +186,13 @@ class AnalyticsCustomPeriodTest {
         )
 
         assertThat(summary.expenseFlow.map { it.bucketStart })
-            .containsExactly(date(1, 1), date(2, 1), date(3, 1), date(4, 1)).inOrder()
+            .containsExactly(date(1, 1), date(1, 31), date(3, 2), date(4, 1)).inOrder()
         assertThat(summary.expenseFlow.map { it.amountMinor })
             .containsExactly(300L, 0L, 700L, 0L).inOrder()
     }
 
     @Test
-    fun monthlyFlow_acrossYears_keepsEveryMonth() = runTest {
+    fun blocks_acrossYears_keepEveryOperation() = runTest {
         val f = fixture()
         f.ledger.addExpense(f.cashId, f.foodId, 100L, date(12, 30, 2026), null)
         f.ledger.addExpense(f.cashId, f.foodId, 900L, date(1, 2, 2027), null)
@@ -204,10 +204,51 @@ class AnalyticsCustomPeriodTest {
         )
 
         assertThat(summary.expenseFlow.map { it.bucketStart }).containsExactly(
-            date(11, 1, 2026), date(12, 1, 2026), date(1, 1, 2027), date(2, 1, 2027)
+            date(11, 1, 2026), date(12, 1, 2026), date(12, 31, 2026), date(1, 30, 2027)
         ).inOrder()
         assertThat(summary.expenseFlow.map { it.amountMinor })
             .containsExactly(0L, 100L, 900L, 0L).inOrder()
+        assertThat(summary.expenseFlow.sumOf { it.amountMinor }).isEqualTo(1_000L)
+    }
+
+    @Test
+    fun theLastBlock_mayBeShorter_andNothingIsLost() = runTest {
+        val f = fixture()
+        // 100 days: three full 30-day blocks and one of 10 days.
+        f.ledger.addExpense(f.cashId, f.foodId, 500L, date(1, 1), null)
+        f.ledger.addExpense(f.cashId, f.foodId, 800L, date(4, 10), null)
+
+        val summary = f.ledger.analytics(
+            AnalyticsPeriod.CUSTOM,
+            date(4, 10),
+            DateWindow(date(1, 1), date(4, 10))
+        )
+
+        assertThat(summary.expenseFlow).hasSize(4)
+        assertThat(summary.expenseFlow.first().amountMinor).isEqualTo(500L)
+        assertThat(summary.expenseFlow.last().amountMinor).isEqualTo(800L)
+    }
+
+    @Test
+    fun aWindowAndTheOneBeforeIt_haveTheSameNumberOfBlocks() = runTest {
+        val f = fixture()
+        f.ledger.addExpense(f.cashId, f.foodId, 100L, date(2, 10), null)
+
+        // Starting dates that fall in months of different lengths still give equal block counts.
+        listOf(date(1, 1), date(1, 31), date(2, 15), date(3, 1)).forEach { start ->
+            val window = DateWindow(start, start.plusDays(119))
+            val comparison = f.ledger.analyticsComparison(
+                period = AnalyticsPeriod.CUSTOM,
+                asOf = window.to,
+                today = date(12, 31),
+                window = window
+            )
+
+            assertThat(comparison.current.expenseFlow).hasSize(4)
+            assertThat(comparison.previous.expenseFlow).hasSize(4)
+            assertThat(comparison.current.incomeFlow).hasSize(4)
+            assertThat(comparison.previous.incomeFlow).hasSize(4)
+        }
     }
 
     // --- by account and report ----------------------------------------------------------

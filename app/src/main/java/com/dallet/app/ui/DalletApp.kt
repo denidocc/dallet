@@ -49,6 +49,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -451,6 +453,8 @@ private fun DalletAppContent(
             }
             composable(DalletDestination.History.route) {
                 LaunchedEffect(Unit) { viewModel.refreshHistory() }
+                // Back from the background, e.g. after midnight: "Today" must be recomputed.
+                LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refreshHistory() }
                 HistoryScreen(
                     state = historyState,
                     onOperationClick = ::openEdit,

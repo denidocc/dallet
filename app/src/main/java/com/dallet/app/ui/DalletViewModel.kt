@@ -1604,9 +1604,9 @@ class DalletViewModel(
     private fun Set<Long>.toggled(id: Long): Set<Long> = if (id in this) this - id else this + id
 
     fun onComparisonKindSelected(side: ComparisonSideId, kind: OperationKind?) {
-        viewModelScope.launch {
-            val kept = categoriesKeptFor(kind, comparisonFilter(side).categoryIds)
-            changeComparison(side) { it.copy(kind = kind, categoryIds = kept) }
+        val options = _comparison.value.sheetA.categoryOptions
+        changeComparison(side) {
+            it.copy(kind = kind, categoryIds = categoriesKeptFor(kind, it.categoryIds, options))
         }
     }
 
@@ -1818,8 +1818,15 @@ class DalletViewModel(
         refreshHistory()
     }
 
-    /** The chosen categories that still make sense once the kind of operation is [kind]. */
-    private suspend fun categoriesKeptFor(kind: OperationKind?, chosen: Set<Long>): Set<Long> {
+    /**
+     * The chosen categories that still make sense once the kind of operation is [kind].
+     * Pure on purpose: it runs in the tap handler, so taps cannot be applied out of order.
+     */
+    private fun categoriesKeptFor(
+        kind: OperationKind?,
+        chosen: Set<Long>,
+        options: List<HistoryCategoryOption>
+    ): Set<Long> {
         if (kind == null) return chosen
         // Transfers have no category, and categories of the other kind can no longer match.
         val wanted = when (kind) {
@@ -1827,15 +1834,16 @@ class DalletViewModel(
             OperationKind.INCOME -> CategoryKind.INCOME
             OperationKind.TRANSFER -> return emptySet()
         }
-        return ledger.categories(wanted).map { it.id }.filter { it in chosen }.toSet()
+        val allowed = options.filter { it.kind == wanted }.map { it.id }.toSet()
+        return chosen.filter { it in allowed }.toSet()
     }
 
     fun onHistoryKindSelected(kind: OperationKind?) {
-        viewModelScope.launch {
-            val keptCategories = categoriesKeptFor(kind, historyFilter.categoryIds)
-            historyFilter = historyFilter.copy(kind = kind, categoryIds = keptCategories)
-            refreshHistory()
-        }
+        historyFilter = historyFilter.copy(
+            kind = kind,
+            categoryIds = categoriesKeptFor(kind, historyFilter.categoryIds, _history.value.categoryOptions)
+        )
+        refreshHistory()
     }
 
     fun onHistoryAccountToggled(accountId: Long) {
