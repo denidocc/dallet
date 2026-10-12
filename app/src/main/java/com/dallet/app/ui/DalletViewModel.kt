@@ -28,6 +28,7 @@ import com.dallet.app.ledger.InvalidBackupException
 import com.dallet.app.ledger.Ledger
 import com.dallet.app.ledger.Money
 import com.dallet.app.ledger.Operation
+import com.dallet.app.ledger.OperationFilter
 import com.dallet.app.ledger.OperationKind
 import com.dallet.app.ledger.SameAccountTransferException
 import com.dallet.app.ledger.ReportCsv
@@ -36,6 +37,7 @@ import com.dallet.app.ledger.shiftAsOf
 import com.dallet.app.security.PinLock
 import com.dallet.app.ui.report.ReportPdf
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -164,8 +166,16 @@ data class ExpenseRowUi(
 )
 
 data class HistoryUiState(
-    val days: List<HistoryDayUi> = emptyList()
-)
+    val days: List<HistoryDayUi> = emptyList(),
+    val query: String = "",
+    /** False only when the ledger itself has no operations, as opposed to nothing being found. */
+    val hasOperations: Boolean = false,
+    val foundCount: Int = 0,
+    val foundIncomeLabel: String = "0.00",
+    val foundExpenseLabel: String = "0.00"
+) {
+    val isFiltered: Boolean get() = query.isNotBlank()
+}
 
 /** One day of the history: a header with the day's totals and its operations. */
 data class HistoryDayUi(
@@ -1418,24 +1428,45 @@ class DalletViewModel(
         }
     }
 
+    /** The filter stays while the app is open and is empty after a new start. */
+    private var historyFilter = OperationFilter()
+    private var historyJob: Job? = null
+
     fun refreshHistory() {
-        viewModelScope.launch {
+        historyJob?.cancel()
+        historyJob = viewModelScope.launch {
             try {
                 refreshHistoryInternal()
             } catch (_: Exception) {
-                _history.value = HistoryUiState()
+                _history.value = HistoryUiState(query = historyFilter.query)
             }
         }
     }
 
+    fun onHistoryQueryChange(text: String) {
+        historyFilter = historyFilter.copy(query = text)
+        // The text field reads the query from the state, so update it before the slower refresh.
+        _history.update { it.copy(query = text) }
+        refreshHistory()
+    }
+
+    fun clearHistoryFilter() {
+        historyFilter = OperationFilter()
+        _history.update { it.copy(query = "") }
+        refreshHistory()
+    }
+
     private suspend fun refreshHistoryInternal() {
+        val filter = historyFilter
         val expenseCategories = ledger.categories(CategoryKind.EXPENSE).associate { it.id to it.name }
         val incomeCategories = ledger.categories(CategoryKind.INCOME).associate { it.id to it.name }
         val accountNames = ledger.accountBalances().associate { it.account.id to it.account.name }
         val categoryNames = expenseCategories + incomeCategories
         val today = LocalDate.now()
+        val result = ledger.history(filter)
+        val hasOperations = if (filter.isEmpty) result.count > 0 else ledger.allOperations().isNotEmpty()
         _history.value = HistoryUiState(
-            days = ledger.history().days.map { day ->
+            days = result.days.map { day ->
                 HistoryDayUi(
                     dateKey = day.date.toEpochDay(),
                     title = dayTitle(day.date, today),
@@ -1443,7 +1474,12 @@ class DalletViewModel(
                     expenseLabel = day.expenseMinor.takeIf { it > 0L }?.let { Money.formatManat(it) },
                     rows = day.operations.map { op -> op.toHistoryRow(categoryNames, accountNames) }
                 )
-            }
+            },
+            query = _history.value.query,
+            hasOperations = hasOperations,
+            foundCount = result.count,
+            foundIncomeLabel = Money.formatManat(result.incomeMinor),
+            foundExpenseLabel = Money.formatManat(result.expenseMinor)
         )
     }
 

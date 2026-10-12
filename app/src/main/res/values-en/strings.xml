@@ -55,6 +55,10 @@
     <string name="add_save">Save</string>
     <string name="history_title">History</string>
     <string name="history_empty">No operations yet</string>
+    <string name="history_search_hint">Search operations</string>
+    <string name="history_found_summary">Found: %1$d · Expenses %2$s · Income %3$s</string>
+    <string name="history_not_found">Nothing found</string>
+    <string name="history_reset_filter">Reset filter</string>
     <string name="history_today">Today</string>
     <string name="history_yesterday">Yesterday</string>
     <string name="edit_title">Edit operation</string>

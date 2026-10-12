@@ -8,8 +8,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -27,7 +33,9 @@ import com.dallet.app.ui.theme.incomeAmountColor
 @Composable
 fun HistoryScreen(
     state: HistoryUiState,
-    onOperationClick: (Long) -> Unit
+    onOperationClick: (Long) -> Unit,
+    onQueryChange: (String) -> Unit,
+    onClearFilter: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -39,13 +47,58 @@ fun HistoryScreen(
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.padding(bottom = 16.dp)
         )
-        if (state.days.isEmpty()) {
+        if (state.hasOperations || state.isFiltered) {
+            OutlinedTextField(
+                value = state.query,
+                onValueChange = onQueryChange,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp),
+                singleLine = true,
+                placeholder = { Text(stringResource(R.string.history_search_hint)) },
+                trailingIcon = {
+                    if (state.isFiltered) {
+                        IconButton(onClick = onClearFilter) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = stringResource(R.string.history_reset_filter)
+                            )
+                        }
+                    }
+                }
+            )
+        }
+        if (state.isFiltered && state.days.isNotEmpty()) {
+            Text(
+                text = stringResource(
+                    R.string.history_found_summary,
+                    state.foundCount,
+                    moneyText(state.foundExpenseLabel),
+                    moneyText(state.foundIncomeLabel)
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
+        if (!state.hasOperations) {
             SurfaceCard {
                 Text(
                     text = stringResource(R.string.history_empty),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+        } else if (state.days.isEmpty()) {
+            SurfaceCard {
+                Text(
+                    text = stringResource(R.string.history_not_found),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                TextButton(onClick = onClearFilter) {
+                    Text(stringResource(R.string.history_reset_filter))
+                }
             }
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {

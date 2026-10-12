@@ -447,7 +447,9 @@ private fun DalletAppContent(
                 LaunchedEffect(Unit) { viewModel.refreshHistory() }
                 HistoryScreen(
                     state = historyState,
-                    onOperationClick = ::openEdit
+                    onOperationClick = ::openEdit,
+                    onQueryChange = viewModel::onHistoryQueryChange,
+                    onClearFilter = viewModel::clearHistoryFilter
                 )
             }
             composable(DalletDestination.Add.route) {

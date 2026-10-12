@@ -21,6 +21,36 @@ data class HistoryResult(
     val expenseMinor: Long
 )
 
+/**
+ * Narrows the history. An empty filter lets everything through.
+ * The text is matched case-insensitively as a substring of the comment, the category name,
+ * the account name (both accounts of a transfer) and the amount as shown to the user.
+ */
+data class OperationFilter(
+    val query: String = ""
+) {
+    val isEmpty: Boolean get() = query.isBlank()
+}
+
+internal fun OperationFilter.matches(
+    operation: Operation,
+    accountNames: Map<Long, String>,
+    categoryNames: Map<Long, String>
+): Boolean {
+    val text = query.trim().lowercase()
+    if (text.isEmpty()) return true
+    val amountText = text.replace(',', '.')
+    val candidates = listOfNotNull(
+        operation.comment,
+        operation.categoryId?.let { categoryNames[it] },
+        operation.accountId?.let { accountNames[it] },
+        operation.fromAccountId?.let { accountNames[it] },
+        operation.toAccountId?.let { accountNames[it] }
+    )
+    return candidates.any { it.lowercase().contains(text) } ||
+        Money.formatManat(operation.amountMinor).contains(amountText)
+}
+
 /** Groups [operations], which must already be sorted newest first, into days. */
 internal fun groupHistory(operations: List<Operation>): HistoryResult {
     val days = operations
