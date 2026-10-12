@@ -268,7 +268,13 @@ class ShoppingService(
         summaries().filter { it.list.isClosed }.sortedByDescending { it.list.closedAt }
 
     suspend fun detail(listId: Long): ShoppingListDetail? {
-        val list = repository.list(listId) ?: return null
+        var list = repository.list(listId) ?: return null
+        val linked = list.operationId
+        if (linked != null && ledger.operation(linked) == null) {
+            // The expense is gone (deleted before the link was cleared with it): drop the stale link.
+            list = list.copy(operationId = null)
+            repository.updateList(list)
+        }
         return ShoppingListDetail(list, sortedItems(listId))
     }
 

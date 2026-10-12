@@ -48,7 +48,16 @@ class Ledger(
     suspend fun importBackup(json: String) {
         val data = BackupCodec.decode(json)
         BackupCodec.validate(data)
-        dataStore.replaceAll(data.accounts, data.categories, data.operations, data.shopping)
+        // A purchase may point at an expense that was deleted by hand (older copies keep that
+        // link); drop it, or a later expense reusing the id would be taken for the purchase's.
+        val operationIds = data.operations.map { it.id }.toSet()
+        val shopping = data.shopping.copy(
+            lists = data.shopping.lists.map { list ->
+                val linked = list.operationId
+                if (linked != null && linked !in operationIds) list.copy(operationId = null) else list
+            }
+        )
+        dataStore.replaceAll(data.accounts, data.categories, data.operations, shopping)
         settings.saveRates(emptyList())
         settings.setMainCurrency(data.mainCurrency)
         settings.saveBudgets(data.budgets)

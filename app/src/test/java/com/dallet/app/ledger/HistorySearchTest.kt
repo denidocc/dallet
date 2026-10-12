@@ -107,6 +107,16 @@ class HistorySearchTest {
     }
 
     @Test
+    fun aLonePunctuationMark_doesNotMatchEveryAmount() = runTest {
+        val f = fixture()
+        f.ledger.addExpense(f.cashId, f.foodId, 1_000L, day1, "хлеб")
+        f.ledger.addExpense(f.cashId, f.foodId, 2_000L, day1, "чай, сахар")
+
+        assertThat(f.ledger.found(".")).isEmpty()
+        assertThat(f.ledger.found(",")).containsExactly("чай, сахар")
+    }
+
+    @Test
     fun noMatch_givesEmptyResult() = runTest {
         val f = fixture()
         f.ledger.addExpense(f.cashId, f.foodId, 1_000L, day1, "хлеб")

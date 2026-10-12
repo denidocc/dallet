@@ -14,10 +14,11 @@ class PurchaseExpenseTest {
 
     private class Env {
         val shoppingRepository = InMemoryShoppingRepository()
+        val operationRepository = InMemoryOperationRepository()
         val ledger = Ledger(
             accountRepository = InMemoryAccountRepository(),
             categoryRepository = InMemoryCategoryRepository(),
-            operationRepository = InMemoryOperationRepository(),
+            operationRepository = operationRepository,
             shoppingRepository = shoppingRepository
         )
         val service = ShoppingService(ledger, shoppingRepository)
@@ -185,6 +186,45 @@ class PurchaseExpenseTest {
         assertThat(env.service.detail(deleted)!!.expenseDeleted).isTrue()
         assertThat(env.service.detail(zeroTotal)!!.expenseDeleted).isFalse()
         assertThat(env.service.detail(open)!!.expenseDeleted).isFalse()
+    }
+
+    @Test
+    fun aStaleLink_isDroppedWhenThePurchaseIsOpened() = runTest {
+        val env = readyEnv()
+        val listId = env.closedPurchase()
+        // Deleted behind the ledger's back, as before links were cleared with the expense.
+        env.operationRepository.delete(env.expenseOf(listId))
+
+        val detail = env.service.detail(listId)!!
+
+        assertThat(detail.list.operationId).isNull()
+        assertThat(detail.expenseDeleted).isTrue()
+        assertThat(env.service.detail(listId)!!.list.operationId).isNull()
+    }
+
+    @Test
+    fun aStaleLink_isDroppedOnImport() = runTest {
+        val source = readyEnv()
+        val listId = source.closedPurchase()
+        source.operationRepository.delete(source.expenseOf(listId))
+        val target = Env()
+
+        target.ledger.importBackup(source.ledger.exportBackup())
+
+        assertThat(target.service.detail(listId)!!.list.operationId).isNull()
+        assertThat(target.shoppingRepository.list(listId)!!.operationId).isNull()
+    }
+
+    @Test
+    fun aLiveLink_survivesImport() = runTest {
+        val source = readyEnv()
+        val listId = source.closedPurchase()
+        val operationId = source.expenseOf(listId)
+        val target = Env()
+
+        target.ledger.importBackup(source.ledger.exportBackup())
+
+        assertThat(target.service.detail(listId)!!.list.operationId).isEqualTo(operationId)
     }
 
     @Test

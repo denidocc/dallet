@@ -7,6 +7,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -66,6 +68,7 @@ import java.time.LocalDate
 import java.util.Locale
 import kotlin.math.abs
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AnalyticsScreen(
     state: AnalyticsUiState,
@@ -109,7 +112,8 @@ fun AnalyticsScreen(
             text = stringResource(R.string.analytics_title),
             style = MaterialTheme.typography.titleLarge
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        // Four chips do not fit one line on a narrow phone, so they may wrap.
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(
                 selected = state.period == AnalyticsPeriod.WEEK,
                 onClick = { onPeriodSelected(AnalyticsPeriod.WEEK) },

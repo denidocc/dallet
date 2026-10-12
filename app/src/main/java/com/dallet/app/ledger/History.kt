@@ -102,7 +102,6 @@ private fun OperationFilter.matchesText(
 ): Boolean {
     val text = query.trim().lowercase()
     if (text.isEmpty()) return true
-    val amountText = text.replace(',', '.')
     val candidates = listOfNotNull(
         operation.comment,
         operation.categoryId?.let { categoryNames[it] },
@@ -110,8 +109,10 @@ private fun OperationFilter.matchesText(
         operation.fromAccountId?.let { accountNames[it] },
         operation.toAccountId?.let { accountNames[it] }
     )
-    return candidates.any { it.lowercase().contains(text) } ||
-        Money.formatManat(operation.amountMinor).contains(amountText)
+    if (candidates.any { it.lowercase().contains(text) }) return true
+    // A query without a digit (a lone "." or ",") must not match every amount.
+    val amountText = text.replace(',', '.')
+    return amountText.any { it.isDigit() } && Money.formatManat(operation.amountMinor).contains(amountText)
 }
 
 /** Groups [operations], which must already be sorted newest first, into days. */

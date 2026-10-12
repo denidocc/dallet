@@ -789,6 +789,12 @@ class DalletViewModel(
         _recurringEditor.value = RecurringEditorUiState()
         _accountEditor.value = AccountEditorUiState()
         _categoryEditor.value = CategoryEditorUiState()
+        // Filters hold account and category ids that mean nothing after an import or a reset.
+        historyFilter = OperationFilter()
+        _history.value = HistoryUiState()
+        comparisonA = OperationFilter()
+        comparisonB = OperationFilter()
+        _comparison.value = ComparisonUiState()
     }
 
     fun consumeBudgetWarning() {
@@ -1529,10 +1535,7 @@ class DalletViewModel(
             AnalyticsPeriod.MONTH -> from.format(DateTimeFormatter.ofPattern("LLLL yyyy", ru))
                 .replaceFirstChar { it.uppercase() }
             AnalyticsPeriod.YEAR -> from.year.toString()
-            AnalyticsPeriod.CUSTOM -> {
-                val format = DateTimeFormatter.ofPattern("d MMM yyyy", ru)
-                if (from == to) from.format(format) else "${from.format(format)} — ${to.format(format)}"
-            }
+            AnalyticsPeriod.CUSTOM -> dateRangeLabel(from, to)
         }
     }
 
@@ -1853,10 +1856,11 @@ class DalletViewModel(
 
     private suspend fun refreshHistoryInternal() {
         val filter = historyFilter
-        val expenseCategories = ledger.categories(CategoryKind.EXPENSE).associate { it.id to it.name }
-        val incomeCategories = ledger.categories(CategoryKind.INCOME).associate { it.id to it.name }
-        val accountNames = ledger.accountBalances().associate { it.account.id to it.account.name }
-        val categoryNames = expenseCategories + incomeCategories
+        val expenseCategories = ledger.categories(CategoryKind.EXPENSE)
+        val incomeCategories = ledger.categories(CategoryKind.INCOME)
+        val accounts = ledger.accountBalances().map { it.account }
+        val accountNames = accounts.associate { it.id to it.name }
+        val categoryNames = (expenseCategories + incomeCategories).associate { it.id to it.name }
         val today = LocalDate.now()
         val result = ledger.history(filter)
         val hasOperations = if (filter.isEmpty) result.count > 0 else ledger.allOperations().isNotEmpty()
@@ -1882,20 +1886,17 @@ class DalletViewModel(
             customPeriodLabel = customPeriodLabel(filter.customFrom, filter.customTo),
             selectedAccountIds = filter.accountIds,
             selectedCategoryIds = filter.categoryIds,
-            accountOptions = ledger.accountBalances().map { SelectableOption(it.account.id, it.account.name) },
-            categoryOptions = ledger.categories(CategoryKind.EXPENSE).map {
+            accountOptions = accounts.map { SelectableOption(it.id, it.name) },
+            categoryOptions = expenseCategories.map {
                 HistoryCategoryOption(it.id, it.name, CategoryKind.EXPENSE)
-            } + ledger.categories(CategoryKind.INCOME).map {
+            } + incomeCategories.map {
                 HistoryCategoryOption(it.id, it.name, CategoryKind.INCOME)
             }
         )
     }
 
-    private fun customPeriodLabel(from: LocalDate?, to: LocalDate?): String? {
-        if (from == null || to == null) return null
-        val format = DateTimeFormatter.ofPattern("d MMM yyyy", strings.locale)
-        return if (from == to) from.format(format) else "${from.format(format)} – ${to.format(format)}"
-    }
+    private fun customPeriodLabel(from: LocalDate?, to: LocalDate?): String? =
+        if (from == null || to == null) null else dateRangeLabel(from, to)
 
     private fun dayTitle(date: LocalDate, today: LocalDate): String = when (date) {
         today -> strings.get(R.string.history_today)
