@@ -400,6 +400,9 @@ class Ledger(
         operationRepository.getAll()
             .sortedWith(compareByDescending<Operation> { it.date }.thenByDescending { it.time ?: LocalTime.MIN }.thenByDescending { it.id })
 
+    /** All operations grouped by day, newest first. */
+    suspend fun history(): HistoryResult = groupHistory(allOperations())
+
     suspend fun operation(operationId: Long): Operation? =
         operationRepository.getAll().firstOrNull { it.id == operationId }
 

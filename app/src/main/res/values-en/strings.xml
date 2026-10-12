@@ -55,6 +55,8 @@
     <string name="add_save">Save</string>
     <string name="history_title">History</string>
     <string name="history_empty">No operations yet</string>
+    <string name="history_today">Today</string>
+    <string name="history_yesterday">Yesterday</string>
     <string name="edit_title">Edit operation</string>
     <string name="edit_loading">Loading…</string>
     <string name="edit_save">Save</string>

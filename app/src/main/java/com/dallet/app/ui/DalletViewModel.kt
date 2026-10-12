@@ -164,7 +164,16 @@ data class ExpenseRowUi(
 )
 
 data class HistoryUiState(
-    val rows: List<HistoryRowUi> = emptyList()
+    val days: List<HistoryDayUi> = emptyList()
+)
+
+/** One day of the history: a header with the day's totals and its operations. */
+data class HistoryDayUi(
+    val dateKey: Long,
+    val title: String,
+    val incomeLabel: String?,
+    val expenseLabel: String?,
+    val rows: List<HistoryRowUi>
 )
 
 data class HistoryRowUi(
@@ -1423,11 +1432,28 @@ class DalletViewModel(
         val expenseCategories = ledger.categories(CategoryKind.EXPENSE).associate { it.id to it.name }
         val incomeCategories = ledger.categories(CategoryKind.INCOME).associate { it.id to it.name }
         val accountNames = ledger.accountBalances().associate { it.account.id to it.account.name }
+        val categoryNames = expenseCategories + incomeCategories
+        val today = LocalDate.now()
         _history.value = HistoryUiState(
-            rows = ledger.allOperations().map { op ->
-                op.toHistoryRow(expenseCategories + incomeCategories, accountNames)
+            days = ledger.history().days.map { day ->
+                HistoryDayUi(
+                    dateKey = day.date.toEpochDay(),
+                    title = dayTitle(day.date, today),
+                    incomeLabel = day.incomeMinor.takeIf { it > 0L }?.let { Money.formatManat(it) },
+                    expenseLabel = day.expenseMinor.takeIf { it > 0L }?.let { Money.formatManat(it) },
+                    rows = day.operations.map { op -> op.toHistoryRow(categoryNames, accountNames) }
+                )
             }
         )
+    }
+
+    private fun dayTitle(date: LocalDate, today: LocalDate): String = when (date) {
+        today -> strings.get(R.string.history_today)
+        today.minusDays(1) -> strings.get(R.string.history_yesterday)
+        else -> {
+            val pattern = if (date.year == today.year) "d MMMM" else "d MMMM yyyy"
+            date.format(DateTimeFormatter.ofPattern(pattern, strings.locale))
+        }
     }
 
     fun prepareAddExpense() {
@@ -1845,7 +1871,11 @@ class DalletViewModel(
             kind = kindUi,
             kindLabel = kindLabel,
             title = title,
-            subtitle = listOf(accountPart, dateTimeLabel(strings.locale), comment.orEmpty())
+            subtitle = listOf(
+                accountPart,
+                time?.format(TIME_FORMAT).orEmpty(),
+                comment.orEmpty()
+            )
                 .filter { it.isNotBlank() }
                 .joinToString(" · "),
             amountLabel = Money.formatManat(amountMinor)

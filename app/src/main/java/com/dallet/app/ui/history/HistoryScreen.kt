@@ -16,6 +16,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dallet.app.R
 import com.dallet.app.ui.moneyText
+import com.dallet.app.ui.HistoryDayUi
 import com.dallet.app.ui.HistoryKindUi
 import com.dallet.app.ui.HistoryRowUi
 import com.dallet.app.ui.HistoryUiState
@@ -38,7 +39,7 @@ fun HistoryScreen(
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.padding(bottom = 16.dp)
         )
-        if (state.rows.isEmpty()) {
+        if (state.days.isEmpty()) {
             SurfaceCard {
                 Text(
                     text = stringResource(R.string.history_empty),
@@ -48,11 +49,46 @@ fun HistoryScreen(
             }
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(state.rows, key = { it.id }) { row ->
-                    SurfaceCard(onClick = { onOperationClick(row.id) }) {
-                        HistoryRow(row = row)
+                state.days.forEach { day ->
+                    item(key = "day-${day.dateKey}") { DayHeader(day = day) }
+                    items(day.rows, key = { it.id }) { row ->
+                        SurfaceCard(onClick = { onOperationClick(row.id) }) {
+                            HistoryRow(row = row)
+                        }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DayHeader(day: HistoryDayUi) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = day.title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            day.incomeLabel?.let {
+                Text(
+                    text = "+" + moneyText(it),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = incomeAmountColor()
+                )
+            }
+            day.expenseLabel?.let {
+                Text(
+                    text = "−" + moneyText(it),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = expenseAmountColor()
+                )
             }
         }
     }

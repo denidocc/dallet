@@ -55,6 +55,8 @@
     <string name="add_save">Сохранить</string>
     <string name="history_title">История</string>
     <string name="history_empty">Пока нет операций</string>
+    <string name="history_today">Сегодня</string>
+    <string name="history_yesterday">Вчера</string>
     <string name="edit_title">Изменить операцию</string>
     <string name="edit_loading">Загрузка…</string>
     <string name="edit_save">Сохранить</string>
