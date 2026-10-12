@@ -11,6 +11,7 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -115,7 +116,7 @@ fun AddExpenseScreen(
         )
         if (state.kind != AddOperationKind.TRANSFER) {
             var showConvert by remember { mutableStateOf(false) }
-            TextButton(onClick = { showConvert = true }) {
+            OutlinedButton(onClick = { showConvert = true }) {
                 Text(stringResource(R.string.rates_convert))
             }
             if (showConvert) {

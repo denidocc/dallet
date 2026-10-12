@@ -622,11 +622,23 @@ private fun DalletAppContent(
                         onDeleteList = {
                             shoppingViewModel.deleteList(listId) { navController.popBackStack() }
                         },
-                        onGoHome = { navigateTo(DalletDestination.Home) },
-                        onGoShopping = {
-                            navController.navigate(SHOPPING_ROUTE) {
-                                popUpTo(SHOPPING_ROUTE) { inclusive = true }
+                        onGoHome = {
+                            navController.navigate(DalletDestination.Home.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    inclusive = false
+                                }
+                                launchSingleTop = true
                             }
+                        },
+                        onGoShopping = {
+                            // «Ещё» кладём под Покупки, чтобы «назад» вёл на «Ещё», а не обратно в закуп.
+                            navController.navigate(DalletDestination.More.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    inclusive = false
+                                }
+                                launchSingleTop = true
+                            }
+                            navController.navigate(SHOPPING_ROUTE)
                         },
                         onOpenExpense = { id -> openEdit(id) }
                     )

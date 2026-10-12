@@ -15,6 +15,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -121,7 +122,7 @@ fun EditOperationScreen(
         )
         if (state.kind != OperationKind.TRANSFER) {
             var showConvert by remember { mutableStateOf(false) }
-            TextButton(onClick = { showConvert = true }) {
+            OutlinedButton(onClick = { showConvert = true }) {
                 Text(stringResource(R.string.rates_convert))
             }
             if (showConvert) {
