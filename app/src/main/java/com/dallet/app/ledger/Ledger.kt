@@ -5,6 +5,7 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import java.time.temporal.TemporalAdjusters
 import java.util.Locale
 
@@ -607,9 +608,14 @@ class Ledger(
         categoryRepository.delete(categoryId)
     }
 
-    suspend fun analytics(period: AnalyticsPeriod, asOf: LocalDate): AnalyticsSummary {
+    /** [window] is required for [AnalyticsPeriod.CUSTOM] and ignored for the calendar periods. */
+    suspend fun analytics(
+        period: AnalyticsPeriod,
+        asOf: LocalDate,
+        window: DateWindow? = null
+    ): AnalyticsSummary {
         ensureCategoriesSeeded()
-        val (fromInclusive, toInclusive) = periodBounds(period, asOf)
+        val (fromInclusive, toInclusive) = periodBounds(period, asOf, window)
         val inPeriod = operationRepository.getAll().filter { operation ->
             !operation.date.isBefore(fromInclusive) && !operation.date.isAfter(toInclusive)
         }
@@ -644,10 +650,11 @@ class Ledger(
     suspend fun analyticsComparison(
         period: AnalyticsPeriod,
         asOf: LocalDate,
-        today: LocalDate
+        today: LocalDate,
+        window: DateWindow? = null
     ): AnalyticsComparison {
-        val current = analytics(period, asOf)
-        val previous = analytics(period, shiftAsOf(period, asOf, -1))
+        val current = analytics(period, asOf, window)
+        val previous = analytics(period, shiftAsOf(period, asOf, -1), window?.shifted(-1))
         return AnalyticsComparison(
             current = current,
             previous = previous,
@@ -658,9 +665,10 @@ class Ledger(
     suspend fun periodReport(
         period: AnalyticsPeriod,
         asOf: LocalDate,
-        today: LocalDate
+        today: LocalDate,
+        window: DateWindow? = null
     ): PeriodReport {
-        val comparison = analyticsComparison(period, asOf, today)
+        val comparison = analyticsComparison(period, asOf, today, window)
         val from = comparison.current.fromInclusive
         val to = comparison.current.toInclusive
         val accountNames = accountRepository.getAll().associate { it.id to it.name }
@@ -713,20 +721,15 @@ class Ledger(
         expenses: List<Operation>
     ): List<ExpenseFlowPoint> {
         return when (period) {
-            AnalyticsPeriod.WEEK, AnalyticsPeriod.MONTH -> {
-                val byDay = expenses.groupBy { it.date }.mapValues { (_, ops) ->
-                    ops.sumOf { it.amountMinor }
+            AnalyticsPeriod.WEEK, AnalyticsPeriod.MONTH ->
+                dailyFlow(fromInclusive, toInclusive, expenses)
+            AnalyticsPeriod.CUSTOM -> {
+                val days = ChronoUnit.DAYS.between(fromInclusive, toInclusive) + 1
+                if (days <= CUSTOM_DAILY_FLOW_MAX_DAYS) {
+                    dailyFlow(fromInclusive, toInclusive, expenses)
+                } else {
+                    monthlyFlow(fromInclusive, toInclusive, expenses)
                 }
-                generateSequence(fromInclusive) { date ->
-                    val next = date.plusDays(1)
-                    if (next.isAfter(toInclusive)) null else next
-                }.map { day ->
-                    ExpenseFlowPoint(
-                        bucketStart = day,
-                        label = day.format(DAY_FLOW_LABEL),
-                        amountMinor = byDay[day] ?: 0L
-                    )
-                }.toList()
             }
             AnalyticsPeriod.YEAR -> {
                 val byMonth = expenses.groupBy { YearMonth.from(it.date) }
@@ -744,8 +747,56 @@ class Ledger(
         }
     }
 
-    private fun periodBounds(period: AnalyticsPeriod, asOf: LocalDate): Pair<LocalDate, LocalDate> {
+    private fun dailyFlow(
+        fromInclusive: LocalDate,
+        toInclusive: LocalDate,
+        operations: List<Operation>
+    ): List<ExpenseFlowPoint> {
+        val byDay = operations.groupBy { it.date }.mapValues { (_, ops) ->
+            ops.sumOf { it.amountMinor }
+        }
+        return generateSequence(fromInclusive) { date ->
+            val next = date.plusDays(1)
+            if (next.isAfter(toInclusive)) null else next
+        }.map { day ->
+            ExpenseFlowPoint(
+                bucketStart = day,
+                label = day.format(DAY_FLOW_LABEL),
+                amountMinor = byDay[day] ?: 0L
+            )
+        }.toList()
+    }
+
+    /** One point per calendar month touched by the range, with the year in the label. */
+    private fun monthlyFlow(
+        fromInclusive: LocalDate,
+        toInclusive: LocalDate,
+        operations: List<Operation>
+    ): List<ExpenseFlowPoint> {
+        val byMonth = operations.groupBy { YearMonth.from(it.date) }
+            .mapValues { (_, ops) -> ops.sumOf { it.amountMinor } }
+        return generateSequence(YearMonth.from(fromInclusive)) { month ->
+            val next = month.plusMonths(1)
+            if (next.isAfter(YearMonth.from(toInclusive))) null else next
+        }.map { month ->
+            ExpenseFlowPoint(
+                bucketStart = month.atDay(1),
+                label = month.format(CUSTOM_MONTH_FLOW_LABEL),
+                amountMinor = byMonth[month] ?: 0L
+            )
+        }.toList()
+    }
+
+    private fun periodBounds(
+        period: AnalyticsPeriod,
+        asOf: LocalDate,
+        window: DateWindow?
+    ): Pair<LocalDate, LocalDate> {
         return when (period) {
+            AnalyticsPeriod.CUSTOM -> {
+                require(window != null) { "a custom period needs a window" }
+                window.from to window.to
+            }
             AnalyticsPeriod.WEEK -> {
                 val from = asOf.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
                 val to = asOf.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY))
@@ -800,5 +851,10 @@ class Ledger(
             DateTimeFormatter.ofPattern("d.M")
         private val MONTH_FLOW_LABEL: DateTimeFormatter =
             DateTimeFormatter.ofPattern("LLL", Locale.forLanguageTag("ru"))
+        private val CUSTOM_MONTH_FLOW_LABEL: DateTimeFormatter =
+            DateTimeFormatter.ofPattern("LLL yy", Locale.forLanguageTag("ru"))
+
+        /** A custom window up to this long is charted per day, a longer one per month. */
+        private const val CUSTOM_DAILY_FLOW_MAX_DAYS = 62L
     }
 }

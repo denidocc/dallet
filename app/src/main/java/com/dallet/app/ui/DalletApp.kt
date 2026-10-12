@@ -483,6 +483,7 @@ private fun DalletAppContent(
                 AnalyticsScreen(
                     state = analyticsState,
                     onPeriodSelected = viewModel::onAnalyticsPeriodSelected,
+                    onCustomPeriod = viewModel::onAnalyticsCustomPeriod,
                     onModeSelected = viewModel::onAnalyticsModeSelected,
                     onStep = viewModel::onAnalyticsStep,
                     dataState = dataState,

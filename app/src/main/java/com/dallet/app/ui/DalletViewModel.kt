@@ -23,6 +23,7 @@ import com.dallet.app.ledger.AnalyticsPeriod
 import com.dallet.app.ledger.Category
 import com.dallet.app.ledger.CategoryExpenseTotal
 import com.dallet.app.ledger.CategoryKind
+import com.dallet.app.ledger.DateWindow
 import com.dallet.app.ledger.ExpenseFlowPoint
 import com.dallet.app.ledger.InvalidBackupException
 import com.dallet.app.ledger.Ledger
@@ -366,8 +367,24 @@ data class AnalyticsUiState(
     val isComplete: Boolean = true,
     val incomeChangePercent: Int? = null,
     val expenseChangePercent: Int? = null,
-    val accountStats: List<AccountStatUi> = emptyList()
-)
+    val accountStats: List<AccountStatUi> = emptyList(),
+    /** The dates picked for the custom period; kept while another period is shown. */
+    val customFrom: LocalDate? = null,
+    val customTo: LocalDate? = null,
+    val canGoForward: Boolean = false
+) {
+    /** The window on screen when the period is custom: the picked dates moved by [offset] windows. */
+    val customWindow: DateWindow?
+        get() {
+            val from = customFrom
+            val to = customTo
+            return if (period == AnalyticsPeriod.CUSTOM && from != null && to != null) {
+                DateWindow(from, to).shifted(offset.toLong())
+            } else {
+                null
+            }
+        }
+}
 
 data class AccountStatUi(
     val name: String,
@@ -594,7 +611,8 @@ class DalletViewModel(
                 val report = ledger.periodReport(
                     period = state.period,
                     asOf = shiftAsOf(state.period, today, state.offset.toLong()),
-                    today = today
+                    today = today,
+                    window = state.customWindow
                 )
                 val currencyCode = ledger.mainCurrency().code
                 val bytes = withContext(Dispatchers.Default) {
@@ -1334,12 +1352,22 @@ class DalletViewModel(
     }
 
     fun onAnalyticsPeriodSelected(period: AnalyticsPeriod) {
+        // A custom period needs dates first; they come through onAnalyticsCustomPeriod.
+        if (period == AnalyticsPeriod.CUSTOM) return
         loadAnalytics(period, 0)
+    }
+
+    fun onAnalyticsCustomPeriod(from: LocalDate, to: LocalDate) {
+        if (to.isBefore(from)) return
+        _analytics.update { it.copy(customFrom = from, customTo = to) }
+        loadAnalytics(AnalyticsPeriod.CUSTOM, 0)
     }
 
     fun onAnalyticsStep(delta: Int) {
         val state = _analytics.value
-        loadAnalytics(state.period, (state.offset + delta).coerceAtMost(0))
+        val offset = state.offset + delta
+        if (delta > 0 && !state.canGoForward) return
+        loadAnalytics(state.period, offset)
     }
 
     private fun loadAnalytics(period: AnalyticsPeriod, offset: Int) {
@@ -1347,7 +1375,14 @@ class DalletViewModel(
             try {
                 refreshAnalyticsInternal(period, offset)
             } catch (_: Exception) {
-                _analytics.value = AnalyticsUiState(period = period, offset = offset)
+                _analytics.update {
+                    AnalyticsUiState(
+                        period = period,
+                        offset = offset,
+                        customFrom = it.customFrom,
+                        customTo = it.customTo
+                    )
+                }
             }
         }
     }
@@ -1358,15 +1393,33 @@ class DalletViewModel(
 
     private suspend fun refreshAnalyticsInternal(period: AnalyticsPeriod, offset: Int) {
         val today = LocalDate.now()
+        val customFrom = _analytics.value.customFrom
+        val customTo = _analytics.value.customTo
+        val window = if (period == AnalyticsPeriod.CUSTOM && customFrom != null && customTo != null) {
+            DateWindow(customFrom, customTo).shifted(offset.toLong())
+        } else {
+            null
+        }
+        if (period == AnalyticsPeriod.CUSTOM && window == null) return
         val result = ledger.analyticsComparison(
             period = period,
             asOf = shiftAsOf(period, today, offset.toLong()),
-            today = today
+            today = today,
+            window = window
         )
         val summary = result.current
         val previous = result.previous
+        // Forward is possible while the next period has started; a calendar period may not pass today.
+        val canGoForward = if (window != null) {
+            !window.shifted(1).from.isAfter(today)
+        } else {
+            offset < 0
+        }
         _analytics.value = AnalyticsUiState(
             period = period,
+            customFrom = customFrom,
+            customTo = customTo,
+            canGoForward = canGoForward,
             mode = _analytics.value.mode,
             incomeTotalLabel = Money.formatManat(summary.incomeTotalMinor),
             expenseTotalLabel = Money.formatManat(summary.expenseTotalMinor),
@@ -1415,6 +1468,10 @@ class DalletViewModel(
             AnalyticsPeriod.MONTH -> from.format(DateTimeFormatter.ofPattern("LLLL yyyy", ru))
                 .replaceFirstChar { it.uppercase() }
             AnalyticsPeriod.YEAR -> from.year.toString()
+            AnalyticsPeriod.CUSTOM -> {
+                val format = DateTimeFormatter.ofPattern("d MMM yyyy", ru)
+                if (from == to) from.format(format) else "${from.format(format)} — ${to.format(format)}"
+            }
         }
     }
 

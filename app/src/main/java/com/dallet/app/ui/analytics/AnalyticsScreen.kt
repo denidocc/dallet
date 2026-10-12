@@ -60,6 +60,8 @@ import com.dallet.app.ui.ReportFormat
 import com.dallet.app.ui.common.SurfaceCard
 import com.dallet.app.ui.theme.expenseAmountColor
 import com.dallet.app.ui.theme.incomeAmountColor
+import com.dallet.app.ui.common.DateRangePickerDialog
+import java.time.LocalDate
 import java.util.Locale
 import kotlin.math.abs
 
@@ -67,12 +69,25 @@ import kotlin.math.abs
 fun AnalyticsScreen(
     state: AnalyticsUiState,
     onPeriodSelected: (AnalyticsPeriod) -> Unit,
+    onCustomPeriod: (LocalDate, LocalDate) -> Unit,
     onModeSelected: (AnalyticsMode) -> Unit,
     onStep: (Int) -> Unit,
     dataState: DataUiState,
     onExportReport: (ReportFormat) -> Unit
 ) {
     var showExportDialog by remember { mutableStateOf(false) }
+    var showRangePicker by remember { mutableStateOf(false) }
+    if (showRangePicker) {
+        DateRangePickerDialog(
+            initialFrom = state.customFrom,
+            initialTo = state.customTo,
+            onConfirm = { from, to ->
+                showRangePicker = false
+                onCustomPeriod(from, to)
+            },
+            onDismiss = { showRangePicker = false }
+        )
+    }
     val isIncome = state.mode == AnalyticsMode.INCOME
     val slices = if (isIncome) state.incomeSlices else state.categorySlices
     val flow = if (isIncome) state.incomeFlowPoints else state.flowPoints
@@ -108,10 +123,15 @@ fun AnalyticsScreen(
                 onClick = { onPeriodSelected(AnalyticsPeriod.YEAR) },
                 label = { Text(stringResource(R.string.analytics_period_year)) }
             )
+            FilterChip(
+                selected = state.period == AnalyticsPeriod.CUSTOM,
+                onClick = { showRangePicker = true },
+                label = { Text(stringResource(R.string.analytics_period_custom)) }
+            )
         }
         PeriodNavigator(
             label = state.periodLabel,
-            canGoForward = state.offset < 0,
+            canGoForward = state.canGoForward,
             onBack = { onStep(-1) },
             onForward = { onStep(1) }
         )
@@ -466,6 +486,7 @@ private fun ChangeLine(
             AnalyticsPeriod.WEEK -> R.string.analytics_vs_week
             AnalyticsPeriod.MONTH -> R.string.analytics_vs_month
             AnalyticsPeriod.YEAR -> R.string.analytics_vs_year
+            AnalyticsPeriod.CUSTOM -> R.string.analytics_vs_custom
         }
     )
     val arrow = when {
