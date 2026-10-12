@@ -111,6 +111,7 @@ fun EditOperationScreen(
             }
         }
 
+        val lockedTitle = state.amountLockedBy
         OutlinedTextField(
             value = state.amountInput,
             onValueChange = onAmountChange,
@@ -118,9 +119,15 @@ fun EditOperationScreen(
             label = { Text(stringResource(R.string.add_amount_label)) },
             suffix = { Text(LocalCurrency.current.code) },
             singleLine = true,
+            enabled = state.amountLockedBy == null,
+            supportingText = if (lockedTitle != null) {
+                { Text(stringResource(R.string.edit_amount_from_purchase, lockedTitle)) }
+            } else {
+                null
+            },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
         )
-        if (state.kind != OperationKind.TRANSFER) {
+        if (state.kind != OperationKind.TRANSFER && state.amountLockedBy == null) {
             var showConvert by remember { mutableStateOf(false) }
             OutlinedButton(onClick = { showConvert = true }) {
                 Text(stringResource(R.string.rates_convert))

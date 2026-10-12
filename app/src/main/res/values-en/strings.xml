@@ -226,6 +226,9 @@
     <string name="shopping_delete_product_text">its name and price history will be deleted.</string>
     <string name="shopping_list_missing">List not found</string>
     <string name="shopping_expense_created">Expense created</string>
+    <string name="shopping_expense_deleted">Expense deleted</string>
+    <string name="edit_amount_from_purchase">The amount comes from the purchase “%1$s”. To change it, reopen the purchase.</string>
+    <string name="err_purchase_amount_locked">The amount of a purchase expense cannot be changed</string>
     <string name="shopping_no_expense">No expense was created</string>
     <string name="shopping_closed_info">Purchase closed %1$s</string>
     <string name="shopping_items_empty">Add the first item</string>

@@ -34,6 +34,7 @@ import com.dallet.app.ledger.Operation
 import com.dallet.app.ledger.HistoryPeriod
 import com.dallet.app.ledger.OperationFilter
 import com.dallet.app.ledger.OperationKind
+import com.dallet.app.ledger.PurchaseExpenseLockedException
 import com.dallet.app.ledger.categoryVsCategory
 import com.dallet.app.ledger.periodVsPeriod
 import com.dallet.app.ledger.SameAccountTransferException
@@ -346,6 +347,8 @@ data class EditOperationUiState(
     val dateInput: String = "",
     val timeInput: String = "",
     val commentInput: String = "",
+    /** Title of the purchase this expense came from; its amount is then read-only. */
+    val amountLockedBy: String? = null,
     val submitting: Boolean = false,
     val errorMessage: String? = null,
     val done: Boolean = false
@@ -1978,7 +1981,8 @@ class DalletViewModel(
                     amountInput = Money.formatManat(operation.amountMinor),
                     dateInput = operation.date.format(DATE_FORMAT),
                     timeInput = operation.time?.format(TIME_FORMAT).orEmpty(),
-                    commentInput = operation.comment.orEmpty()
+                    commentInput = operation.comment.orEmpty(),
+                    amountLockedBy = ledger.purchaseOf(operation.id)?.title
                 )
             } catch (error: Exception) {
                 _edit.update {
@@ -2245,6 +2249,10 @@ class DalletViewModel(
                 _edit.update { it.copy(submitting = false, errorMessage = strings.get(R.string.err_same_account)) }
             } catch (error: DateTimeParseException) {
                 _edit.update { it.copy(submitting = false, errorMessage = strings.get(R.string.err_check_datetime)) }
+            } catch (error: PurchaseExpenseLockedException) {
+                _edit.update {
+                    it.copy(submitting = false, errorMessage = strings.get(R.string.err_purchase_amount_locked))
+                }
             } catch (error: Exception) {
                 _edit.update {
                     it.copy(submitting = false, errorMessage = strings.get(R.string.err_save_failed))

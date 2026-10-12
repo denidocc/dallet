@@ -81,6 +81,8 @@ data class ShoppingEditorUiState(
     val checkedCount: Int = 0,
     val closedLabel: String? = null,
     val hasExpense: Boolean = false,
+    /** The expense of this closed purchase was deleted by hand. */
+    val expenseDeleted: Boolean = false,
     val note: String = "",
     val operationId: Long? = null,
     val nameInput: String = "",
@@ -601,6 +603,7 @@ class ShoppingViewModel(
             checkedCount = checkedCount,
             closedLabel = list.closedAt?.format(DISPLAY_DATE),
             hasExpense = list.operationId != null,
+            expenseDeleted = expenseDeleted,
             note = list.note,
             operationId = list.operationId
         )

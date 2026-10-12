@@ -227,6 +227,9 @@
     <string name="shopping_list_missing">Список не найден</string>
     <string name="shopping_expense_created">Расход создан</string>
     <string name="shopping_no_expense">Расход не создавался</string>
+    <string name="shopping_expense_deleted">Расход удалён</string>
+    <string name="edit_amount_from_purchase">Сумма из закупа «%1$s». Чтобы изменить, верните закуп в работу.</string>
+    <string name="err_purchase_amount_locked">Сумму расхода из закупа менять нельзя</string>
     <string name="shopping_closed_info">Закуп закрыт %1$s</string>
     <string name="shopping_items_empty">Добавьте первую позицию</string>
     <string name="shopping_rename_title">Название списка</string>

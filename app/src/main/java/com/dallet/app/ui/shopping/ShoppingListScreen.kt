@@ -183,8 +183,11 @@ fun ShoppingListScreen(
                         }
                         state.closedLabel?.let { closed ->
                             val expense = stringResource(
-                                if (state.hasExpense) R.string.shopping_expense_created
-                                else R.string.shopping_no_expense
+                                when {
+                                    state.hasExpense -> R.string.shopping_expense_created
+                                    state.expenseDeleted -> R.string.shopping_expense_deleted
+                                    else -> R.string.shopping_no_expense
+                                }
                             )
                             Text(
                                 text = stringResource(R.string.shopping_closed_info, closed) +

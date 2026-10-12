@@ -73,6 +73,14 @@ data class ShoppingListDetail(
     val totalMinor: Long get() = items.sumOf { it.lineTotalMinor }
     val checkedTotalMinor: Long get() = items.filter { it.checked }.sumOf { it.lineTotalMinor }
     val checkedCount: Int get() = items.count { it.checked }
+
+    /**
+     * True for a closed purchase whose expense was deleted by hand: it has no link, yet the
+     * checked items add up to something, so an expense must have existed (a zero-sum purchase
+     * never creates one).
+     */
+    val expenseDeleted: Boolean
+        get() = list.isClosed && list.operationId == null && checkedTotalMinor > 0L
 }
 
 data class ShoppingListSummary(

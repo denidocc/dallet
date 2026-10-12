@@ -448,6 +448,10 @@ class Ledger(
         require(amountMinor > 0) { "amount must be positive" }
         val existing = operation(operationId) ?: error("operation not found")
         require(existing.kind == OperationKind.EXPENSE) { "not an expense" }
+        // The amount of a purchase's expense is the sum of its list; it only changes by reopening.
+        if (amountMinor != existing.amountMinor && purchaseOf(operationId) != null) {
+            throw PurchaseExpenseLockedException()
+        }
         ensureCategoriesSeeded()
         require(accountRepository.getAll().any { it.id == accountId }) { "account not found" }
         val category = categoryRepository.getAll().firstOrNull { it.id == categoryId }
@@ -532,7 +536,13 @@ class Ledger(
     suspend fun deleteOperation(operationId: Long) {
         require(operation(operationId) != null) { "operation not found" }
         operationRepository.delete(operationId)
+        // A purchase that pointed at this expense stays closed, only without the link.
+        purchaseOf(operationId)?.let { shoppingRepository.updateList(it.copy(operationId = null)) }
     }
+
+    /** The purchase whose closing created this expense, or null for an ordinary operation. */
+    suspend fun purchaseOf(operationId: Long): ShoppingList? =
+        shoppingRepository.lists().firstOrNull { it.operationId == operationId }
 
     suspend fun createAccount(name: String, openingBalanceMinor: Long): Long {
         val trimmed = name.trim()
