@@ -408,6 +408,9 @@ class ShoppingService(
                 unchecked.forEachIndexed { index, item ->
                     repository.insertItem(item.copy(id = 0L, listId = newId, position = index))
                 }
+                // A carry-over moves the items: the closed list keeps only what was bought, so
+                // reopening and closing it again cannot carry the same items twice.
+                unchecked.forEach { repository.deleteItem(it.id) }
                 newId
             }
         } else {
