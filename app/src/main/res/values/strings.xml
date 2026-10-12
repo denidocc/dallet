@@ -51,6 +51,7 @@
     <string name="add_date_picker_hint">Нажмите, чтобы выбрать дату</string>
     <string name="date_picker_ok">ОК</string>
     <string name="date_picker_cancel">Отмена</string>
+    <string name="date_range_hint">Выберите даты</string>
     <string name="add_comment_label">Комментарий</string>
     <string name="add_save">Сохранить</string>
     <string name="history_title">История</string>

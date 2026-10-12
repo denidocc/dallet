@@ -51,6 +51,7 @@
     <string name="add_date_picker_hint">Tap to pick a date</string>
     <string name="date_picker_ok">OK</string>
     <string name="date_picker_cancel">Cancel</string>
+    <string name="date_range_hint">Pick the dates</string>
     <string name="add_comment_label">Comment</string>
     <string name="add_save">Save</string>
     <string name="history_title">History</string>
