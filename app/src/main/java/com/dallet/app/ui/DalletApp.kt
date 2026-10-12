@@ -86,6 +86,7 @@ import com.dallet.app.ui.categories.CategoriesScreen
 import com.dallet.app.ui.categories.CategoryEditorScreen
 import com.dallet.app.ui.common.BackupFiles
 import com.dallet.app.ui.edit.EditOperationScreen
+import com.dallet.app.ui.comparison.ComparisonScreen
 import com.dallet.app.ui.history.HistoryFilterActions
 import com.dallet.app.ui.history.HistoryScreen
 import com.dallet.app.ui.home.HomeScreen
@@ -107,6 +108,7 @@ private const val SECURITY_ROUTE = "security"
 private const val SETTINGS_ROUTE = "settings"
 private const val RATES_ROUTE = "rates"
 private const val BUDGETS_ROUTE = "budgets"
+private const val COMPARISON_ROUTE = "comparison"
 private const val RECURRING_ROUTE = "recurring"
 private const val RECURRING_NEW_ROUTE = "recurring/new"
 private const val RECURRING_EDIT_ROUTE = "recurring/{ruleId}"
@@ -198,6 +200,7 @@ private fun DalletAppContent(
     val categoriesState by viewModel.categories.collectAsStateWithLifecycle()
     val categoryEditorState by viewModel.categoryEditor.collectAsStateWithLifecycle()
     val analyticsState by viewModel.analytics.collectAsStateWithLifecycle()
+    val comparisonState by viewModel.comparison.collectAsStateWithLifecycle()
     val dataState by viewModel.data.collectAsStateWithLifecycle()
     val lockState by viewModel.lock.collectAsStateWithLifecycle()
     val securityState by viewModel.security.collectAsStateWithLifecycle()
@@ -365,6 +368,7 @@ private fun DalletAppContent(
         currentRoute == SETTINGS_ROUTE ||
         currentRoute == RATES_ROUTE ||
         currentRoute == BUDGETS_ROUTE ||
+        currentRoute == COMPARISON_ROUTE ||
         currentRoute?.startsWith("recurring") == true ||
         currentRoute?.startsWith("shopping") == true ||
         currentRoute?.startsWith("account") == true ||
@@ -484,6 +488,10 @@ private fun DalletAppContent(
                     state = analyticsState,
                     onPeriodSelected = viewModel::onAnalyticsPeriodSelected,
                     onCustomPeriod = viewModel::onAnalyticsCustomPeriod,
+                    onCompare = {
+                        viewModel.openComparison()
+                        navController.navigate(COMPARISON_ROUTE)
+                    },
                     onModeSelected = viewModel::onAnalyticsModeSelected,
                     onStep = viewModel::onAnalyticsStep,
                     dataState = dataState,
@@ -518,6 +526,9 @@ private fun DalletAppContent(
                     onResetConfirmed = viewModel::resetAll,
                     onDataMessageShown = viewModel::consumeDataMessage
                 )
+            }
+            composable(COMPARISON_ROUTE) {
+                ComparisonScreen(state = comparisonState)
             }
             composable(RECURRING_ROUTE) {
                 RecurringScreen(

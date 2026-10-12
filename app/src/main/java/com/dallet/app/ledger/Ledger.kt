@@ -416,6 +416,23 @@ class Ledger(
         )
     }
 
+    /** Side [a] measured against side [b]; each side is a filter with its own period. */
+    suspend fun compare(
+        a: OperationFilter,
+        b: OperationFilter,
+        today: LocalDate = LocalDate.now()
+    ): Comparison {
+        ensureCategoriesSeeded()
+        return buildComparison(
+            a = a,
+            b = b,
+            operations = operationRepository.getAll(),
+            accountNames = accountRepository.getAll().associate { it.id to it.name },
+            categories = categoryRepository.getAll(),
+            today = today
+        )
+    }
+
     suspend fun operation(operationId: Long): Operation? =
         operationRepository.getAll().firstOrNull { it.id == operationId }
 

@@ -102,6 +102,16 @@
     <string name="analytics_period_month">Месяц</string>
     <string name="analytics_period_year">Год</string>
     <string name="analytics_period_custom">Свой</string>
+    <string name="analytics_compare">Сравнить</string>
+    <string name="comparison_title">Сравнение</string>
+    <string name="comparison_days">%1$d дн.</string>
+    <string name="comparison_average_day">в среднем в день: %1$s</string>
+    <string name="comparison_difference">Разница (A − B)</string>
+    <string name="comparison_no_base">в B не было</string>
+    <string name="comparison_lengths_differ">Периоды разной длины: %1$d и %2$d дн. Смотрите «в среднем в день».</string>
+    <string name="comparison_expense_by_category">Расходы по категориям</string>
+    <string name="comparison_income_by_category">Доходы по категориям</string>
+    <string name="comparison_no_operations">В выбранных периодах нет операций</string>
     <string name="analytics_vs_custom">к предыдущему периоду</string>
     <string name="analytics_income_label">Доходы</string>
     <string name="analytics_expense_label">Расходы</string>

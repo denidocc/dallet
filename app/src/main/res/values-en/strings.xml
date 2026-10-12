@@ -102,6 +102,16 @@
     <string name="analytics_period_month">Month</string>
     <string name="analytics_period_year">Year</string>
     <string name="analytics_period_custom">Custom</string>
+    <string name="analytics_compare">Compare</string>
+    <string name="comparison_title">Comparison</string>
+    <string name="comparison_days">%1$d d</string>
+    <string name="comparison_average_day">average per day: %1$s</string>
+    <string name="comparison_difference">Difference (A − B)</string>
+    <string name="comparison_no_base">nothing in B</string>
+    <string name="comparison_lengths_differ">The periods differ in length: %1$d and %2$d days. See the average per day.</string>
+    <string name="comparison_expense_by_category">Expenses by category</string>
+    <string name="comparison_income_by_category">Income by category</string>
+    <string name="comparison_no_operations">No operations in the chosen periods</string>
     <string name="analytics_vs_custom">vs previous period</string>
     <string name="analytics_income_label">Income</string>
     <string name="analytics_expense_label">Expenses</string>

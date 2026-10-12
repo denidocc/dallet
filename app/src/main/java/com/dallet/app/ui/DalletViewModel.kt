@@ -23,6 +23,8 @@ import com.dallet.app.ledger.AnalyticsPeriod
 import com.dallet.app.ledger.Category
 import com.dallet.app.ledger.CategoryExpenseTotal
 import com.dallet.app.ledger.CategoryKind
+import com.dallet.app.ledger.Comparison
+import com.dallet.app.ledger.ComparisonSide
 import com.dallet.app.ledger.DateWindow
 import com.dallet.app.ledger.ExpenseFlowPoint
 import com.dallet.app.ledger.InvalidBackupException
@@ -235,6 +237,45 @@ data class OnboardingUiState(
     val errorMessage: String? = null
 )
 
+/** One side of the comparison, ready to show. */
+data class ComparisonSideUi(
+    val label: String,
+    val periodLabel: String,
+    val days: Long,
+    val incomeLabel: String,
+    val expenseLabel: String,
+    val averageIncomeLabel: String,
+    val averageExpenseLabel: String,
+    val isComplete: Boolean
+)
+
+/** A category row of the comparison; signs are -1, 0 or 1 and only drive the colour. */
+data class ComparisonRowUi(
+    val categoryId: Long,
+    val name: String,
+    val kind: CategoryKind,
+    val aLabel: String,
+    val bLabel: String,
+    val diffLabel: String,
+    val diffSign: Int,
+    val changePercent: Int?
+)
+
+data class ComparisonUiState(
+    val loaded: Boolean = false,
+    val a: ComparisonSideUi? = null,
+    val b: ComparisonSideUi? = null,
+    val expenseDiffLabel: String = "",
+    val expenseDiffSign: Int = 0,
+    val expenseChangePercent: Int? = null,
+    val incomeDiffLabel: String = "",
+    val incomeDiffSign: Int = 0,
+    val incomeChangePercent: Int? = null,
+    val rows: List<ComparisonRowUi> = emptyList()
+) {
+    val lengthsDiffer: Boolean get() = a != null && b != null && a.days != b.days
+}
+
 /** What a backup file contains, shown before it replaces the current data. */
 data class ImportPreview(
     val accounts: Int,
@@ -371,7 +412,12 @@ data class AnalyticsUiState(
     /** The dates picked for the custom period; kept while another period is shown. */
     val customFrom: LocalDate? = null,
     val customTo: LocalDate? = null,
-    val canGoForward: Boolean = false
+    val canGoForward: Boolean = false,
+    /** The dates on screen and of the previous period, handed to the comparison. */
+    val currentFrom: LocalDate? = null,
+    val currentTo: LocalDate? = null,
+    val previousFrom: LocalDate? = null,
+    val previousTo: LocalDate? = null
 ) {
     /** The window on screen when the period is custom: the picked dates moved by [offset] windows. */
     val customWindow: DateWindow?
@@ -1420,6 +1466,10 @@ class DalletViewModel(
             customFrom = customFrom,
             customTo = customTo,
             canGoForward = canGoForward,
+            currentFrom = summary.fromInclusive,
+            currentTo = summary.toInclusive,
+            previousFrom = previous.fromInclusive,
+            previousTo = previous.toInclusive,
             mode = _analytics.value.mode,
             incomeTotalLabel = Money.formatManat(summary.incomeTotalMinor),
             expenseTotalLabel = Money.formatManat(summary.expenseTotalMinor),
@@ -1505,6 +1555,89 @@ class DalletViewModel(
                 previousFraction = fractionOf(previousAmount)
             )
         }
+    }
+
+    private var comparisonA = OperationFilter()
+    private var comparisonB = OperationFilter()
+    private val _comparison = MutableStateFlow(ComparisonUiState())
+    val comparison: StateFlow<ComparisonUiState> = _comparison.asStateFlow()
+
+    /** Opens the comparison with side A = the period on the Analytics screen and B = the one before. */
+    fun openComparison() {
+        val state = _analytics.value
+        comparisonA = periodFilter(state.currentFrom, state.currentTo, HistoryPeriod.THIS_MONTH)
+        comparisonB = periodFilter(state.previousFrom, state.previousTo, HistoryPeriod.LAST_MONTH)
+        _comparison.value = ComparisonUiState()
+        refreshComparison()
+    }
+
+    private fun periodFilter(from: LocalDate?, to: LocalDate?, fallback: HistoryPeriod): OperationFilter =
+        if (from != null && to != null) {
+            OperationFilter(period = HistoryPeriod.CUSTOM, customFrom = from, customTo = to)
+        } else {
+            OperationFilter(period = fallback)
+        }
+
+    private fun refreshComparison() {
+        viewModelScope.launch {
+            try {
+                _comparison.value = ledger.compare(comparisonA, comparisonB).toUi()
+            } catch (_: Exception) {
+                _comparison.value = ComparisonUiState()
+            }
+        }
+    }
+
+    private fun Comparison.toUi(): ComparisonUiState {
+        fun sideUi(label: String, s: ComparisonSide) = ComparisonSideUi(
+            label = label,
+            periodLabel = dateRangeLabel(s.from, s.to),
+            days = s.days,
+            incomeLabel = Money.formatManat(s.incomeMinor),
+            expenseLabel = Money.formatManat(s.expenseMinor),
+            averageIncomeLabel = Money.formatManat(s.averageIncomePerDayMinor),
+            averageExpenseLabel = Money.formatManat(s.averageExpensePerDayMinor),
+            isComplete = s.isComplete
+        )
+        return ComparisonUiState(
+            loaded = true,
+            a = sideUi("A", a),
+            b = sideUi("B", b),
+            expenseDiffLabel = signedMoney(expenseDiffMinor),
+            expenseDiffSign = expenseDiffMinor.signum(),
+            expenseChangePercent = expenseChangePercent,
+            incomeDiffLabel = signedMoney(incomeDiffMinor),
+            incomeDiffSign = incomeDiffMinor.signum(),
+            incomeChangePercent = incomeChangePercent,
+            rows = categories.map { row ->
+                ComparisonRowUi(
+                    categoryId = row.categoryId,
+                    name = row.categoryName,
+                    kind = row.kind,
+                    aLabel = Money.formatManat(row.aMinor),
+                    bLabel = Money.formatManat(row.bMinor),
+                    diffLabel = signedMoney(row.diffMinor),
+                    diffSign = row.diffMinor.signum(),
+                    changePercent = row.changePercent
+                )
+            }
+        )
+    }
+
+    private fun Long.signum(): Int = if (this > 0L) 1 else if (this < 0L) -1 else 0
+
+    private fun signedMoney(minor: Long): String {
+        val text = Money.formatManat(if (minor < 0L) -minor else minor)
+        return when {
+            minor > 0L -> "+$text"
+            minor < 0L -> "−$text"
+            else -> text
+        }
+    }
+
+    private fun dateRangeLabel(from: LocalDate, to: LocalDate): String {
+        val format = DateTimeFormatter.ofPattern("d MMM yyyy", strings.locale)
+        return if (from == to) from.format(format) else "${from.format(format)} — ${to.format(format)}"
     }
 
     /** The filter stays while the app is open and is empty after a new start. */

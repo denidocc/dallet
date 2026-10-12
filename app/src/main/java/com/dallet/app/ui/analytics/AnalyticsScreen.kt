@@ -28,6 +28,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -70,6 +71,7 @@ fun AnalyticsScreen(
     state: AnalyticsUiState,
     onPeriodSelected: (AnalyticsPeriod) -> Unit,
     onCustomPeriod: (LocalDate, LocalDate) -> Unit,
+    onCompare: () -> Unit,
     onModeSelected: (AnalyticsMode) -> Unit,
     onStep: (Int) -> Unit,
     dataState: DataUiState,
@@ -135,6 +137,9 @@ fun AnalyticsScreen(
             onBack = { onStep(-1) },
             onForward = { onStep(1) }
         )
+        OutlinedButton(onClick = onCompare, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.analytics_compare))
+        }
         if (!state.isComplete) {
             Text(
                 text = stringResource(R.string.analytics_incomplete),
