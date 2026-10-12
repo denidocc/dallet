@@ -80,6 +80,7 @@ class ShoppingListActions(
     val onCloseCarryOver: (Boolean) -> Unit,
     val onConfirmClose: () -> Unit,
     val onDeleteList: () -> Unit,
+    val onReopen: () -> Unit,
     val onGoHome: () -> Unit,
     val onGoShopping: () -> Unit,
     val onOpenExpense: (Long) -> Unit
@@ -105,6 +106,7 @@ fun ShoppingListScreen(
     }
 
     var showDelete by remember { mutableStateOf(false) }
+    var showReopen by remember { mutableStateOf(false) }
     var showClose by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<ShoppingItemUi?>(null) }
     var titleInput by remember(state.listId) { mutableStateOf(state.title) }
@@ -272,9 +274,33 @@ fun ShoppingListScreen(
                 actions.onPrepareClose()
                 showClose = true
             },
+            onReopen = { showReopen = true },
             onGoHome = actions.onGoHome,
             onGoShopping = actions.onGoShopping,
             onOpenExpense = actions.onOpenExpense
+        )
+    }
+
+    if (showReopen) {
+        AlertDialog(
+            onDismissRequest = { showReopen = false },
+            title = { Text(stringResource(R.string.shopping_reopen_title)) },
+            text = { Text(stringResource(R.string.shopping_reopen_text)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showReopen = false
+                        actions.onReopen()
+                    }
+                ) {
+                    Text(stringResource(R.string.shopping_reopen_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showReopen = false }) {
+                    Text(stringResource(R.string.dialog_cancel))
+                }
+            }
         )
     }
 
@@ -441,6 +467,7 @@ private fun BottomPanel(
     state: ShoppingEditorUiState,
     onSavePrices: () -> Unit,
     onClose: () -> Unit,
+    onReopen: () -> Unit,
     onGoHome: () -> Unit,
     onGoShopping: () -> Unit,
     onOpenExpense: (Long) -> Unit
@@ -512,6 +539,9 @@ private fun BottomPanel(
                     ) {
                         Text(stringResource(R.string.shopping_open_expense))
                     }
+                }
+                TextButton(onClick = onReopen, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.shopping_reopen))
                 }
             }
         }

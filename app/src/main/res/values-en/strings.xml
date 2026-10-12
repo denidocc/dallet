@@ -197,6 +197,12 @@
     <string name="shopping_title">Shopping</string>
     <string name="shopping_list_name">Name</string>
     <string name="shopping_list_note">Comment</string>
+    <string name="shopping_reopen">Reopen purchase</string>
+    <string name="shopping_reopen_title">Reopen this purchase?</string>
+    <string name="shopping_reopen_text">The expense of this purchase will be deleted, the account balance will come back, and the prices recorded when it was closed will be removed from the catalog. Fix the list and close the purchase again.</string>
+    <string name="shopping_reopen_confirm">Reopen</string>
+    <string name="msg_purchase_reopened">The purchase is open again</string>
+    <string name="err_reopen_failed">Could not reopen the purchase</string>
     <string name="shopping_go_home">To home</string>
     <string name="shopping_go_shopping">To shopping</string>
     <string name="shopping_open_expense">Open expense</string>

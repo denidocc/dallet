@@ -279,6 +279,25 @@ class ShoppingViewModel(
         }
     }
 
+    /** Puts a closed purchase back in work; its expense is deleted (see ShoppingService). */
+    fun reopenPurchase(listId: Long, onDone: () -> Unit) {
+        viewModelScope.launch {
+            try {
+                service.reopenPurchase(listId)
+                reloadEditor(listId)
+                refreshHub()
+                _editor.update {
+                    it.copy(message = strings.get(R.string.msg_purchase_reopened), isError = false)
+                }
+                onDone()
+            } catch (_: Exception) {
+                _editor.update {
+                    it.copy(message = strings.get(R.string.err_reopen_failed), isError = true)
+                }
+            }
+        }
+    }
+
     fun deleteProduct(productId: Long) {
         viewModelScope.launch {
             try {

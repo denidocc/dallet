@@ -81,6 +81,10 @@ class RoomShoppingRepository(
     override suspend fun updatePricePoint(point: PricePoint) {
         dao.updatePoint(point.toEntity())
     }
+
+    override suspend fun deletePricePoint(id: Long) {
+        dao.deletePoint(id)
+    }
 }
 
 private fun LocalDateTime.toSec(): Long = toEpochSecond(ZoneOffset.UTC)

@@ -125,6 +125,7 @@ interface ShoppingRepository {
     suspend fun pricePoints(productId: Long): List<PricePoint>
     suspend fun insertPricePoint(point: PricePoint): Long
     suspend fun updatePricePoint(point: PricePoint)
+    suspend fun deletePricePoint(id: Long)
 }
 
 class InMemoryShoppingRepository : ShoppingRepository {
@@ -225,6 +226,10 @@ class InMemoryShoppingRepository : ShoppingRepository {
         val index = points.indexOfFirst { it.id == point.id }
         require(index >= 0) { "price point not found" }
         points[index] = point
+    }
+
+    override suspend fun deletePricePoint(id: Long) {
+        points.removeAll { it.id == id }
     }
 }
 
@@ -395,6 +400,51 @@ class ShoppingService(
             null
         }
         return ClosePurchaseResult(operationId, total, carriedListId)
+    }
+
+    /**
+     * Puts a closed purchase back in work to correct a mistake. The expense it created is
+     * deleted (so the account balance comes back) and the prices recorded by that closing are
+     * withdrawn from the catalog; closing the list again records fresh ones. A list carried
+     * over from the closing stays as it is.
+     */
+    suspend fun reopenPurchase(listId: Long) {
+        val list = repository.list(listId) ?: error("list not found")
+        val closedAt = list.closedAt ?: error("list is not closed")
+        list.operationId?.let { operationId ->
+            // The expense may have been deleted by hand already.
+            if (ledger.operation(operationId) != null) ledger.deleteOperation(operationId)
+        }
+        val priced = repository.items(listId).filter { it.checked && it.unitPriceMinor > 0L }
+        withdrawPrices(priced, closedAt)
+        repository.updateList(list.copy(closedAt = null, operationId = null))
+    }
+
+    /**
+     * Removes the price points that closing at [closedAt] wrote (they carry exactly that moment)
+     * and sets each product's last price back to its latest remaining point, if there is one.
+     */
+    private suspend fun withdrawPrices(items: List<ShoppingItem>, closedAt: LocalDateTime) {
+        val handled = mutableSetOf<Long>()
+        items.forEach { item ->
+            val product = findProduct(item.name, item.unit) ?: return@forEach
+            if (!handled.add(product.id)) return@forEach
+            val points = repository.pricePoints(product.id)
+            val own = points.filter { it.at == closedAt }
+            if (own.isEmpty()) return@forEach
+            own.forEach { repository.deletePricePoint(it.id) }
+            val latest = points.filter { it.at != closedAt }.maxWithOrNull(
+                compareBy<PricePoint>({ it.at }, { it.id })
+            )
+            repository.updateProduct(
+                product.copy(lastPriceMinor = latest?.unitPriceMinor, lastPricedAt = latest?.at)
+            )
+        }
+    }
+
+    private suspend fun findProduct(name: String, unit: QuantityUnit): Product? {
+        val key = name.trim().lowercase()
+        return repository.products().firstOrNull { it.name.lowercase() == key && it.unit == unit }
     }
 
     private suspend fun savePrices(items: List<ShoppingItem>, now: LocalDateTime): Int {

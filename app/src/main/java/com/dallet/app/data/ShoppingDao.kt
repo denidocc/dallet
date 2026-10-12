@@ -84,6 +84,9 @@ interface ShoppingDao {
     @Update
     suspend fun updatePoint(point: PricePointEntity)
 
+    @Query("DELETE FROM price_points WHERE id = :id")
+    suspend fun deletePoint(id: Long)
+
     @Query("DELETE FROM shopping_lists")
     suspend fun deleteAllLists()
 

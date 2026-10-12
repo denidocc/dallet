@@ -658,6 +658,9 @@ private fun DalletAppContent(
                         onDeleteList = {
                             shoppingViewModel.deleteList(listId) { navController.popBackStack() }
                         },
+                        onReopen = {
+                            shoppingViewModel.reopenPurchase(listId) { viewModel.refreshHome() }
+                        },
                         onGoHome = {
                             navController.navigate(DalletDestination.Home.route) {
                                 popUpTo(navController.graph.findStartDestination().id) {
