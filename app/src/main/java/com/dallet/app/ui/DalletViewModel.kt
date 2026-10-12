@@ -172,10 +172,25 @@ data class HistoryUiState(
     val hasOperations: Boolean = false,
     val foundCount: Int = 0,
     val foundIncomeLabel: String = "0.00",
-    val foundExpenseLabel: String = "0.00"
+    val foundExpenseLabel: String = "0.00",
+    val kind: OperationKind? = null,
+    val selectedAccountIds: Set<Long> = emptySet(),
+    val selectedCategoryIds: Set<Long> = emptySet(),
+    val accountOptions: List<SelectableOption> = emptyList(),
+    val categoryOptions: List<HistoryCategoryOption> = emptyList()
 ) {
-    val isFiltered: Boolean get() = query.isNotBlank()
+    /** How many restrictions besides the text are on (shown on the Filters button). */
+    val restrictionCount: Int
+        get() = (if (kind != null) 1 else 0) + selectedAccountIds.size + selectedCategoryIds.size
+
+    val isFiltered: Boolean get() = query.isNotBlank() || restrictionCount > 0
 }
+
+data class HistoryCategoryOption(
+    val id: Long,
+    val label: String,
+    val kind: CategoryKind
+)
 
 /** One day of the history: a header with the day's totals and its operations. */
 data class HistoryDayUi(
@@ -1456,6 +1471,47 @@ class DalletViewModel(
         refreshHistory()
     }
 
+    /** Clears only the restrictions, keeping the typed text. */
+    fun clearHistoryRestrictions() {
+        historyFilter = historyFilter.copy(kind = null, accountIds = emptySet(), categoryIds = emptySet())
+        refreshHistory()
+    }
+
+    fun onHistoryKindSelected(kind: OperationKind?) {
+        viewModelScope.launch {
+            val categoryKinds = ledger.categories(CategoryKind.EXPENSE).map { it.id to CategoryKind.EXPENSE } +
+                ledger.categories(CategoryKind.INCOME).map { it.id to CategoryKind.INCOME }
+            val kindByCategory = categoryKinds.toMap()
+            // Categories of another kind (or any category, for transfers) can no longer match.
+            val keptCategories: Set<Long> = when (kind) {
+                null -> historyFilter.categoryIds
+                OperationKind.TRANSFER -> emptySet()
+                OperationKind.EXPENSE ->
+                    historyFilter.categoryIds.filter { kindByCategory[it] == CategoryKind.EXPENSE }.toSet()
+                OperationKind.INCOME ->
+                    historyFilter.categoryIds.filter { kindByCategory[it] == CategoryKind.INCOME }.toSet()
+            }
+            historyFilter = historyFilter.copy(kind = kind, categoryIds = keptCategories)
+            refreshHistory()
+        }
+    }
+
+    fun onHistoryAccountToggled(accountId: Long) {
+        val ids = historyFilter.accountIds
+        historyFilter = historyFilter.copy(
+            accountIds = if (accountId in ids) ids - accountId else ids + accountId
+        )
+        refreshHistory()
+    }
+
+    fun onHistoryCategoryToggled(categoryId: Long) {
+        val ids = historyFilter.categoryIds
+        historyFilter = historyFilter.copy(
+            categoryIds = if (categoryId in ids) ids - categoryId else ids + categoryId
+        )
+        refreshHistory()
+    }
+
     private suspend fun refreshHistoryInternal() {
         val filter = historyFilter
         val expenseCategories = ledger.categories(CategoryKind.EXPENSE).associate { it.id to it.name }
@@ -1479,7 +1535,16 @@ class DalletViewModel(
             hasOperations = hasOperations,
             foundCount = result.count,
             foundIncomeLabel = Money.formatManat(result.incomeMinor),
-            foundExpenseLabel = Money.formatManat(result.expenseMinor)
+            foundExpenseLabel = Money.formatManat(result.expenseMinor),
+            kind = filter.kind,
+            selectedAccountIds = filter.accountIds,
+            selectedCategoryIds = filter.categoryIds,
+            accountOptions = ledger.accountBalances().map { SelectableOption(it.account.id, it.account.name) },
+            categoryOptions = ledger.categories(CategoryKind.EXPENSE).map {
+                HistoryCategoryOption(it.id, it.name, CategoryKind.EXPENSE)
+            } + ledger.categories(CategoryKind.INCOME).map {
+                HistoryCategoryOption(it.id, it.name, CategoryKind.INCOME)
+            }
         )
     }
 

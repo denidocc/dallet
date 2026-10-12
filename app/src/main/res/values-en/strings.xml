@@ -59,6 +59,15 @@
     <string name="history_found_summary">Found: %1$d · Expenses %2$s · Income %3$s</string>
     <string name="history_not_found">Nothing found</string>
     <string name="history_reset_filter">Reset filter</string>
+    <string name="history_clear_search">Clear search</string>
+    <string name="history_filters">Filters</string>
+    <string name="history_filters_count">Filters (%1$d)</string>
+    <string name="history_filter_kind">Type</string>
+    <string name="history_filter_any">Any</string>
+    <string name="history_filter_accounts">Accounts</string>
+    <string name="history_filter_categories">Categories</string>
+    <string name="history_filter_reset">Reset</string>
+    <string name="history_filter_done">Done</string>
     <string name="history_today">Today</string>
     <string name="history_yesterday">Yesterday</string>
     <string name="edit_title">Edit operation</string>

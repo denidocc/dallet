@@ -22,17 +22,43 @@ data class HistoryResult(
 )
 
 /**
- * Narrows the history. An empty filter lets everything through.
- * The text is matched case-insensitively as a substring of the comment, the category name,
- * the account name (both accounts of a transfer) and the amount as shown to the user.
+ * Narrows the history. An empty filter lets everything through; all restrictions combine with AND.
+ *
+ * - [query] is matched case-insensitively as a substring of the comment, the category name,
+ *   the account name (both accounts of a transfer) and the amount as shown to the user.
+ * - [kind] keeps one kind of operation.
+ * - [accountIds] keeps operations touching any of these accounts (a transfer counts by either side).
+ * - [categoryIds] keeps operations of any of these categories; transfers have no category,
+ *   so the restriction is ignored when only transfers are wanted.
  */
 data class OperationFilter(
-    val query: String = ""
+    val query: String = "",
+    val kind: OperationKind? = null,
+    val accountIds: Set<Long> = emptySet(),
+    val categoryIds: Set<Long> = emptySet()
 ) {
-    val isEmpty: Boolean get() = query.isBlank()
+    val isEmpty: Boolean
+        get() = query.isBlank() && kind == null && accountIds.isEmpty() && categoryIds.isEmpty()
 }
 
 internal fun OperationFilter.matches(
+    operation: Operation,
+    accountNames: Map<Long, String>,
+    categoryNames: Map<Long, String>
+): Boolean {
+    if (kind != null && operation.kind != kind) return false
+    if (accountIds.isNotEmpty()) {
+        val touched = listOfNotNull(operation.accountId, operation.fromAccountId, operation.toAccountId)
+        if (touched.none { it in accountIds }) return false
+    }
+    if (categoryIds.isNotEmpty() && kind != OperationKind.TRANSFER) {
+        val categoryId = operation.categoryId
+        if (categoryId == null || categoryId !in categoryIds) return false
+    }
+    return matchesText(operation, accountNames, categoryNames)
+}
+
+private fun OperationFilter.matchesText(
     operation: Operation,
     accountNames: Map<Long, String>,
     categoryNames: Map<Long, String>

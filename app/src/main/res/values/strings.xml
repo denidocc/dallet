@@ -59,6 +59,15 @@
     <string name="history_found_summary">Найдено: %1$d · Расходы %2$s · Доходы %3$s</string>
     <string name="history_not_found">Ничего не найдено</string>
     <string name="history_reset_filter">Сбросить фильтр</string>
+    <string name="history_clear_search">Очистить поиск</string>
+    <string name="history_filters">Фильтры</string>
+    <string name="history_filters_count">Фильтры (%1$d)</string>
+    <string name="history_filter_kind">Вид</string>
+    <string name="history_filter_any">Любой</string>
+    <string name="history_filter_accounts">Счета</string>
+    <string name="history_filter_categories">Категории</string>
+    <string name="history_filter_reset">Сбросить</string>
+    <string name="history_filter_done">Готово</string>
     <string name="history_today">Сегодня</string>
     <string name="history_yesterday">Вчера</string>
     <string name="edit_title">Изменить операцию</string>

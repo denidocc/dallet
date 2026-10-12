@@ -86,6 +86,7 @@ import com.dallet.app.ui.categories.CategoriesScreen
 import com.dallet.app.ui.categories.CategoryEditorScreen
 import com.dallet.app.ui.common.BackupFiles
 import com.dallet.app.ui.edit.EditOperationScreen
+import com.dallet.app.ui.history.HistoryFilterActions
 import com.dallet.app.ui.history.HistoryScreen
 import com.dallet.app.ui.home.HomeScreen
 import com.dallet.app.ui.lock.LockScreen
@@ -448,8 +449,14 @@ private fun DalletAppContent(
                 HistoryScreen(
                     state = historyState,
                     onOperationClick = ::openEdit,
-                    onQueryChange = viewModel::onHistoryQueryChange,
-                    onClearFilter = viewModel::clearHistoryFilter
+                    actions = HistoryFilterActions(
+                        onQueryChange = viewModel::onHistoryQueryChange,
+                        onKindSelected = viewModel::onHistoryKindSelected,
+                        onAccountToggled = viewModel::onHistoryAccountToggled,
+                        onCategoryToggled = viewModel::onHistoryCategoryToggled,
+                        onClearRestrictions = viewModel::clearHistoryRestrictions,
+                        onClearFilter = viewModel::clearHistoryFilter
+                    )
                 )
             }
             composable(DalletDestination.Add.route) {
