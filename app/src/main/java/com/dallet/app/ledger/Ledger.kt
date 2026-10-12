@@ -401,12 +401,18 @@ class Ledger(
             .sortedWith(compareByDescending<Operation> { it.date }.thenByDescending { it.time ?: LocalTime.MIN }.thenByDescending { it.id })
 
     /** Operations that pass [filter], grouped by day, newest first. */
-    suspend fun history(filter: OperationFilter = OperationFilter()): HistoryResult {
+    suspend fun history(
+        filter: OperationFilter = OperationFilter(),
+        today: LocalDate = LocalDate.now()
+    ): HistoryResult {
         val operations = allOperations()
         if (filter.isEmpty) return groupHistory(operations)
         val accountNames = accountRepository.getAll().associate { it.id to it.name }
         val categoryNames = categoryRepository.getAll().associate { it.id to it.name }
-        return groupHistory(operations.filter { filter.matches(it, accountNames, categoryNames) })
+        val range = filter.dateRange(today)
+        return groupHistory(
+            operations.filter { filter.matches(it, accountNames, categoryNames, range) }
+        )
     }
 
     suspend fun operation(operationId: Long): Operation? =

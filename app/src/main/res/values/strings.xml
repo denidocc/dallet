@@ -64,6 +64,12 @@
     <string name="history_filters_count">Фильтры (%1$d)</string>
     <string name="history_filter_kind">Вид</string>
     <string name="history_filter_any">Любой</string>
+    <string name="history_filter_period">Период</string>
+    <string name="history_period_all">Всё время</string>
+    <string name="history_period_this_month">Этот месяц</string>
+    <string name="history_period_last_month">Прошлый месяц</string>
+    <string name="history_period_this_year">Этот год</string>
+    <string name="history_period_custom">Свой период</string>
     <string name="history_filter_accounts">Счета</string>
     <string name="history_filter_categories">Категории</string>
     <string name="history_filter_reset">Сбросить</string>

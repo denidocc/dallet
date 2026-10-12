@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dallet.app.R
+import com.dallet.app.ledger.HistoryPeriod
 import com.dallet.app.ledger.OperationKind
 import com.dallet.app.ui.moneyText
 import com.dallet.app.ui.HistoryDayUi
@@ -41,6 +42,7 @@ import com.dallet.app.ui.HistoryUiState
 import com.dallet.app.ui.common.SurfaceCard
 import com.dallet.app.ui.theme.expenseAmountColor
 import com.dallet.app.ui.theme.incomeAmountColor
+import java.time.LocalDate
 
 /** Everything the history screen can do to the filter. */
 class HistoryFilterActions(
@@ -48,6 +50,8 @@ class HistoryFilterActions(
     val onKindSelected: (OperationKind?) -> Unit,
     val onAccountToggled: (Long) -> Unit,
     val onCategoryToggled: (Long) -> Unit,
+    val onPeriodSelected: (HistoryPeriod) -> Unit,
+    val onCustomPeriod: (LocalDate, LocalDate) -> Unit,
     val onClearRestrictions: () -> Unit,
     val onClearFilter: () -> Unit
 )
@@ -157,6 +161,8 @@ fun HistoryScreen(
             onKindSelected = actions.onKindSelected,
             onAccountToggled = actions.onAccountToggled,
             onCategoryToggled = actions.onCategoryToggled,
+            onPeriodSelected = actions.onPeriodSelected,
+            onCustomPeriod = actions.onCustomPeriod,
             onReset = actions.onClearRestrictions,
             onDismiss = { showFilters = false }
         )
@@ -174,6 +180,17 @@ private fun ActiveRestrictions(state: HistoryUiState, actions: HistoryFilterActi
             .padding(bottom = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        if (state.period != HistoryPeriod.ALL_TIME) {
+            val periodLabel = when (state.period) {
+                HistoryPeriod.THIS_MONTH -> stringResource(R.string.history_period_this_month)
+                HistoryPeriod.LAST_MONTH -> stringResource(R.string.history_period_last_month)
+                HistoryPeriod.THIS_YEAR -> stringResource(R.string.history_period_this_year)
+                else -> state.customPeriodLabel ?: stringResource(R.string.history_period_custom)
+            }
+            RestrictionChip(label = periodLabel) {
+                actions.onPeriodSelected(HistoryPeriod.ALL_TIME)
+            }
+        }
         state.kind?.let { kind ->
             RestrictionChip(label = stringResource(kindLabelRes(kind))) {
                 actions.onKindSelected(null)

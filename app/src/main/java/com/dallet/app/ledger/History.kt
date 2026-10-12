@@ -1,6 +1,7 @@
 package com.dallet.app.ledger
 
 import java.time.LocalDate
+import java.time.YearMonth
 
 /**
  * Operations of one calendar day. Income and expense totals leave transfers out:
@@ -30,22 +31,58 @@ data class HistoryResult(
  * - [accountIds] keeps operations touching any of these accounts (a transfer counts by either side).
  * - [categoryIds] keeps operations of any of these categories; transfers have no category,
  *   so the restriction is ignored when only transfers are wanted.
+ * - [period] keeps operations of a date range; presets are resolved against "today" at the
+ *   moment of use, so they stay correct when the month or year changes. A custom period needs
+ *   both [customFrom] and [customTo] (inclusive); without them it does not restrict.
  */
 data class OperationFilter(
     val query: String = "",
     val kind: OperationKind? = null,
     val accountIds: Set<Long> = emptySet(),
-    val categoryIds: Set<Long> = emptySet()
+    val categoryIds: Set<Long> = emptySet(),
+    val period: HistoryPeriod = HistoryPeriod.ALL_TIME,
+    val customFrom: LocalDate? = null,
+    val customTo: LocalDate? = null
 ) {
     val isEmpty: Boolean
-        get() = query.isBlank() && kind == null && accountIds.isEmpty() && categoryIds.isEmpty()
+        get() = query.isBlank() && kind == null && accountIds.isEmpty() && categoryIds.isEmpty() &&
+            period == HistoryPeriod.ALL_TIME
 }
+
+enum class HistoryPeriod {
+    ALL_TIME,
+    THIS_MONTH,
+    LAST_MONTH,
+    THIS_YEAR,
+    CUSTOM
+}
+
+/** The first and last day (inclusive) the period covers, or null when it does not restrict. */
+internal fun OperationFilter.dateRange(today: LocalDate): Pair<LocalDate, LocalDate>? =
+    when (period) {
+        HistoryPeriod.ALL_TIME -> null
+        HistoryPeriod.THIS_MONTH -> monthRange(YearMonth.from(today))
+        HistoryPeriod.LAST_MONTH -> monthRange(YearMonth.from(today).minusMonths(1))
+        HistoryPeriod.THIS_YEAR -> LocalDate.of(today.year, 1, 1) to LocalDate.of(today.year, 12, 31)
+        HistoryPeriod.CUSTOM -> {
+            val start = customFrom
+            val end = customTo
+            if (start == null || end == null) null else Pair(start, end)
+        }
+    }
+
+private fun monthRange(month: YearMonth): Pair<LocalDate, LocalDate> =
+    month.atDay(1) to month.atEndOfMonth()
 
 internal fun OperationFilter.matches(
     operation: Operation,
     accountNames: Map<Long, String>,
-    categoryNames: Map<Long, String>
+    categoryNames: Map<Long, String>,
+    range: Pair<LocalDate, LocalDate>? = null
 ): Boolean {
+    if (range != null && (operation.date.isBefore(range.first) || operation.date.isAfter(range.second))) {
+        return false
+    }
     if (kind != null && operation.kind != kind) return false
     if (accountIds.isNotEmpty()) {
         val touched = listOfNotNull(operation.accountId, operation.fromAccountId, operation.toAccountId)

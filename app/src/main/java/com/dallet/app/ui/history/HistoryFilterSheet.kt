@@ -17,13 +17,20 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dallet.app.R
 import com.dallet.app.ledger.CategoryKind
+import com.dallet.app.ledger.HistoryPeriod
 import com.dallet.app.ledger.OperationKind
 import com.dallet.app.ui.HistoryUiState
+import com.dallet.app.ui.common.DateRangePickerDialog
+import java.time.LocalDate
 
 /** Bottom sheet with the restrictions of the history filter: kind, accounts and categories. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -33,9 +40,23 @@ fun HistoryFilterSheet(
     onKindSelected: (OperationKind?) -> Unit,
     onAccountToggled: (Long) -> Unit,
     onCategoryToggled: (Long) -> Unit,
+    onPeriodSelected: (HistoryPeriod) -> Unit,
+    onCustomPeriod: (LocalDate, LocalDate) -> Unit,
     onReset: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    var showRangePicker by remember { mutableStateOf(false) }
+    if (showRangePicker) {
+        DateRangePickerDialog(
+            initialFrom = state.customFrom,
+            initialTo = state.customTo,
+            onConfirm = { from, to ->
+                showRangePicker = false
+                onCustomPeriod(from, to)
+            },
+            onDismiss = { showRangePicker = false }
+        )
+    }
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
@@ -71,6 +92,40 @@ fun HistoryFilterSheet(
                     selected = state.kind == OperationKind.TRANSFER,
                     onClick = { onKindSelected(OperationKind.TRANSFER) },
                     label = { Text(stringResource(R.string.add_kind_transfer)) }
+                )
+            }
+
+            SectionTitle(stringResource(R.string.history_filter_period))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(
+                    selected = state.period == HistoryPeriod.ALL_TIME,
+                    onClick = { onPeriodSelected(HistoryPeriod.ALL_TIME) },
+                    label = { Text(stringResource(R.string.history_period_all)) }
+                )
+                FilterChip(
+                    selected = state.period == HistoryPeriod.THIS_MONTH,
+                    onClick = { onPeriodSelected(HistoryPeriod.THIS_MONTH) },
+                    label = { Text(stringResource(R.string.history_period_this_month)) }
+                )
+                FilterChip(
+                    selected = state.period == HistoryPeriod.LAST_MONTH,
+                    onClick = { onPeriodSelected(HistoryPeriod.LAST_MONTH) },
+                    label = { Text(stringResource(R.string.history_period_last_month)) }
+                )
+                FilterChip(
+                    selected = state.period == HistoryPeriod.THIS_YEAR,
+                    onClick = { onPeriodSelected(HistoryPeriod.THIS_YEAR) },
+                    label = { Text(stringResource(R.string.history_period_this_year)) }
+                )
+                FilterChip(
+                    selected = state.period == HistoryPeriod.CUSTOM,
+                    onClick = { showRangePicker = true },
+                    label = {
+                        Text(
+                            state.customPeriodLabel.takeIf { state.period == HistoryPeriod.CUSTOM }
+                                ?: stringResource(R.string.history_period_custom)
+                        )
+                    }
                 )
             }
 

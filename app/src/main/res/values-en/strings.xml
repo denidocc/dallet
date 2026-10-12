@@ -64,6 +64,12 @@
     <string name="history_filters_count">Filters (%1$d)</string>
     <string name="history_filter_kind">Type</string>
     <string name="history_filter_any">Any</string>
+    <string name="history_filter_period">Period</string>
+    <string name="history_period_all">All time</string>
+    <string name="history_period_this_month">This month</string>
+    <string name="history_period_last_month">Last month</string>
+    <string name="history_period_this_year">This year</string>
+    <string name="history_period_custom">Custom period</string>
     <string name="history_filter_accounts">Accounts</string>
     <string name="history_filter_categories">Categories</string>
     <string name="history_filter_reset">Reset</string>

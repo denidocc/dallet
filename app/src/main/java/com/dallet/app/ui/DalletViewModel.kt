@@ -28,6 +28,7 @@ import com.dallet.app.ledger.InvalidBackupException
 import com.dallet.app.ledger.Ledger
 import com.dallet.app.ledger.Money
 import com.dallet.app.ledger.Operation
+import com.dallet.app.ledger.HistoryPeriod
 import com.dallet.app.ledger.OperationFilter
 import com.dallet.app.ledger.OperationKind
 import com.dallet.app.ledger.SameAccountTransferException
@@ -177,11 +178,17 @@ data class HistoryUiState(
     val selectedAccountIds: Set<Long> = emptySet(),
     val selectedCategoryIds: Set<Long> = emptySet(),
     val accountOptions: List<SelectableOption> = emptyList(),
-    val categoryOptions: List<HistoryCategoryOption> = emptyList()
+    val categoryOptions: List<HistoryCategoryOption> = emptyList(),
+    val period: HistoryPeriod = HistoryPeriod.ALL_TIME,
+    val customFrom: LocalDate? = null,
+    val customTo: LocalDate? = null,
+    /** The chosen custom dates as text, ready to show; null until a custom period is chosen. */
+    val customPeriodLabel: String? = null
 ) {
     /** How many restrictions besides the text are on (shown on the Filters button). */
     val restrictionCount: Int
-        get() = (if (kind != null) 1 else 0) + selectedAccountIds.size + selectedCategoryIds.size
+        get() = (if (kind != null) 1 else 0) + selectedAccountIds.size + selectedCategoryIds.size +
+            (if (period != HistoryPeriod.ALL_TIME) 1 else 0)
 
     val isFiltered: Boolean get() = query.isNotBlank() || restrictionCount > 0
 }
@@ -1473,7 +1480,31 @@ class DalletViewModel(
 
     /** Clears only the restrictions, keeping the typed text. */
     fun clearHistoryRestrictions() {
-        historyFilter = historyFilter.copy(kind = null, accountIds = emptySet(), categoryIds = emptySet())
+        historyFilter = historyFilter.copy(
+            kind = null,
+            accountIds = emptySet(),
+            categoryIds = emptySet(),
+            period = HistoryPeriod.ALL_TIME,
+            customFrom = null,
+            customTo = null
+        )
+        refreshHistory()
+    }
+
+    /** Presets and "all time"; a custom period comes through [onHistoryCustomPeriod]. */
+    fun onHistoryPeriodSelected(period: HistoryPeriod) {
+        if (period == HistoryPeriod.CUSTOM) return
+        historyFilter = historyFilter.copy(period = period)
+        refreshHistory()
+    }
+
+    fun onHistoryCustomPeriod(from: LocalDate, to: LocalDate) {
+        if (to.isBefore(from)) return
+        historyFilter = historyFilter.copy(
+            period = HistoryPeriod.CUSTOM,
+            customFrom = from,
+            customTo = to
+        )
         refreshHistory()
     }
 
@@ -1537,6 +1568,10 @@ class DalletViewModel(
             foundIncomeLabel = Money.formatManat(result.incomeMinor),
             foundExpenseLabel = Money.formatManat(result.expenseMinor),
             kind = filter.kind,
+            period = filter.period,
+            customFrom = filter.customFrom,
+            customTo = filter.customTo,
+            customPeriodLabel = customPeriodLabel(filter.customFrom, filter.customTo),
             selectedAccountIds = filter.accountIds,
             selectedCategoryIds = filter.categoryIds,
             accountOptions = ledger.accountBalances().map { SelectableOption(it.account.id, it.account.name) },
@@ -1546,6 +1581,12 @@ class DalletViewModel(
                 HistoryCategoryOption(it.id, it.name, CategoryKind.INCOME)
             }
         )
+    }
+
+    private fun customPeriodLabel(from: LocalDate?, to: LocalDate?): String? {
+        if (from == null || to == null) return null
+        val format = DateTimeFormatter.ofPattern("d MMM yyyy", strings.locale)
+        return if (from == to) from.format(format) else "${from.format(format)} – ${to.format(format)}"
     }
 
     private fun dayTitle(date: LocalDate, today: LocalDate): String = when (date) {

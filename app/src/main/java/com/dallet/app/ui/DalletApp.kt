@@ -454,6 +454,8 @@ private fun DalletAppContent(
                         onKindSelected = viewModel::onHistoryKindSelected,
                         onAccountToggled = viewModel::onHistoryAccountToggled,
                         onCategoryToggled = viewModel::onHistoryCategoryToggled,
+                        onPeriodSelected = viewModel::onHistoryPeriodSelected,
+                        onCustomPeriod = viewModel::onHistoryCustomPeriod,
                         onClearRestrictions = viewModel::clearHistoryRestrictions,
                         onClearFilter = viewModel::clearHistoryFilter
                     )
