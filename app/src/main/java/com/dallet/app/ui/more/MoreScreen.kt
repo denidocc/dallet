@@ -53,6 +53,7 @@ fun MoreScreen(
     onShoppingClick: () -> Unit,
     onExportClick: () -> Unit,
     onImportClick: () -> Unit,
+    onAutoBackupClick: () -> Unit,
     onResetConfirmed: () -> Unit,
     onDataMessageShown: () -> Unit
 ) {
@@ -165,6 +166,17 @@ fun MoreScreen(
             )
             Text(
                 text = stringResource(R.string.more_import_hint),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        SurfaceCard(onClick = onAutoBackupClick) {
+            Text(
+                text = stringResource(R.string.autobackup_title),
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = stringResource(R.string.autobackup_card_hint),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

@@ -46,7 +46,7 @@ gradle wrapper --gradle-version 8.13
 | Main currency, theme, language, rates, budgets, recurring transactions | SharedPreferences `dallet_settings` |
 | PIN salt and hash, fingerprint flag | Separate SharedPreferences (not included in the backup) |
 
-A backup (JSON, schema 2) contains the database, main currency, budgets and recurring transactions. Rates, theme, language and PIN are not included. The backup is not encrypted. The app needs no internet access.
+A backup (JSON, schema 2) contains the database, main currency, budgets and recurring transactions. Rates, theme, language and PIN are not included. A backup can be protected with a password (AES-256-GCM); without one it is plain JSON. Auto backups go once a day to a folder you choose. The app needs no internet access.
 
 ## Project structure
 

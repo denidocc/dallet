@@ -386,4 +386,30 @@
     <string name="widget_description">Balance, this month’s expenses and a “+ Expense” button</string>
     <string name="widget_add_expense">+ Expense</string>
     <string name="widget_month_expense">This month: %1$s</string>
+
+    <string name="backup_password">Password</string>
+    <string name="backup_password_repeat">Repeat password</string>
+    <string name="backup_password_short">Password is shorter than %1$d characters</string>
+    <string name="backup_password_mismatch">Passwords do not match</string>
+    <string name="export_password_title">Protect the backup with a password?</string>
+    <string name="export_password_hint">The file will be encrypted. It cannot be opened without the password, and a forgotten password cannot be recovered. Leave both fields empty to save without a password.</string>
+    <string name="export_password_save">Save</string>
+    <string name="import_password_title">Backup is password-protected</string>
+    <string name="import_password_text">Enter the password this backup was encrypted with.</string>
+    <string name="import_password_wrong">Wrong password</string>
+    <string name="import_password_ok">Open</string>
+    <string name="autobackup_title">Auto backups</string>
+    <string name="autobackup_card_hint">A daily copy in a folder you choose</string>
+    <string name="autobackup_intro">Dallet saves a copy once a day to a folder you choose (for example on Google Drive or an SD card). The last 7 copies are kept. If you lose the phone, restore the data from that folder with Import.</string>
+    <string name="autobackup_folder">Folder</string>
+    <string name="autobackup_folder_none">Not chosen</string>
+    <string name="autobackup_password">Backup password</string>
+    <string name="autobackup_password_set">Copies are encrypted. Tap to change or remove</string>
+    <string name="autobackup_password_none">Copies have no password. Tap to set one</string>
+    <string name="autobackup_password_hint">The password is kept on this phone in the Android secure storage. Remember it: you will need it to import on a new phone. Empty fields turn encryption off.</string>
+    <string name="autobackup_enable">Back up once a day</string>
+    <string name="autobackup_enable_hint">The first copy is saved right away</string>
+    <string name="autobackup_now">Back up now</string>
+    <string name="autobackup_last">Last backup: %1$s</string>
+    <string name="autobackup_failed">Could not save the backup. Check that the folder is available, or choose it again.</string>
 </resources>

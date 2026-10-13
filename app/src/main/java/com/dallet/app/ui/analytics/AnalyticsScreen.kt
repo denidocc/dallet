@@ -51,6 +51,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.dallet.app.R
+
+private const val SHOW_COMPARISON = false
 import com.dallet.app.ui.moneyText
 import com.dallet.app.ledger.AnalyticsPeriod
 import com.dallet.app.ui.AccountStatUi
@@ -141,8 +143,11 @@ fun AnalyticsScreen(
             onBack = { onStep(-1) },
             onForward = { onStep(1) }
         )
-        OutlinedButton(onClick = onCompare, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.analytics_compare))
+        // Comparison entry is hidden until the screen is reworked (A/B labels are unclear).
+        if (SHOW_COMPARISON) {
+            OutlinedButton(onClick = onCompare, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.analytics_compare))
+            }
         }
         if (!state.isComplete) {
             Text(

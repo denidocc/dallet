@@ -9,6 +9,8 @@ import com.dallet.app.AppStrings
 import com.dallet.app.R
 import com.dallet.app.ledger.AccountBalance
 import com.dallet.app.ledger.BackupCodec
+import com.dallet.app.ledger.BackupCrypto
+import com.dallet.app.ledger.WrongPasswordException
 import com.dallet.app.ledger.BackupProblem
 import com.dallet.app.ledger.BudgetStatus
 import com.dallet.app.ledger.Frequency
@@ -296,8 +298,12 @@ data class DataUiState(
     val busy: Boolean = false,
     val message: String? = null,
     val isError: Boolean = false,
-    val pendingImport: ImportPreview? = null
+    val pendingImport: ImportPreview? = null,
+    val passwordPrompt: PasswordPrompt? = null
 )
+
+/** Asks for the password of an encrypted backup; [wrong] after a failed attempt. */
+data class PasswordPrompt(val wrong: Boolean = false)
 
 data class LockUiState(
     val locked: Boolean = false,
@@ -647,11 +653,24 @@ class DalletViewModel(
         onDataChanged()
     }
 
+    private var exportPassword: String? = null
+
+    /** Password for the next [exportBackup]; null or empty writes a plain file. */
+    fun setExportPassword(password: String?) {
+        exportPassword = password?.takeIf { it.isNotEmpty() }
+    }
+
     fun exportBackup(write: suspend (String) -> Unit) {
+        val password = exportPassword
+        exportPassword = null
         viewModelScope.launch {
             _data.value = DataUiState(busy = true)
             try {
-                write(ledger.exportBackup())
+                val json = ledger.exportBackup()
+                val text = if (password == null) json else withContext(Dispatchers.Default) {
+                    BackupCrypto.encrypt(json, password)
+                }
+                write(text)
                 _data.value = DataUiState(message = strings.get(R.string.msg_backup_saved))
             } catch (error: Exception) {
                 _data.value = DataUiState(message = strings.get(R.string.err_save_file), isError = true)
@@ -706,39 +725,71 @@ class DalletViewModel(
     }
 
     private var pendingImportJson: String? = null
+    private var pendingEncrypted: String? = null
 
     /** Reads and checks the file, then waits for the user to confirm before replacing data. */
     fun importBackup(read: suspend () -> String) {
         viewModelScope.launch {
             _data.value = DataUiState(busy = true)
             try {
-                val json = read()
-                val backup = BackupCodec.decode(json)
-                BackupCodec.validate(backup)
-                pendingImportJson = json
-                _data.value = DataUiState(
-                    pendingImport = ImportPreview(
-                        accounts = backup.accounts.size,
-                        categories = backup.categories.size,
-                        operations = backup.operations.size
-                    )
-                )
-            } catch (error: InvalidBackupException) {
-                _data.value = DataUiState(
-                    message = strings.get(
-                        if (error.problem == BackupProblem.TOO_NEW) R.string.err_backup_too_new
-                        else R.string.err_not_backup
-                    ),
-                    isError = true
-                )
+                val text = read()
+                if (BackupCrypto.isEncrypted(text)) {
+                    pendingEncrypted = text
+                    _data.value = DataUiState(passwordPrompt = PasswordPrompt())
+                } else {
+                    prepareImport(text)
+                }
             } catch (error: Exception) {
-                _data.value = DataUiState(message = strings.get(R.string.err_read_file), isError = true)
+                _data.value = importError(error)
             }
         }
     }
 
+    /** Decrypts the chosen file with the typed password and continues to the preview. */
+    fun submitImportPassword(password: String) {
+        val text = pendingEncrypted ?: return
+        viewModelScope.launch {
+            _data.value = DataUiState(busy = true)
+            try {
+                val json = withContext(Dispatchers.Default) { BackupCrypto.decrypt(text, password) }
+                pendingEncrypted = null
+                prepareImport(json)
+            } catch (error: WrongPasswordException) {
+                _data.value = DataUiState(passwordPrompt = PasswordPrompt(wrong = true))
+            } catch (error: Exception) {
+                pendingEncrypted = null
+                _data.value = importError(error)
+            }
+        }
+    }
+
+    private fun prepareImport(json: String) {
+        val backup = BackupCodec.decode(json)
+        BackupCodec.validate(backup)
+        pendingImportJson = json
+        _data.value = DataUiState(
+            pendingImport = ImportPreview(
+                accounts = backup.accounts.size,
+                categories = backup.categories.size,
+                operations = backup.operations.size
+            )
+        )
+    }
+
+    private fun importError(error: Exception): DataUiState = when {
+        error is InvalidBackupException -> DataUiState(
+            message = strings.get(
+                if (error.problem == BackupProblem.TOO_NEW) R.string.err_backup_too_new
+                else R.string.err_not_backup
+            ),
+            isError = true
+        )
+        else -> DataUiState(message = strings.get(R.string.err_read_file), isError = true)
+    }
+
     fun cancelImport() {
         pendingImportJson = null
+        pendingEncrypted = null
         _data.value = DataUiState()
     }
 

@@ -386,4 +386,30 @@
     <string name="widget_description">Баланс, расходы за месяц и кнопка «+ Расход»</string>
     <string name="widget_add_expense">+ Расход</string>
     <string name="widget_month_expense">За месяц: %1$s</string>
+
+    <string name="backup_password">Пароль</string>
+    <string name="backup_password_repeat">Повторите пароль</string>
+    <string name="backup_password_short">Пароль короче %1$d символов</string>
+    <string name="backup_password_mismatch">Пароли не совпадают</string>
+    <string name="export_password_title">Защитить копию паролем?</string>
+    <string name="export_password_hint">Файл зашифруется. Без пароля его не открыть, а забытый пароль восстановить нельзя. Оставьте поля пустыми, чтобы сохранить без пароля.</string>
+    <string name="export_password_save">Сохранить</string>
+    <string name="import_password_title">Копия защищена паролем</string>
+    <string name="import_password_text">Введите пароль, которым зашифрована эта копия.</string>
+    <string name="import_password_wrong">Неверный пароль</string>
+    <string name="import_password_ok">Открыть</string>
+    <string name="autobackup_title">Автокопии</string>
+    <string name="autobackup_card_hint">Копия раз в сутки в выбранную папку</string>
+    <string name="autobackup_intro">Dallet раз в сутки сохраняет копию в выбранную папку (например, на Google Диске или на карте памяти). Хранятся последние 7 копий. Если телефон потеряется, данные вернутся из этой папки через «Импорт».</string>
+    <string name="autobackup_folder">Папка</string>
+    <string name="autobackup_folder_none">Не выбрана</string>
+    <string name="autobackup_password">Пароль копий</string>
+    <string name="autobackup_password_set">Копии шифруются. Нажмите, чтобы сменить или убрать</string>
+    <string name="autobackup_password_none">Копии без пароля. Нажмите, чтобы задать</string>
+    <string name="autobackup_password_hint">Пароль хранится на телефоне в защищённом хранилище Android. Запомните его: на новом телефоне он понадобится при импорте. Пустые поля убирают шифрование.</string>
+    <string name="autobackup_enable">Делать копию раз в сутки</string>
+    <string name="autobackup_enable_hint">Первая копия сохранится сразу</string>
+    <string name="autobackup_now">Сделать копию сейчас</string>
+    <string name="autobackup_last">Последняя копия: %1$s</string>
+    <string name="autobackup_failed">Не удалось сохранить копию. Проверьте, что папка доступна, или выберите её заново.</string>
 </resources>

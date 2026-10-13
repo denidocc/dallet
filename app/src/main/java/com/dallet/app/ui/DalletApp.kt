@@ -39,6 +39,11 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import android.content.Intent
+import androidx.compose.runtime.rememberCoroutineScope
+import com.dallet.app.DalletApplication
+import com.dallet.app.backup.AutoBackup
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -94,7 +99,10 @@ import com.dallet.app.ui.history.HistoryFilterActions
 import com.dallet.app.ui.history.HistoryScreen
 import com.dallet.app.ui.home.HomeScreen
 import com.dallet.app.ui.lock.LockScreen
+import com.dallet.app.ui.more.AutoBackupScreen
+import com.dallet.app.ui.more.ExportPasswordDialog
 import com.dallet.app.ui.more.ImportConfirmDialog
+import com.dallet.app.ui.more.ImportPasswordDialog
 import com.dallet.app.ui.more.MoreScreen
 import com.dallet.app.ui.navigation.DalletDestination
 import com.dallet.app.ui.onboarding.OnboardingScreen
@@ -108,6 +116,7 @@ private const val ACCOUNTS_ROUTE = "accounts"
 private const val ACCOUNT_NEW_ROUTE = "account/new"
 private const val ACCOUNT_EDIT_ROUTE = "account/{accountId}"
 private const val SECURITY_ROUTE = "security"
+private const val AUTOBACKUP_ROUTE = "autobackup"
 private const val SETTINGS_ROUTE = "settings"
 private const val RATES_ROUTE = "rates"
 private const val BUDGETS_ROUTE = "budgets"
@@ -254,13 +263,59 @@ private fun DalletAppContent(
             ReportFormat.PDF -> pdfReportLauncher.launch("Dallet-report-${LocalDate.now()}.pdf")
         }
     }
+    var showExportDialog by remember { mutableStateOf(false) }
     val launchExport = {
         viewModel.consumeDataMessage()
-        exportLauncher.launch("Dallet-backup-${LocalDate.now()}.json")
+        showExportDialog = true
     }
     val launchImport = {
         viewModel.consumeDataMessage()
         importLauncher.launch(arrayOf("*/*"))
+    }
+
+    val scope = rememberCoroutineScope()
+    var autoState by remember { mutableStateOf(AutoBackup.state(context)) }
+    var autoBusy by remember { mutableStateOf(false) }
+    val runAutoBackup = {
+        scope.launch {
+            autoBusy = true
+            val app = context.applicationContext as DalletApplication
+            AutoBackup.runNow(context, app.ledger)
+            autoState = AutoBackup.state(context)
+            autoBusy = false
+        }
+        Unit
+    }
+    val folderLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri != null) {
+            context.contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            )
+            AutoBackup.setFolder(context, uri)
+            autoState = AutoBackup.state(context)
+        }
+    }
+
+    if (showExportDialog) {
+        ExportPasswordDialog(
+            onConfirm = { password ->
+                showExportDialog = false
+                viewModel.setExportPassword(password)
+                exportLauncher.launch("Dallet-backup-${LocalDate.now()}.json")
+            },
+            onCancel = { showExportDialog = false }
+        )
+    }
+
+    dataState.passwordPrompt?.let { prompt ->
+        ImportPasswordDialog(
+            wrong = prompt.wrong,
+            onConfirm = viewModel::submitImportPassword,
+            onCancel = viewModel::cancelImport
+        )
     }
 
     dataState.pendingImport?.let { preview ->
@@ -368,6 +423,7 @@ private fun DalletAppContent(
     val isInnerScreen = backStackEntry != null && (
         currentRoute.startsWith("edit/") ||
         currentRoute == SECURITY_ROUTE ||
+        currentRoute == AUTOBACKUP_ROUTE ||
         currentRoute == SETTINGS_ROUTE ||
         currentRoute == RATES_ROUTE ||
         currentRoute == BUDGETS_ROUTE ||
@@ -532,6 +588,7 @@ private fun DalletAppContent(
                     },
                     onExportClick = launchExport,
                     onImportClick = launchImport,
+                    onAutoBackupClick = { navController.navigate(AUTOBACKUP_ROUTE) },
                     onResetConfirmed = viewModel::resetAll,
                     onDataMessageShown = viewModel::consumeDataMessage
                 )
@@ -596,6 +653,23 @@ private fun DalletAppContent(
                     onThemeModeChange = onThemeModeChange,
                     language = language,
                     onLanguageChange = onLanguageChange
+                )
+            }
+            composable(AUTOBACKUP_ROUTE) {
+                AutoBackupScreen(
+                    state = autoState,
+                    busy = autoBusy,
+                    onPickFolder = { folderLauncher.launch(null) },
+                    onEnabledChange = { enabled ->
+                        AutoBackup.setEnabled(context, enabled)
+                        autoState = AutoBackup.state(context)
+                        if (enabled) runAutoBackup()
+                    },
+                    onPasswordChange = { password ->
+                        AutoBackup.setPassword(context, password)
+                        autoState = AutoBackup.state(context)
+                    },
+                    onRunNow = runAutoBackup
                 )
             }
             composable(SECURITY_ROUTE) {
