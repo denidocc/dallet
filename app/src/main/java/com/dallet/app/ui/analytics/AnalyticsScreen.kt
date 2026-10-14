@@ -27,6 +27,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.foundation.border
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -167,7 +168,7 @@ fun AnalyticsScreen(
                 changePercent = state.incomeChangePercent,
                 higherIsGood = true,
                 period = state.period,
-                selected = isIncome,
+                selected = state.mode == AnalyticsMode.INCOME,
                 onClick = { onModeSelected(AnalyticsMode.INCOME) },
                 modifier = Modifier.weight(1f)
             )
@@ -178,11 +179,34 @@ fun AnalyticsScreen(
                 changePercent = state.expenseChangePercent,
                 higherIsGood = false,
                 period = state.period,
-                selected = !isIncome,
+                selected = state.mode == AnalyticsMode.EXPENSE,
                 onClick = { onModeSelected(AnalyticsMode.EXPENSE) },
                 modifier = Modifier.weight(1f)
             )
         }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            MiniSummaryCard(
+                label = stringResource(R.string.analytics_goals_label),
+                value = moneyText(state.savings.goalsNetLabel),
+                selected = state.mode == AnalyticsMode.GOALS,
+                onClick = { onModeSelected(AnalyticsMode.GOALS) },
+                modifier = Modifier.weight(1f)
+            )
+            MiniSummaryCard(
+                label = stringResource(R.string.analytics_debts_label),
+                value = moneyText(state.savings.debtsNetLabel),
+                selected = state.mode == AnalyticsMode.DEBTS,
+                onClick = { onModeSelected(AnalyticsMode.DEBTS) },
+                modifier = Modifier.weight(1f)
+            )
+        }
+        when (state.mode) {
+            AnalyticsMode.GOALS -> GoalsAnalytics(state)
+            AnalyticsMode.DEBTS -> DebtsAnalytics(state)
+            else -> {
 
         Text(
             text = stringResource(
@@ -293,6 +317,8 @@ fun AnalyticsScreen(
                 color = if (dataState.isError) MaterialTheme.colorScheme.error
                 else MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+            }
         }
     }
 
@@ -714,5 +740,249 @@ private fun compactAmount(label: String): String {
         }
         value % 1.0 == 0.0 -> value.toLong().toString()
         else -> String.format(Locale.US, "%.1f", value).removeSuffix(".0")
+    }
+}
+
+@Composable
+private fun MiniSummaryCard(
+    label: String,
+    value: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val shape = RoundedCornerShape(12.dp)
+    Row(
+        modifier = modifier
+            .clip(shape)
+            .background(MaterialTheme.colorScheme.surface)
+            .then(
+                if (selected) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, shape)
+                else Modifier
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleSmall,
+            maxLines = 1
+        )
+    }
+}
+
+@Composable
+private fun SliceLegend(slices: List<AnalyticsCategorySliceUi>) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        slices.forEach { slice ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(12.dp)
+                        .clip(CircleShape)
+                        .background(Color(slice.colorArgb))
+                )
+                Text(
+                    text = slice.name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = moneyText(slice.amountLabel),
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyCard(text: String) {
+    SurfaceCard {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun GoalsAnalytics(state: AnalyticsUiState) {
+    val data = state.savings
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        SurfaceCard {
+            AmountLine(stringResource(R.string.analytics_goals_deposited), moneyText(data.goalsDepositedLabel), incomeAmountColor())
+            Spacer(modifier = Modifier.height(6.dp))
+            AmountLine(stringResource(R.string.analytics_goals_withdrawn), moneyText(data.goalsWithdrawnLabel), expenseAmountColor())
+        }
+        Text(
+            text = stringResource(R.string.analytics_goals_by_goal),
+            style = MaterialTheme.typography.titleMedium
+        )
+        if (data.goalSlices.isEmpty()) {
+            EmptyCard(stringResource(R.string.analytics_goals_empty))
+        } else {
+            SurfaceCard {
+                CategoryDonut(
+                    slices = data.goalSlices,
+                    centerLabel = stringResource(R.string.analytics_goals_label),
+                    totalLabel = moneyText(data.goalsDepositedLabel)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                SliceLegend(data.goalSlices)
+            }
+        }
+        Text(
+            text = stringResource(R.string.analytics_goals_flow),
+            style = MaterialTheme.typography.titleMedium
+        )
+        if (data.goalFlowPoints.all { it.fraction <= 0f && it.previousFraction <= 0f }) {
+            EmptyCard(stringResource(R.string.analytics_goals_empty))
+        } else {
+            SurfaceCard {
+                FlowLegend()
+                Spacer(modifier = Modifier.height(12.dp))
+                FlowChart(points = data.goalFlowPoints)
+            }
+        }
+        if (data.goalProgress.isNotEmpty()) {
+            Text(
+                text = stringResource(R.string.analytics_goals_progress),
+                style = MaterialTheme.typography.titleMedium
+            )
+            SurfaceCard {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    data.goalProgress.forEach { goal ->
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = goal.name,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Text(
+                                    text = "${goal.percent}%",
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .padding(vertical = 8.dp)
+                                    .fillMaxWidth()
+                                    .height(8.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxHeight()
+                                        .fillMaxWidth(goal.percent.coerceIn(0, 100) / 100f)
+                                        .background(MaterialTheme.colorScheme.primary)
+                                )
+                            }
+                            Text(
+                                text = moneyText(goal.savedLabel) + " / " + moneyText(goal.targetLabel),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DebtsAnalytics(state: AnalyticsUiState) {
+    val data = state.savings
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        SurfaceCard {
+            AmountLine(stringResource(R.string.analytics_debts_owed_to_me), moneyText(data.owedToMeLabel), incomeAmountColor())
+            Spacer(modifier = Modifier.height(6.dp))
+            AmountLine(stringResource(R.string.analytics_debts_i_owe), moneyText(data.iOweLabel), expenseAmountColor())
+        }
+        Text(
+            text = stringResource(R.string.analytics_debts_owed_to_me),
+            style = MaterialTheme.typography.titleMedium
+        )
+        if (data.owedToMeSlices.isEmpty()) {
+            EmptyCard(stringResource(R.string.analytics_debts_empty))
+        } else {
+            SurfaceCard {
+                CategoryDonut(
+                    slices = data.owedToMeSlices,
+                    centerLabel = stringResource(R.string.analytics_debts_label),
+                    totalLabel = moneyText(data.owedToMeLabel)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                SliceLegend(data.owedToMeSlices)
+            }
+        }
+        if (data.iOweSlices.isNotEmpty()) {
+            Text(
+                text = stringResource(R.string.analytics_debts_i_owe),
+                style = MaterialTheme.typography.titleMedium
+            )
+            SurfaceCard {
+                CategoryDonut(
+                    slices = data.iOweSlices,
+                    centerLabel = stringResource(R.string.analytics_debts_label),
+                    totalLabel = moneyText(data.iOweLabel)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                SliceLegend(data.iOweSlices)
+            }
+        }
+        Text(
+            text = stringResource(R.string.analytics_debts_movement),
+            style = MaterialTheme.typography.titleMedium
+        )
+        if (data.debtMovement.isEmpty()) {
+            EmptyCard(stringResource(R.string.analytics_debts_movement_empty))
+        } else {
+            SurfaceCard {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    data.debtMovement.forEach { row ->
+                        AmountLine(row.label, moneyText(row.amountLabel), MaterialTheme.colorScheme.onSurface)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AmountLine(label: String, value: String, valueColor: Color) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleMedium,
+            color = valueColor
+        )
     }
 }

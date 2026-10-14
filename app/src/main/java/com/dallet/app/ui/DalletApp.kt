@@ -96,6 +96,10 @@ import com.dallet.app.ui.edit.EditOperationScreen
 import com.dallet.app.ui.comparison.ComparisonActions
 import com.dallet.app.ui.comparison.ComparisonScreen
 import com.dallet.app.ui.history.HistoryFilterActions
+import com.dallet.app.ui.debts.DebtDetailActions
+import com.dallet.app.ui.debts.DebtDetailScreen
+import com.dallet.app.ui.debts.DebtsScreen
+import com.dallet.app.ui.debts.DebtsViewModel
 import com.dallet.app.ui.goals.GoalDetailActions
 import com.dallet.app.ui.goals.GoalDetailScreen
 import com.dallet.app.ui.goals.GoalsScreen
@@ -125,6 +129,8 @@ private const val SECURITY_ROUTE = "security"
 private const val FAQ_ROUTE = "faq"
 private const val FEEDBACK_ROUTE = "feedback"
 private const val GOALS_ROUTE = "goals"
+private const val DEBTS_ROUTE = "debts"
+private const val DEBT_ROUTE = "debts/{debtId}"
 private const val GOAL_ROUTE = "goals/{goalId}"
 private const val AUTOBACKUP_ROUTE = "autobackup"
 private const val SETTINGS_ROUTE = "settings"
@@ -156,7 +162,8 @@ fun DalletApp(
     onOpenAddHandled: () -> Unit = {},
     viewModel: DalletViewModel = viewModel(factory = DalletViewModel.factory(ledger, pinLock, strings, rememberWidgetRefresh())),
     shoppingViewModel: ShoppingViewModel = viewModel(factory = ShoppingViewModel.factory(ledger, shopping, strings)),
-    goalsViewModel: GoalsViewModel = viewModel(factory = GoalsViewModel.factory(ledger, strings))
+    goalsViewModel: GoalsViewModel = viewModel(factory = GoalsViewModel.factory(ledger, strings)),
+    debtsViewModel: DebtsViewModel = viewModel(factory = DebtsViewModel.factory(ledger, strings))
 ) {
     val currency by viewModel.currency.collectAsStateWithLifecycle()
     var shownLanguage by remember { mutableStateOf(language) }
@@ -171,6 +178,7 @@ fun DalletApp(
             viewModel,
             shoppingViewModel,
             goalsViewModel,
+            debtsViewModel,
             themeMode,
             onThemeModeChange,
             language,
@@ -208,6 +216,7 @@ private fun DalletAppContent(
     viewModel: DalletViewModel,
     shoppingViewModel: ShoppingViewModel,
     goalsViewModel: GoalsViewModel,
+    debtsViewModel: DebtsViewModel,
     themeMode: ThemeMode,
     onThemeModeChange: (ThemeMode) -> Unit,
     language: AppLanguage,
@@ -228,6 +237,9 @@ private fun DalletAppContent(
     val comparisonState by viewModel.comparison.collectAsStateWithLifecycle()
     val dataState by viewModel.data.collectAsStateWithLifecycle()
     val goalsListState by goalsViewModel.list.collectAsStateWithLifecycle()
+    val debtsListState by debtsViewModel.list.collectAsStateWithLifecycle()
+    val debtsAccounts by debtsViewModel.accounts.collectAsStateWithLifecycle()
+    val debtDetailState by debtsViewModel.detail.collectAsStateWithLifecycle()
     val goalDetailState by goalsViewModel.detail.collectAsStateWithLifecycle()
     val lockState by viewModel.lock.collectAsStateWithLifecycle()
     val securityState by viewModel.security.collectAsStateWithLifecycle()
@@ -441,6 +453,7 @@ private fun DalletAppContent(
         currentRoute == FAQ_ROUTE ||
         currentRoute == FEEDBACK_ROUTE ||
         currentRoute?.startsWith("goals") == true ||
+        currentRoute?.startsWith("debts") == true ||
         currentRoute == AUTOBACKUP_ROUTE ||
         currentRoute == SETTINGS_ROUTE ||
         currentRoute == RATES_ROUTE ||
@@ -606,6 +619,10 @@ private fun DalletAppContent(
                     },
                     onFaqClick = { navController.navigate(FAQ_ROUTE) },
                     onFeedbackClick = { navController.navigate(FEEDBACK_ROUTE) },
+                    onDebtsClick = {
+                        debtsViewModel.refreshList()
+                        navController.navigate(DEBTS_ROUTE)
+                    },
                     onGoalsClick = {
                         goalsViewModel.refreshList()
                         navController.navigate(GOALS_ROUTE)
@@ -737,7 +754,45 @@ private fun DalletAppContent(
                 )
             }
             composable(FAQ_ROUTE) { FaqScreen() }
-            composable(FEEDBACK_ROUTE) { FeedbackScreen() }
+            composable(FEEDBACK_ROUTE) {
+                FeedbackScreen(onDone = { navigateTo(DalletDestination.Home) })
+            }
+            composable(DEBTS_ROUTE) {
+                LaunchedEffect(Unit) { debtsViewModel.refreshList() }
+                DebtsScreen(
+                    state = debtsListState,
+                    accounts = debtsAccounts,
+                    onDebtClick = { id ->
+                        debtsViewModel.openDebt(id)
+                        navController.navigate("debts/$id")
+                    },
+                    onCreate = { person, direction, amount, accountId, note ->
+                        debtsViewModel.createDebt(person, direction, amount, accountId, note) { id ->
+                            debtsViewModel.openDebt(id)
+                            navController.navigate("debts/$id")
+                        }
+                    },
+                    onMessageShown = debtsViewModel::consumeListMessage
+                )
+            }
+            composable(
+                route = DEBT_ROUTE,
+                arguments = listOf(navArgument("debtId") { type = NavType.LongType })
+            ) { entry ->
+                val debtId = entry.arguments?.getLong("debtId") ?: return@composable
+                LaunchedEffect(debtId) { debtsViewModel.openDebt(debtId) }
+                DebtDetailScreen(
+                    state = debtDetailState,
+                    actions = DebtDetailActions(
+                        onRepay = debtsViewModel::repay,
+                        onUpdate = debtsViewModel::updateDebt,
+                        onWriteOff = debtsViewModel::writeOff,
+                        onDelete = { debtsViewModel.deleteDebt { navController.popBackStack() } },
+                        onUndoPayment = debtsViewModel::undoPayment,
+                        onMessageShown = debtsViewModel::consumeMessage
+                    )
+                )
+            }
             composable(SECURITY_ROUTE) {
                 SecurityScreen(
                     state = securityState,

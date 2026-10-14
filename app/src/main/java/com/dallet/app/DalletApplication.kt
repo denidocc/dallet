@@ -7,6 +7,8 @@ import com.dallet.app.data.MIGRATION_2_3
 import com.dallet.app.data.MIGRATION_3_4
 import com.dallet.app.data.MIGRATION_4_5
 import com.dallet.app.data.MIGRATION_5_6
+import com.dallet.app.data.MIGRATION_6_7
+import com.dallet.app.data.RoomDebtRepository
 import com.dallet.app.data.RoomGoalRepository
 import com.dallet.app.data.RoomAccountRepository
 import com.dallet.app.data.RoomCategoryRepository
@@ -46,7 +48,7 @@ class DalletApplication : Application() {
             this,
             DalletDatabase::class.java,
             "dallet.db"
-        ).addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+        ).addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
             .fallbackToDestructiveMigrationFrom(1)
             .build()
         settings = SharedPreferencesSettingsStore(this)
@@ -59,6 +61,7 @@ class DalletApplication : Application() {
         val operationRepository = RoomOperationRepository(database.operationDao())
         val shoppingRepository = RoomShoppingRepository(database.shoppingDao())
         val goalRepository = RoomGoalRepository(database.goalDao())
+        val debtRepository = RoomDebtRepository(database.debtDao())
         ledger = Ledger(
             accountRepository = accountRepository,
             categoryRepository = categoryRepository,
@@ -66,13 +69,15 @@ class DalletApplication : Application() {
             shoppingRepository = shoppingRepository,
             settings = settings,
             goalRepository = goalRepository,
+            debtRepository = debtRepository,
             dataStore = RoomLedgerDataStore(
                 database = database,
                 accountRepository = accountRepository,
                 categoryRepository = categoryRepository,
                 operationRepository = operationRepository,
                 shoppingRepository = shoppingRepository,
-                goalRepository = goalRepository
+                goalRepository = goalRepository,
+                debtRepository = debtRepository
             )
         )
         shopping = ShoppingService(ledger, shoppingRepository)

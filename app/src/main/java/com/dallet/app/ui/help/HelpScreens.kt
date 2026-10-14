@@ -16,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
@@ -23,7 +24,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,8 +34,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.dallet.app.R
 import com.dallet.app.ui.common.AppButtonShape
 import com.dallet.app.ui.common.SurfaceCard
@@ -52,7 +58,8 @@ private val FAQ = listOf(
     FaqEntry(R.string.faq_q7, R.string.faq_a7),
     FaqEntry(R.string.faq_q8, R.string.faq_a8),
     FaqEntry(R.string.faq_q9, R.string.faq_a9),
-    FaqEntry(R.string.faq_q10, R.string.faq_a10)
+    FaqEntry(R.string.faq_q10, R.string.faq_a10),
+    FaqEntry(R.string.faq_q11, R.string.faq_a11)
 )
 
 @Composable
@@ -109,12 +116,26 @@ private enum class FeedbackKind(@StringRes val label: Int, @StringRes val subjec
 }
 
 @Composable
-fun FeedbackScreen() {
+fun FeedbackScreen(onDone: () -> Unit) {
     val context = LocalContext.current
     var kind by remember { mutableStateOf(FeedbackKind.IDEA) }
     var text by remember { mutableStateOf("") }
     var withInfo by remember { mutableStateOf(true) }
     var noMailApp by remember { mutableStateOf(false) }
+    var waitingForMail by remember { mutableStateOf(false) }
+    var askSent by remember { mutableStateOf(false) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            // Back from the mail app: the message may or may not have been sent, so ask.
+            if (event == Lifecycle.Event.ON_RESUME && waitingForMail) {
+                waitingForMail = false
+                askSent = true
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     val versionName = remember {
         runCatching {
             context.packageManager.getPackageInfo(context.packageName, 0).versionName
@@ -183,8 +204,10 @@ fun FeedbackScreen() {
                     putExtra(Intent.EXTRA_TEXT, body)
                 }
                 try {
+                    waitingForMail = true
                     context.startActivity(intent)
                 } catch (_: ActivityNotFoundException) {
+                    waitingForMail = false
                     noMailApp = true
                 }
             },
@@ -199,4 +222,29 @@ fun FeedbackScreen() {
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
+
+    if (askSent) {
+        AlertDialog(
+            onDismissRequest = { askSent = false },
+            title = { Text(stringResource(R.string.feedback_sent_title)) },
+            text = { Text(stringResource(R.string.feedback_sent_text)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        askSent = false
+                        text = ""
+                        onDone()
+                    }
+                ) {
+                    Text(stringResource(R.string.feedback_sent_yes))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { askSent = false }) {
+                    Text(stringResource(R.string.feedback_sent_no))
+                }
+            }
+        )
+    }
 }
+

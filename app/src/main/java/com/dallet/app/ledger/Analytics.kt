@@ -82,3 +82,30 @@ data class AnalyticsSummary(
     val incomeFlow: List<ExpenseFlowPoint> = emptyList(),
     val byAccount: List<AccountPeriodTotal> = emptyList()
 )
+
+data class NamedAmount(
+    val id: Long,
+    val name: String,
+    val amountMinor: Long
+)
+
+/** What happened with goals and debts in one period, and where they stand at the end of it. */
+data class SavingsDebtsSummary(
+    val fromInclusive: LocalDate,
+    val toInclusive: LocalDate,
+    val goalsDepositedMinor: Long,
+    val goalsWithdrawnMinor: Long,
+    val depositedByGoal: List<NamedAmount>,
+    val goalFlow: List<ExpenseFlowPoint>,
+    val goalProgress: List<GoalSummary>,
+    val lentMinor: Long,
+    val returnedToMeMinor: Long,
+    val borrowedMinor: Long,
+    val iRepaidMinor: Long,
+    val writtenOffLentMinor: Long,
+    val forgivenMinor: Long,
+    val owedToMeMinor: Long,
+    val iOweMinor: Long,
+    val owedToMeByPerson: List<NamedAmount>,
+    val iOweByPerson: List<NamedAmount>
+)

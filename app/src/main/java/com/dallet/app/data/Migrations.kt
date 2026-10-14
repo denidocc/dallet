@@ -79,3 +79,27 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
         )
     }
 }
+
+/** Adds debts and the money moved through them. */
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `debts` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`person` TEXT NOT NULL, " +
+                "`direction` TEXT NOT NULL, " +
+                "`note` TEXT NOT NULL, " +
+                "`createdEpochDay` INTEGER NOT NULL)"
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `debt_entries` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`debtId` INTEGER NOT NULL, " +
+                "`kind` TEXT NOT NULL, " +
+                "`amountMinor` INTEGER NOT NULL, " +
+                "`dateEpochDay` INTEGER NOT NULL, " +
+                "`accountId` INTEGER, " +
+                "`operationId` INTEGER)"
+        )
+    }
+}

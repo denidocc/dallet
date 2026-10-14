@@ -26,11 +26,12 @@ data class BackupData(
     val goals: GoalData = GoalData.EMPTY,
     val mainCurrency: Currency = Currency.DEFAULT,
     val budgets: Map<Long, Long> = emptyMap(),
-    val recurring: List<RecurringRule> = emptyList()
+    val recurring: List<RecurringRule> = emptyList(),
+    val debts: DebtData = DebtData.EMPTY
 )
 
 object BackupCodec {
-    const val SCHEMA_VERSION = 3
+    const val SCHEMA_VERSION = 4
     private const val APP_MARKER = "dallet"
     private const val NOT_A_BACKUP = "Файл не похож на резервную копию Dallet"
     private const val TOO_NEW = "Резервная копия создана в более новой версии Dallet"
@@ -79,6 +80,7 @@ object BackupCodec {
         })
         root.put("shopping", encodeShopping(data.shopping))
         root.put("goals", encodeGoals(data.goals))
+        root.put("debts", encodeDebts(data.debts))
         root.put("mainCurrency", data.mainCurrency.name)
         root.put("recurring", RecurringCodec.encode(data.recurring))
         root.put("budgets", JSONArray().apply {
@@ -87,6 +89,78 @@ object BackupCodec {
             }
         })
         return root.toString()
+    }
+
+    private fun encodeDebts(data: DebtData): JSONObject {
+        val root = JSONObject()
+        root.put("debts", JSONArray().apply {
+            data.debts.forEach { debt ->
+                put(
+                    JSONObject()
+                        .put("id", debt.id)
+                        .put("person", debt.person)
+                        .put("direction", debt.direction.name)
+                        .put("note", debt.note)
+                        .put("createdAt", debt.createdAt.toString())
+                )
+            }
+        })
+        root.put("entries", JSONArray().apply {
+            data.entries.forEach { entry ->
+                val item = JSONObject()
+                    .put("id", entry.id)
+                    .put("debtId", entry.debtId)
+                    .put("kind", entry.kind.name)
+                    .put("amountMinor", entry.amountMinor)
+                    .put("date", entry.date.toString())
+                entry.accountId?.let { item.put("accountId", it) }
+                entry.operationId?.let { item.put("operationId", it) }
+                put(item)
+            }
+        })
+        return root
+    }
+
+    private fun decodeDebts(root: JSONObject): DebtData = DebtData(
+        debts = root.optJSONArray("debts").objectsOrEmpty().map {
+            Debt(
+                id = it.getLong("id"),
+                person = it.getString("person"),
+                direction = DebtDirection.valueOf(it.getString("direction")),
+                note = it.optNullableString("note").orEmpty(),
+                createdAt = LocalDate.parse(it.getString("createdAt"))
+            )
+        },
+        entries = root.optJSONArray("entries").objectsOrEmpty().map {
+            DebtEntry(
+                id = it.getLong("id"),
+                debtId = it.getLong("debtId"),
+                kind = DebtEntryKind.valueOf(it.getString("kind")),
+                amountMinor = it.getLong("amountMinor"),
+                date = LocalDate.parse(it.getString("date")),
+                accountId = it.optNullableLong("accountId"),
+                operationId = it.optNullableLong("operationId")
+            )
+        }
+    )
+
+    private fun validateDebts(debts: DebtData, accountIds: Set<Long>) {
+        requireValid(hasUniquePositiveIds(debts.debts.map { it.id }))
+        requireValid(hasUniquePositiveIds(debts.entries.map { it.id }))
+        val debtIds = debts.debts.map { it.id }.toSet()
+        requireValid(debts.debts.all { it.person.isNotBlank() })
+        requireValid(
+            debts.entries.all {
+                it.debtId in debtIds && it.amountMinor > 0 && (it.accountId == null || it.accountId in accountIds)
+            }
+        )
+        debts.debts.forEach { debt ->
+            val own = debts.entries.filter { it.debtId == debt.id }
+            val issued = own.filter { it.kind == DebtEntryKind.ISSUE }
+            requireValid(issued.size == 1)
+            val repaid = own.filter { it.kind != DebtEntryKind.ISSUE }.sumOf { it.amountMinor }
+            requireValid(repaid <= issued.single().amountMinor)
+        }
     }
 
     private fun encodeGoals(data: GoalData): JSONObject {
@@ -314,6 +388,7 @@ object BackupCodec {
             val shopping = root.optJSONObject("shopping")?.let { decodeShopping(it) }
                 ?: ShoppingData.EMPTY
             val goals = root.optJSONObject("goals")?.let { decodeGoals(it) } ?: GoalData.EMPTY
+            val debts = root.optJSONObject("debts")?.let { decodeDebts(it) } ?: DebtData.EMPTY
             val currency = Currency.fromName(root.optNullableString("mainCurrency"))
             val budgets = root.optJSONArray("budgets").objectsOrEmpty()
                 .associate { it.getLong("categoryId") to it.getLong("limitMinor") }
@@ -326,7 +401,8 @@ object BackupCodec {
                 goals = goals,
                 mainCurrency = currency,
                 budgets = budgets,
-                recurring = recurring
+                recurring = recurring,
+                debts = debts
             )
         } catch (error: InvalidBackupException) {
             throw error
@@ -348,6 +424,7 @@ object BackupCodec {
         requireValid(data.categories.all { it.name.isNotBlank() })
         validateShopping(data.shopping)
         validateGoals(data.goals, data.accounts.map { it.id }.toSet())
+        validateDebts(data.debts, data.accounts.map { it.id }.toSet())
         val expenseIds = data.categories.filter { it.kind == CategoryKind.EXPENSE }.map { it.id }.toSet()
         requireValid(data.budgets.all { it.key in expenseIds && it.value > 0 })
         val validAccountIds = data.accounts.map { it.id }.toSet()

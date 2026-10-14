@@ -16,13 +16,15 @@ class Ledger(
     private val shoppingRepository: ShoppingRepository = InMemoryShoppingRepository(),
     private val settings: SettingsStore = InMemorySettingsStore(),
     private val goalRepository: GoalRepository = InMemoryGoalRepository(),
+    private val debtRepository: DebtRepository = InMemoryDebtRepository(),
     private val dataStore: LedgerDataStore =
         RepositoryLedgerDataStore(
             accountRepository,
             categoryRepository,
             operationRepository,
             shoppingRepository,
-            goalRepository
+            goalRepository,
+            debtRepository
         )
 ) {
     suspend fun hasCompletedOnboarding(): Boolean = accountRepository.getAll().isNotEmpty()
@@ -39,6 +41,7 @@ class Ledger(
                 operations = operationRepository.getAll(),
                 shopping = shoppingRepository.getAll(),
                 goals = goalRepository.getAll(),
+                debts = debtRepository.getAll(),
                 mainCurrency = settings.mainCurrency(),
                 budgets = settings.budgets().filterKeys { it in expenseIds },
                 recurring = settings.recurring().filter { rule ->
@@ -66,7 +69,13 @@ class Ledger(
                 if (linked != null && linked !in operationIds) entry.copy(operationId = null) else entry
             }
         )
-        dataStore.replaceAll(data.accounts, data.categories, data.operations, shopping, goals)
+        val debts = data.debts.copy(
+            entries = data.debts.entries.map { entry ->
+                val linked = entry.operationId
+                if (linked != null && linked !in operationIds) entry.copy(operationId = null) else entry
+            }
+        )
+        dataStore.replaceAll(data.accounts, data.categories, data.operations, shopping, goals, debts)
         settings.saveRates(emptyList())
         settings.setMainCurrency(data.mainCurrency)
         settings.saveBudgets(data.budgets)
@@ -74,7 +83,7 @@ class Ledger(
     }
 
     suspend fun resetAll() {
-        dataStore.replaceAll(emptyList(), emptyList(), emptyList(), ShoppingData.EMPTY, GoalData.EMPTY)
+        dataStore.replaceAll(emptyList(), emptyList(), emptyList(), ShoppingData.EMPTY, GoalData.EMPTY, DebtData.EMPTY)
         settings.saveRates(emptyList())
         settings.saveBudgets(emptyMap())
         settings.saveRecurring(emptyList())
@@ -559,6 +568,10 @@ class Ledger(
         // A goal deposit made "as income" keeps its money in the goal, now taken from the account.
         goalRepository.getAll().entries.filter { it.operationId == operationId }
             .forEach { goalRepository.updateEntry(it.copy(operationId = null)) }
+        // A write-off keeps its effect on the debt; only the link to the deleted operation goes.
+        val debtData = debtRepository.getAll()
+        debtData.entries.filter { it.operationId == operationId }
+            .forEach { debtRepository.updateEntry(it.copy(operationId = null)) }
     }
 
     /** The purchase whose closing created this expense, or null for an ordinary operation. */
@@ -600,7 +613,8 @@ class Ledger(
                 operation.toAccountId == accountId
         }
         val usedByGoal = goalRepository.getAll().entries.any { it.accountId == accountId }
-        if (used || usedByGoal) {
+        val usedByDebt = debtRepository.getAll().entries.any { it.accountId == accountId }
+        if (used || usedByGoal || usedByDebt) {
             throw AccountHasOperationsException()
         }
         accountRepository.delete(accountId)
@@ -869,6 +883,229 @@ class Ledger(
         }
     }
 
+    /** Goals and debts for the analytics: movement inside the period and the balances now. */
+    suspend fun savingsAndDebts(
+        period: AnalyticsPeriod,
+        asOf: LocalDate,
+        window: DateWindow? = null
+    ): SavingsDebtsSummary {
+        val (from, to) = periodBounds(period, asOf, window)
+        fun inPeriod(date: LocalDate) = !date.isBefore(from) && !date.isAfter(to)
+
+        val goalData = goalRepository.getAll()
+        val goalEntries = goalData.entries.filter { inPeriod(it.date) }
+        val deposits = goalEntries.filter { it.amountMinor > 0 }
+        val goalNames = goalData.goals.associate { it.id to it.name }
+        val fakeOperations = deposits.map {
+            Operation(
+                id = it.id,
+                kind = OperationKind.EXPENSE,
+                amountMinor = it.amountMinor,
+                date = it.date,
+                comment = null,
+                accountId = it.accountId,
+                categoryId = null
+            )
+        }
+
+        val debtData = debtRepository.getAll()
+        val debtById = debtData.debts.associateBy { it.id }
+        val entries = debtData.entries.filter { inPeriod(it.date) }
+        fun sum(direction: DebtDirection, kind: DebtEntryKind) = entries
+            .filter { it.kind == kind && debtById[it.debtId]?.direction == direction }
+            .sumOf { it.amountMinor }
+        val summaries = debts()
+        fun byPerson(direction: DebtDirection) = summaries
+            .filter { it.debt.direction == direction && it.remainingMinor > 0 }
+            .map { NamedAmount(it.debt.id, it.debt.person, it.remainingMinor) }
+            .sortedByDescending { it.amountMinor }
+
+        return SavingsDebtsSummary(
+            fromInclusive = from,
+            toInclusive = to,
+            goalsDepositedMinor = deposits.sumOf { it.amountMinor },
+            goalsWithdrawnMinor = goalEntries.filter { it.amountMinor < 0 }.sumOf { -it.amountMinor },
+            depositedByGoal = deposits.groupBy { it.goalId }
+                .map { (id, list) -> NamedAmount(id, goalNames[id].orEmpty(), list.sumOf { it.amountMinor }) }
+                .sortedByDescending { it.amountMinor },
+            goalFlow = expenseFlowSeries(period, from, to, fakeOperations),
+            goalProgress = goals().filter { !it.goal.archived },
+            lentMinor = sum(DebtDirection.LENT, DebtEntryKind.ISSUE),
+            returnedToMeMinor = sum(DebtDirection.LENT, DebtEntryKind.REPAYMENT),
+            borrowedMinor = sum(DebtDirection.BORROWED, DebtEntryKind.ISSUE),
+            iRepaidMinor = sum(DebtDirection.BORROWED, DebtEntryKind.REPAYMENT),
+            writtenOffLentMinor = sum(DebtDirection.LENT, DebtEntryKind.WRITE_OFF),
+            forgivenMinor = sum(DebtDirection.BORROWED, DebtEntryKind.WRITE_OFF),
+            owedToMeMinor = summaries.filter { it.debt.direction == DebtDirection.LENT }.sumOf { it.remainingMinor },
+            iOweMinor = summaries.filter { it.debt.direction == DebtDirection.BORROWED }.sumOf { it.remainingMinor },
+            owedToMeByPerson = byPerson(DebtDirection.LENT),
+            iOweByPerson = byPerson(DebtDirection.BORROWED)
+        )
+    }
+
+    // ---- Debts
+
+    suspend fun debts(): List<DebtSummary> {
+        val data = debtRepository.getAll()
+        return data.debts.map { debt -> summarize(debt, data.entries.filter { it.debtId == debt.id }) }
+    }
+
+    suspend fun debtSummary(debtId: Long): DebtSummary? = debts().firstOrNull { it.debt.id == debtId }
+
+    /** Entries of a debt, oldest first (the issue comes first). */
+    suspend fun debtEntries(debtId: Long): List<DebtEntry> =
+        debtRepository.getAll().entries.filter { it.debtId == debtId }
+            .sortedWith(compareBy<DebtEntry> { it.date }.thenBy { it.id })
+
+    /**
+     * Starts a debt. With an [accountId] the money moves: lending takes it from the account,
+     * borrowing puts it there. Without one the balances stay as they are.
+     */
+    suspend fun createDebt(
+        person: String,
+        direction: DebtDirection,
+        amountMinor: Long,
+        accountId: Long?,
+        date: LocalDate,
+        note: String?
+    ): Long {
+        val name = person.trim()
+        require(name.isNotEmpty()) { "person required" }
+        require(amountMinor > 0) { "amount must be positive" }
+        requireAccountOrNull(accountId)
+        val id = debtRepository.insertDebt(
+            Debt(
+                id = 0L,
+                person = name,
+                direction = direction,
+                note = note?.trim().orEmpty(),
+                createdAt = date
+            )
+        )
+        debtRepository.insertEntry(
+            DebtEntry(
+                id = 0L,
+                debtId = id,
+                kind = DebtEntryKind.ISSUE,
+                amountMinor = amountMinor,
+                date = date,
+                accountId = accountId
+            )
+        )
+        return id
+    }
+
+    suspend fun updateDebt(debtId: Long, person: String, note: String?) {
+        val debt = debtRepository.debt(debtId) ?: error("debt not found")
+        val name = person.trim()
+        require(name.isNotEmpty()) { "person required" }
+        debtRepository.updateDebt(debt.copy(person = name, note = note?.trim().orEmpty()))
+    }
+
+    /** Records a payment toward the debt; at most what is still owed. */
+    suspend fun repayDebt(debtId: Long, amountMinor: Long, accountId: Long?, date: LocalDate): Long {
+        require(amountMinor > 0) { "amount must be positive" }
+        requireAccountOrNull(accountId)
+        val summary = debtSummary(debtId) ?: error("debt not found")
+        if (amountMinor > summary.remainingMinor) throw DebtOverpayException()
+        return debtRepository.insertEntry(
+            DebtEntry(
+                id = 0L,
+                debtId = debtId,
+                kind = DebtEntryKind.REPAYMENT,
+                amountMinor = amountMinor,
+                date = date,
+                accountId = accountId
+            )
+        )
+    }
+
+    /**
+     * Gives up the rest of the debt: money that was lent will not come back (an expense), or a
+     * debt of the user was forgiven (an income). The account balances do not change, because the
+     * money moved when the debt was made; the operation only shows the loss or the gain in the
+     * analytics. The category is found by name and created when missing.
+     */
+    suspend fun writeOffDebt(
+        debtId: Long,
+        date: LocalDate,
+        expenseCategoryName: String,
+        incomeCategoryName: String
+    ): Long {
+        val summary = debtSummary(debtId) ?: error("debt not found")
+        val remaining = summary.remainingMinor
+        require(remaining > 0) { "nothing to write off" }
+        val accounts = accountRepository.getAll()
+        val issueAccount = debtEntries(debtId).firstOrNull { it.kind == DebtEntryKind.ISSUE }?.accountId
+        val accountId = issueAccount?.takeIf { id -> accounts.any { it.id == id } }
+            ?: accounts.firstOrNull()?.id
+            ?: error("no account")
+        val lent = summary.debt.direction == DebtDirection.LENT
+        val kind = if (lent) CategoryKind.EXPENSE else CategoryKind.INCOME
+        val name = (if (lent) expenseCategoryName else incomeCategoryName).trim()
+        ensureCategoriesSeeded()
+        val categoryId = categoryRepository.getAll().firstOrNull { it.kind == kind && it.name == name }?.id
+            ?: createCategory(
+                name = name,
+                kind = kind,
+                colorArgb = if (lent) 0xFF6D4C41.toInt() else 0xFF2E7D32.toInt(),
+                iconKey = if (lent) "bank" else "charity"
+            )
+        val comment = summary.debt.person
+        val operationId = if (lent) {
+            addExpense(accountId, categoryId, remaining, date, comment)
+        } else {
+            addIncome(accountId, categoryId, remaining, date, comment)
+        }
+        return debtRepository.insertEntry(
+            DebtEntry(
+                id = 0L,
+                debtId = debtId,
+                kind = DebtEntryKind.WRITE_OFF,
+                amountMinor = remaining,
+                date = date,
+                accountId = accountId,
+                operationId = operationId
+            )
+        )
+    }
+
+    /** Undoes a payment or a write-off. The issue itself cannot be undone; delete the debt instead. */
+    suspend fun deleteDebtPayment(entryId: Long) {
+        val entry = debtRepository.getAll().entries.firstOrNull { it.id == entryId } ?: error("entry not found")
+        require(entry.kind != DebtEntryKind.ISSUE) { "only payments can be undone" }
+        debtRepository.deleteEntry(entryId)
+        removeOperationIfPresent(entry.operationId)
+    }
+
+    /** Removes the debt; the money it moved goes back as if nothing had happened. */
+    suspend fun deleteDebt(debtId: Long) {
+        require(debtRepository.debt(debtId) != null) { "debt not found" }
+        val operationIds = debtRepository.getAll().entries
+            .filter { it.debtId == debtId }.mapNotNull { it.operationId }
+        debtRepository.deleteDebt(debtId)
+        operationIds.forEach { removeOperationIfPresent(it) }
+    }
+
+    private suspend fun removeOperationIfPresent(operationId: Long?) {
+        if (operationId != null && operationRepository.getAll().any { it.id == operationId }) {
+            operationRepository.delete(operationId)
+        }
+    }
+
+    private fun summarize(debt: Debt, entries: List<DebtEntry>) = DebtSummary(
+        debt = debt,
+        issuedMinor = entries.filter { it.kind == DebtEntryKind.ISSUE }.sumOf { it.amountMinor },
+        repaidMinor = entries.filter { it.kind == DebtEntryKind.REPAYMENT }.sumOf { it.amountMinor },
+        writtenOffMinor = entries.filter { it.kind == DebtEntryKind.WRITE_OFF }.sumOf { it.amountMinor }
+    )
+
+    private suspend fun requireAccountOrNull(accountId: Long?) {
+        if (accountId != null) {
+            require(accountRepository.getAll().any { it.id == accountId }) { "account not found" }
+        }
+    }
+
     // ---- Goals
 
     suspend fun goals(): List<GoalSummary> {
@@ -988,6 +1225,15 @@ class Ledger(
         // Money put into a goal has left the account; money taken back (negative) returns.
         for (entry in goalRepository.getAll().entries) {
             if (entry.accountId == account.id) balance -= entry.amountMinor
+        }
+        // Loans: giving money out lowers the balance, getting it back raises it, and the reverse.
+        val debtData = debtRepository.getAll()
+        val directions = debtData.debts.associate { it.id to it.direction }
+        for (entry in debtData.entries) {
+            if (entry.accountId == account.id) {
+                val direction = directions[entry.debtId] ?: continue
+                balance += accountDelta(direction, entry)
+            }
         }
         for (operation in operationRepository.getAll()) {
             when (operation.kind) {

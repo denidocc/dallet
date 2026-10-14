@@ -32,6 +32,8 @@ import com.dallet.app.ledger.ExpenseFlowPoint
 import com.dallet.app.ledger.InvalidBackupException
 import com.dallet.app.ledger.Ledger
 import com.dallet.app.ledger.Money
+import com.dallet.app.ledger.NamedAmount
+import com.dallet.app.ledger.SavingsDebtsSummary
 import com.dallet.app.ledger.QuantityFormat
 import com.dallet.app.ledger.Operation
 import com.dallet.app.ledger.HistoryPeriod
@@ -414,8 +416,40 @@ data class CategoryEditorUiState(
 
 enum class AnalyticsMode {
     EXPENSE,
-    INCOME
+    INCOME,
+    GOALS,
+    DEBTS
 }
+
+data class GoalProgressUi(
+    val name: String,
+    val savedLabel: String,
+    val targetLabel: String,
+    val percent: Int
+)
+
+data class LabeledAmountUi(
+    val label: String,
+    val amountLabel: String,
+    val positive: Boolean? = null
+)
+
+/** Goals and debts of the chosen period, shown on their own Analytics tabs. */
+data class SavingsDebtsUi(
+    val goalsNetLabel: String = "0.00",
+    val goalsDepositedLabel: String = "0.00",
+    val goalsWithdrawnLabel: String = "0.00",
+    val goalSlices: List<AnalyticsCategorySliceUi> = emptyList(),
+    val goalFlowPoints: List<AnalyticsFlowPointUi> = emptyList(),
+    val goalProgress: List<GoalProgressUi> = emptyList(),
+    val debtsNetLabel: String = "0.00",
+    val debtsNetSign: Int = 0,
+    val owedToMeLabel: String = "0.00",
+    val iOweLabel: String = "0.00",
+    val owedToMeSlices: List<AnalyticsCategorySliceUi> = emptyList(),
+    val iOweSlices: List<AnalyticsCategorySliceUi> = emptyList(),
+    val debtMovement: List<LabeledAmountUi> = emptyList()
+)
 
 data class AnalyticsUiState(
     val period: AnalyticsPeriod = AnalyticsPeriod.MONTH,
@@ -441,7 +475,8 @@ data class AnalyticsUiState(
     val currentFrom: LocalDate? = null,
     val currentTo: LocalDate? = null,
     val previousFrom: LocalDate? = null,
-    val previousTo: LocalDate? = null
+    val previousTo: LocalDate? = null,
+    val savings: SavingsDebtsUi = SavingsDebtsUi()
 ) {
     /** The window on screen when the period is custom: the picked dates moved by [offset] windows. */
     val customWindow: DateWindow?
@@ -1530,6 +1565,9 @@ class DalletViewModel(
         )
         val summary = result.current
         val previous = result.previous
+        val savingsAsOf = shiftAsOf(period, today, offset.toLong())
+        val savingsNow = ledger.savingsAndDebts(period, savingsAsOf, window)
+        val savingsBefore = ledger.savingsAndDebts(period, shiftAsOf(period, savingsAsOf, -1), window?.shifted(-1))
         // Forward is possible while the next period has started; a calendar period may not pass today.
         val canGoForward = if (window != null) {
             !window.shifted(1).from.isAfter(today)
@@ -1564,8 +1602,62 @@ class DalletViewModel(
                 summary.expenseTotalMinor,
                 previous.expenseTotalMinor
             ),
-            accountStats = summary.byAccount.toAccountStats()
+            accountStats = summary.byAccount.toAccountStats(),
+            savings = toSavingsUi(savingsNow, savingsBefore)
         )
+    }
+
+    private fun toSavingsUi(now: SavingsDebtsSummary, before: SavingsDebtsSummary): SavingsDebtsUi {
+        val palette = CategoryStyleOptions.colors
+        fun slices(rows: List<NamedAmount>): List<AnalyticsCategorySliceUi> {
+            val total = rows.sumOf { it.amountMinor }
+            return rows.mapIndexed { index, row ->
+                AnalyticsCategorySliceUi(
+                    categoryId = row.id,
+                    name = row.name,
+                    colorArgb = palette[index % palette.size],
+                    amountLabel = Money.formatManat(row.amountMinor),
+                    fraction = if (total > 0L) row.amountMinor.toFloat() / total.toFloat() else 0f
+                )
+            }
+        }
+        val goalsNet = now.goalsDepositedMinor - now.goalsWithdrawnMinor
+        val debtsNet = now.owedToMeMinor - now.iOweMinor
+        fun row(res: Int, amount: Long) =
+            if (amount > 0L) listOf(LabeledAmountUi(strings.get(res), Money.formatManat(amount))) else emptyList()
+        return SavingsDebtsUi(
+            goalsNetLabel = signedAmount(goalsNet),
+            goalsDepositedLabel = Money.formatManat(now.goalsDepositedMinor),
+            goalsWithdrawnLabel = Money.formatManat(now.goalsWithdrawnMinor),
+            goalSlices = slices(now.depositedByGoal),
+            goalFlowPoints = now.goalFlow.toFlowPoints(before.goalFlow),
+            goalProgress = now.goalProgress.map {
+                GoalProgressUi(
+                    name = it.goal.name,
+                    savedLabel = Money.formatManat(it.savedMinor),
+                    targetLabel = Money.formatManat(it.goal.targetMinor),
+                    percent = it.percent
+                )
+            },
+            debtsNetLabel = signedAmount(debtsNet),
+            debtsNetSign = debtsNet.signum(),
+            owedToMeLabel = Money.formatManat(now.owedToMeMinor),
+            iOweLabel = Money.formatManat(now.iOweMinor),
+            owedToMeSlices = slices(now.owedToMeByPerson),
+            iOweSlices = slices(now.iOweByPerson),
+            debtMovement = row(R.string.debts_move_lent, now.lentMinor) +
+                row(R.string.debts_move_returned, now.returnedToMeMinor) +
+                row(R.string.debts_move_borrowed, now.borrowedMinor) +
+                row(R.string.debts_move_repaid, now.iRepaidMinor) +
+                row(R.string.debts_move_writeoff, now.writtenOffLentMinor) +
+                row(R.string.debts_move_forgiven, now.forgivenMinor)
+        )
+    }
+
+    private fun signedAmount(minor: Long): String = when {
+        minor > 0L -> "+" + Money.formatManat(minor)
+        minor < 0L -> "−" + Money.formatManat(-minor)
+        else -> Money.formatManat(0L)
     }
 
     private fun List<AccountPeriodTotal>.toAccountStats(): List<AccountStatUi> {

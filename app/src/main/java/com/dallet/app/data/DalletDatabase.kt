@@ -13,9 +13,11 @@ import androidx.room.RoomDatabase
         ProductEntity::class,
         PricePointEntity::class,
         GoalEntity::class,
-        GoalEntryEntity::class
+        GoalEntryEntity::class,
+        DebtEntity::class,
+        DebtEntryEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class DalletDatabase : RoomDatabase() {
@@ -24,4 +26,5 @@ abstract class DalletDatabase : RoomDatabase() {
     abstract fun operationDao(): OperationDao
     abstract fun shoppingDao(): ShoppingDao
     abstract fun goalDao(): GoalDao
+    abstract fun debtDao(): DebtDao
 }

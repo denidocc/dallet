@@ -218,7 +218,7 @@ class GoalsTest {
     fun backupWithoutGoalsStillImports() = runTest {
         val ledger = ledgerWithAccounts()
         val old = ledger.exportBackup()
-            .replace("\"schemaVersion\":3", "\"schemaVersion\":2")
+            .replace("\"schemaVersion\":4", "\"schemaVersion\":2")
             .replace(",\"goals\":{\"goals\":[],\"entries\":[]}", "")
 
         val target = newLedger()
