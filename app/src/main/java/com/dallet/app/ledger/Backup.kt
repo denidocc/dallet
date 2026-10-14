@@ -424,10 +424,10 @@ object BackupCodec {
         requireValid(hasUniquePositiveIds(data.operations.map { it.id }))
         requireValid(data.accounts.all { it.name.isNotBlank() && it.openingBalanceMinor >= 0 })
         requireValid(data.categories.all { it.name.isNotBlank() })
-        val categoriesById = data.categories.associateBy { it.id }
+        val categoriesForParents = data.categories.associateBy { it.id }
         requireValid(
             data.categories.all { category ->
-                val parent = category.parentId?.let { categoriesById[it] }
+                val parent = category.parentId?.let { categoriesForParents[it] }
                 category.parentId == null ||
                     (parent != null && parent.kind == category.kind && parent.parentId == null)
             }
