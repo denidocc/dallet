@@ -68,6 +68,7 @@ import com.dallet.app.ledger.QuantityUnit
 import com.dallet.app.ui.SelectableOption
 import com.dallet.app.ui.common.FormDateField
 import com.dallet.app.ui.common.FormTimeField
+import com.dallet.app.ui.common.OutlineAction
 import com.dallet.app.ui.common.SurfaceCard
 
 class ShoppingListActions(
@@ -269,15 +270,11 @@ fun ShoppingListScreen(
                 }
             }
             item {
-                TextButton(
+                OutlineAction(
+                    text = stringResource(R.string.shopping_delete_list_action),
                     onClick = { showDelete = true },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = stringResource(R.string.shopping_delete_list_action),
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
+                    danger = true
+                )
             }
         }
 
@@ -597,16 +594,15 @@ private fun BottomPanel(
                     Text(stringResource(R.string.shopping_go_shopping))
                 }
                 state.operationId?.let { operationId ->
-                    TextButton(
-                        onClick = { onOpenExpense(operationId) },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(stringResource(R.string.shopping_open_expense))
-                    }
+                    OutlineAction(
+                        text = stringResource(R.string.shopping_open_expense),
+                        onClick = { onOpenExpense(operationId) }
+                    )
                 }
-                TextButton(onClick = onReopen, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.shopping_reopen))
-                }
+                OutlineAction(
+                    text = stringResource(R.string.shopping_reopen),
+                    onClick = onReopen
+                )
             }
         }
     }

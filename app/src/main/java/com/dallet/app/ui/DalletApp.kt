@@ -100,6 +100,8 @@ import com.dallet.app.ui.goals.GoalDetailActions
 import com.dallet.app.ui.goals.GoalDetailScreen
 import com.dallet.app.ui.goals.GoalsScreen
 import com.dallet.app.ui.goals.GoalsViewModel
+import com.dallet.app.ui.help.FaqScreen
+import com.dallet.app.ui.help.FeedbackScreen
 import com.dallet.app.ui.history.HistoryScreen
 import com.dallet.app.ui.home.HomeScreen
 import com.dallet.app.ui.lock.LockScreen
@@ -120,6 +122,8 @@ private const val ACCOUNTS_ROUTE = "accounts"
 private const val ACCOUNT_NEW_ROUTE = "account/new"
 private const val ACCOUNT_EDIT_ROUTE = "account/{accountId}"
 private const val SECURITY_ROUTE = "security"
+private const val FAQ_ROUTE = "faq"
+private const val FEEDBACK_ROUTE = "feedback"
 private const val GOALS_ROUTE = "goals"
 private const val GOAL_ROUTE = "goals/{goalId}"
 private const val AUTOBACKUP_ROUTE = "autobackup"
@@ -434,6 +438,8 @@ private fun DalletAppContent(
     val isInnerScreen = backStackEntry != null && (
         currentRoute.startsWith("edit/") ||
         currentRoute == SECURITY_ROUTE ||
+        currentRoute == FAQ_ROUTE ||
+        currentRoute == FEEDBACK_ROUTE ||
         currentRoute?.startsWith("goals") == true ||
         currentRoute == AUTOBACKUP_ROUTE ||
         currentRoute == SETTINGS_ROUTE ||
@@ -598,6 +604,8 @@ private fun DalletAppContent(
                         viewModel.refreshRates()
                         navController.navigate(RATES_ROUTE)
                     },
+                    onFaqClick = { navController.navigate(FAQ_ROUTE) },
+                    onFeedbackClick = { navController.navigate(FEEDBACK_ROUTE) },
                     onGoalsClick = {
                         goalsViewModel.refreshList()
                         navController.navigate(GOALS_ROUTE)
@@ -728,6 +736,8 @@ private fun DalletAppContent(
                     )
                 )
             }
+            composable(FAQ_ROUTE) { FaqScreen() }
+            composable(FEEDBACK_ROUTE) { FeedbackScreen() }
             composable(SECURITY_ROUTE) {
                 SecurityScreen(
                     state = securityState,

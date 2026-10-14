@@ -1,6 +1,7 @@
 package com.dallet.app.ui.recurring
 
 import com.dallet.app.ui.common.AppButtonShape
+import com.dallet.app.ui.common.OutlineAction
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -228,12 +229,11 @@ fun RecurringEditorScreen(
             Text(stringResource(R.string.add_save))
         }
         if (!state.isNew) {
-            TextButton(onClick = onDelete, modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = stringResource(R.string.edit_delete),
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
+            OutlineAction(
+                text = stringResource(R.string.edit_delete),
+                onClick = onDelete,
+                danger = true
+            )
         }
     }
 }

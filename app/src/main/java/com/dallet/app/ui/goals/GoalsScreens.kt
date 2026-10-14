@@ -37,6 +37,7 @@ import com.dallet.app.R
 import com.dallet.app.ui.SelectableOption
 import com.dallet.app.ui.add.OptionDropdown
 import com.dallet.app.ui.common.AppButtonShape
+import com.dallet.app.ui.common.OutlineAction
 import com.dallet.app.ui.common.SegmentedChoice
 import com.dallet.app.ui.common.SurfaceCard
 import com.dallet.app.ui.moneyText
@@ -288,20 +289,20 @@ fun GoalDetailScreen(state: GoalDetailUi, actions: GoalDetailActions) {
             }
         }
 
-        TextButton(onClick = { showEdit = true }, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.goals_edit))
-        }
-        TextButton(onClick = { actions.onArchive(!state.archived) }, modifier = Modifier.fillMaxWidth()) {
-            Text(
-                stringResource(if (state.archived) R.string.goals_unarchive else R.string.goals_archive)
-            )
-        }
-        TextButton(onClick = { showDelete = true }, modifier = Modifier.fillMaxWidth()) {
-            Text(
-                text = stringResource(R.string.goals_delete),
-                color = MaterialTheme.colorScheme.error
-            )
-        }
+        OutlineAction(
+            text = stringResource(R.string.goals_edit),
+            onClick = { showEdit = true },
+            modifier = Modifier.padding(top = 8.dp)
+        )
+        OutlineAction(
+            text = stringResource(if (state.archived) R.string.goals_unarchive else R.string.goals_archive),
+            onClick = { actions.onArchive(!state.archived) }
+        )
+        OutlineAction(
+            text = stringResource(R.string.goals_delete),
+            onClick = { showDelete = true },
+            danger = true
+        )
     }
 
     if (showDeposit) {

@@ -52,6 +52,8 @@ fun MoreScreen(
     onRatesClick: () -> Unit,
     onShoppingClick: () -> Unit,
     onGoalsClick: () -> Unit,
+    onFaqClick: () -> Unit,
+    onFeedbackClick: () -> Unit,
     onExportClick: () -> Unit,
     onImportClick: () -> Unit,
     onAutoBackupClick: () -> Unit,
@@ -196,6 +198,24 @@ fun MoreScreen(
             )
             Text(
                 text = stringResource(R.string.more_reset_hint),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        SurfaceCard(onClick = onFaqClick) {
+            Text(
+                text = stringResource(R.string.faq_title),
+                style = MaterialTheme.typography.titleMedium
+            )
+        }
+        SurfaceCard(onClick = onFeedbackClick) {
+            Text(
+                text = stringResource(R.string.feedback_title),
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = stringResource(R.string.feedback_card_hint),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
