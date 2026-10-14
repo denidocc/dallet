@@ -318,7 +318,16 @@ object BackupCodec {
             val budgets = root.optJSONArray("budgets").objectsOrEmpty()
                 .associate { it.getLong("categoryId") to it.getLong("limitMinor") }
             val recurring = RecurringCodec.decode(root.optJSONArray("recurring"))
-            return BackupData(accounts, categories, operations, shopping, currency, budgets, recurring, goals)
+            return BackupData(
+                accounts = accounts,
+                categories = categories,
+                operations = operations,
+                shopping = shopping,
+                goals = goals,
+                mainCurrency = currency,
+                budgets = budgets,
+                recurring = recurring
+            )
         } catch (error: InvalidBackupException) {
             throw error
         } catch (error: JSONException) {
