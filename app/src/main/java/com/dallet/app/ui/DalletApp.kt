@@ -860,7 +860,8 @@ private fun DalletAppContent(
                     onTimeChange = viewModel::onEditTimeChange,
                     onCommentChange = viewModel::onEditCommentChange,
                     onSave = viewModel::saveEdit,
-                    onDelete = viewModel::deleteEdit
+                    onDelete = viewModel::deleteEdit,
+                    onOpenPurchase = { id -> navController.navigate("shopping/$id") }
                 )
             }
         }

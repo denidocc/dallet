@@ -415,4 +415,7 @@
     <string name="comparison_difference_hint">«%1$s» по сравнению с «%2$s»</string>
     <string name="comparison_all_operations">Все операции</string>
     <string name="shopping_add_title">Добавить товар</string>
+    <string name="edit_purchase_title">Покупка</string>
+    <string name="edit_purchase_empty">Список пуст</string>
+    <string name="edit_purchase_open">Открыть закуп</string>
 </resources>

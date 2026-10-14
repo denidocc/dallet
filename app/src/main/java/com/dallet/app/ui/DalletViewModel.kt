@@ -32,6 +32,7 @@ import com.dallet.app.ledger.ExpenseFlowPoint
 import com.dallet.app.ledger.InvalidBackupException
 import com.dallet.app.ledger.Ledger
 import com.dallet.app.ledger.Money
+import com.dallet.app.ledger.QuantityFormat
 import com.dallet.app.ledger.Operation
 import com.dallet.app.ledger.HistoryPeriod
 import com.dallet.app.ledger.OperationFilter
@@ -339,6 +340,10 @@ data class AddExpenseUiState(
     val saved: Boolean = false
 )
 
+data class PurchaseItemUi(val name: String, val detail: String, val totalLabel: String)
+
+data class PurchaseUi(val listId: Long, val title: String, val items: List<PurchaseItemUi>)
+
 data class EditOperationUiState(
     val loading: Boolean = true,
     val operationId: Long = 0L,
@@ -355,6 +360,8 @@ data class EditOperationUiState(
     val commentInput: String = "",
     /** Title of the purchase this expense came from; its amount is then read-only. */
     val amountLockedBy: String? = null,
+    /** What the purchase behind this expense contained; null for an ordinary operation. */
+    val purchase: PurchaseUi? = null,
     val submitting: Boolean = false,
     val errorMessage: String? = null,
     val done: Boolean = false
@@ -2030,6 +2037,7 @@ class DalletViewModel(
                 val categories = categoryKind?.let { ledger.categories(it) }
                     ?.map { SelectableOption(it.id, it.name) }
                     .orEmpty()
+                val purchase = ledger.purchaseOf(operation.id)
                 _edit.value = EditOperationUiState(
                     loading = false,
                     operationId = operation.id,
@@ -2046,7 +2054,22 @@ class DalletViewModel(
                     dateInput = operation.date.format(DATE_FORMAT),
                     timeInput = operation.time?.format(TIME_FORMAT).orEmpty(),
                     commentInput = operation.comment.orEmpty(),
-                    amountLockedBy = ledger.purchaseOf(operation.id)?.title
+                    amountLockedBy = purchase?.title,
+                    purchase = purchase?.let { list ->
+                        PurchaseUi(
+                            listId = list.id,
+                            title = list.title,
+                            items = ledger.purchaseItems(list.id).filter { it.checked }.map { item ->
+                                PurchaseItemUi(
+                                    name = item.name,
+                                    detail = QuantityFormat.format(item.quantityThousandths) + " " +
+                                        strings.get(item.unit.labelRes()) +
+                                        if (item.unitPriceMinor > 0) " × " + Money.formatManat(item.unitPriceMinor) else "",
+                                    totalLabel = if (item.unitPriceMinor > 0) Money.formatManat(item.lineTotalMinor) else ""
+                                )
+                            }
+                        )
+                    }
                 )
             } catch (error: Exception) {
                 _edit.update {

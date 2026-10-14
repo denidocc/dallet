@@ -3,6 +3,8 @@ package com.dallet.app.ui.edit
 import com.dallet.app.ui.common.AppButtonShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -29,6 +31,8 @@ import com.dallet.app.R
 import com.dallet.app.ledger.ExchangeRate
 import com.dallet.app.ledger.OperationKind
 import com.dallet.app.ui.EditOperationUiState
+import com.dallet.app.ui.PurchaseUi
+import com.dallet.app.ui.common.SurfaceCard
 import com.dallet.app.ui.SelectableOption
 import com.dallet.app.ui.common.AmountCard
 import com.dallet.app.ui.common.FormDateField
@@ -50,7 +54,8 @@ fun EditOperationScreen(
     onTimeChange: (String) -> Unit,
     onCommentChange: (String) -> Unit,
     onSave: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onOpenPurchase: (Long) -> Unit
 ) {
     if (state.loading) {
         Box(
@@ -92,6 +97,10 @@ fun EditOperationScreen(
             supporting = lockedTitle?.let { stringResource(R.string.edit_amount_from_purchase, it) },
             canConvert = state.kind != OperationKind.TRANSFER
         )
+
+        state.purchase?.let { purchase ->
+            PurchaseCard(purchase = purchase, onOpen = { onOpenPurchase(purchase.listId) })
+        }
 
         FormSection {
             when (state.kind) {
@@ -209,5 +218,55 @@ private fun OptionDropdown(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun PurchaseCard(purchase: PurchaseUi, onOpen: () -> Unit) {
+    SurfaceCard(onClick = onOpen) {
+        Text(
+            text = stringResource(R.string.edit_purchase_title),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = purchase.title,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(top = 2.dp, bottom = 8.dp)
+        )
+        if (purchase.items.isEmpty()) {
+            Text(
+                text = stringResource(R.string.edit_purchase_empty),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        purchase.items.forEach { item ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = item.name, style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        text = item.detail,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                if (item.totalLabel.isNotEmpty()) {
+                    Text(text = item.totalLabel, style = MaterialTheme.typography.titleSmall)
+                }
+            }
+        }
+        Text(
+            text = stringResource(R.string.edit_purchase_open),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(top = 8.dp)
+        )
     }
 }

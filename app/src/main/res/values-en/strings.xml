@@ -415,4 +415,7 @@
     <string name="comparison_difference_hint">“%1$s” compared with “%2$s”</string>
     <string name="comparison_all_operations">All operations</string>
     <string name="shopping_add_title">Add an item</string>
+    <string name="edit_purchase_title">Purchase</string>
+    <string name="edit_purchase_empty">The list is empty</string>
+    <string name="edit_purchase_open">Open the purchase</string>
 </resources>

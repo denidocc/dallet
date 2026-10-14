@@ -553,6 +553,8 @@ class Ledger(
     suspend fun purchaseOf(operationId: Long): ShoppingList? =
         shoppingRepository.lists().firstOrNull { it.operationId == operationId }
 
+    suspend fun purchaseItems(listId: Long): List<ShoppingItem> = shoppingRepository.items(listId)
+
     suspend fun createAccount(name: String, openingBalanceMinor: Long): Long {
         val trimmed = name.trim()
         require(trimmed.isNotEmpty()) { "name required" }
