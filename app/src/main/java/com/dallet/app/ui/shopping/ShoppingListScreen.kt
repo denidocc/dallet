@@ -580,6 +580,9 @@ private fun BottomPanel(
                 ) {
                     Text(stringResource(R.string.shopping_close))
                 }
+                OutlinedButton(shape = AppButtonShape, onClick = onGoHome, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.shopping_go_home))
+                }
             }
         } else {
             Column(

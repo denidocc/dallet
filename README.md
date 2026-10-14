@@ -2,26 +2,31 @@
 
 **English** · [Русский](README.ru.md)
 
-Offline personal finance tracker for Android: accounts, categorized transactions, analytics, budgets, recurring transactions, shopping lists and a home screen widget. Choose your main currency (TMT by default); the interface is in English and Russian. All data stays on your phone and no internet is needed.
+Offline personal finance tracker for Android: accounts, categorized transactions with subcategories, analytics, budgets, recurring transactions and loans, savings goals, debts, shopping lists and a home screen widget. Choose your main currency (TMT by default); the interface is in English and Russian. All data stays on your phone and no internet is needed.
 
 **Free. No ads. No subscriptions. No accounts. No data collection. No internet permission.**
 
-Current version: **0.2.1** (`versionCode` 29).
+Current version: **0.7.0** (`versionCode` 38). What changed in each release: [Releases](https://github.com/denidocc/dallet/releases).
 
 ## Features
 
 - Paged onboarding with a welcome page, language choice and a progress bar: main currency (TMT, USD, EUR, RUB, TRY, CNY, KZT), account templates and starting balances
-- Home: total balance, monthly income and expenses, a "Due" block (recurring transactions), budgets near their limit, accounts in a row, latest expenses with category icons
+- Home: total balance, monthly income and expenses, a "Due" block (recurring transactions), budgets near their limit, accounts in a row, blocks for Shopping, Goals, Debts and Regular operations (three items each opening straight into the item, plus an "All …" button), latest expenses with category icons
 - "+": choose "One-off transaction" (Expense, Income, Transfer with date and time) or "Shopping list"
 - History: all transactions, edit and delete; transactions have a time (creation time by default)
-- Analytics: browse weeks, months and years; "Income | Expenses" switch for the donut and the flow over time; comparison with the previous period; "By account" block; report export to PDF and CSV
+- Analytics: browse weeks, months and years; "Income | Expenses" switch for the donut and the flow over time; comparison with the previous period; "By account" block; report export to PDF and CSV (with goals and open debts)
 - Shopping (More → Shopping): lists with a name and comment, quantity, unit and price; suggestions from the product catalog; prices are saved when an item is checked; "Close purchase" creates a single expense; archive; product catalog with price history and chart
-- More → Accounts and Categories (color + a grid of graphic icons)
+- More → Accounts and Categories (color + a grid of graphic icons); categories have editable subcategories (one level), counted into the parent in analytics and budgets
+- More → Goals: savings goals with progress; deposit from an account or "as income"; withdraw, archive; warning when a deposit would take an account below zero
+- More → Debts: money lent and borrowed, with the account the money went through, partial repayments and "Write off"; Analytics tabs for goals and debts
+- More is grouped (Money, Lists, Data, App, Help) and sorted alphabetically inside each group
+- More → FAQ and a feedback form (opens your mail app)
+- Every deletion asks for confirmation
 - More → Security: 4-digit PIN and fingerprint login (at app start)
 - More → Data: **Export** (JSON backup: accounts, categories, transactions, shopping, main currency, budgets, recurring transactions), **Import** (full replacement from a file; also a "Restore from file" button on the first onboarding page), **Reset everything** (requires typing "RESET")
 - More → Settings: main currency (a label), theme (system, light, dark), language (English, Russian)
 - Home screen widget: balance, monthly expenses, "+ Expense" button (amounts are hidden while the PIN is on)
-- More → Recurring transactions: an expense or income every week, month or year; "Due" on the home screen, one-tap confirmation, a notification around 9:00
+- More → Recurring transactions: an expense or income every week, month or year; "Due" on the home screen, one-tap confirmation, a notification around 9:00. For loans and instalments use "Calculate until": enter the total, pick a term (3, 6, 9, 12, 24 months or a date) and the payment is worked out; the list shows how many payments are left and the rule finishes by itself
 - More → Budgets: a monthly limit per expense category, progress bars, a home block and a warning when saving an expense
 - More → Rates and converter: manual exchange rates, a calculator, a "Convert" button in the expense and income forms
 
@@ -42,11 +47,11 @@ gradle wrapper --gradle-version 8.13
 
 | What | Where |
 |------|-------|
-| Accounts, categories, transactions, shopping lists, product catalog, price history | Room database (`dallet.db`, version 5) |
+| Accounts, categories, transactions, shopping lists, product catalog, price history | Room database (`dallet.db`, version 8) |
 | Main currency, theme, language, rates, budgets, recurring transactions | SharedPreferences `dallet_settings` |
 | PIN salt and hash, fingerprint flag | Separate SharedPreferences (not included in the backup) |
 
-A backup (JSON, schema 2) contains the database, main currency, budgets and recurring transactions. Rates, theme, language and PIN are not included. A backup can be protected with a password (AES-256-GCM); without one it is plain JSON. Auto backups go once a day to a folder you choose. The app needs no internet access.
+A backup (JSON, schema 5) contains the database (including goals, debts and subcategories), main currency, budgets and recurring transactions. Rates, theme, language and PIN are not included. A backup can be protected with a password (AES-256-GCM); without one it is plain JSON. Auto backups go once a day to a folder you choose. The app needs no internet access.
 
 ## Project structure
 

@@ -41,6 +41,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.dallet.app.R
 import com.dallet.app.ledger.Frequency
+import com.dallet.app.ledger.Money
+import com.dallet.app.ui.common.SegmentedChoice
+import com.dallet.app.ui.payoffPlan
 import com.dallet.app.ledger.OperationKind
 import com.dallet.app.ui.LocalCurrency
 import com.dallet.app.ui.RecurringEditorUiState
@@ -110,6 +113,13 @@ fun RecurringScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        rule.progress?.let { progress ->
+                            Text(
+                                text = progress,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                     Text(
                         text = moneyText(rule.amountLabel),
@@ -136,6 +146,9 @@ fun RecurringEditorScreen(
     onCommentChange: (String) -> Unit,
     onFrequencySelected: (Frequency) -> Unit,
     onStartDateChange: (String) -> Unit,
+    onPayoffChange: (Boolean) -> Unit,
+    onPayoffMonthsSelected: (Int?) -> Unit,
+    onEndDateChange: (String) -> Unit,
     onSave: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -171,11 +184,25 @@ fun RecurringEditorScreen(
             selectedId = state.selectedCategoryId,
             onSelected = onCategorySelected
         )
+        SegmentedChoice(
+            labels = listOf(
+                stringResource(R.string.recurring_mode_payment),
+                stringResource(R.string.recurring_mode_payoff)
+            ),
+            selectedIndex = if (state.payoff) 1 else 0,
+            onSelected = { onPayoffChange(it == 1) }
+        )
         OutlinedTextField(
             value = state.amountInput,
             onValueChange = onAmountChange,
             modifier = Modifier.fillMaxWidth(),
-            label = { Text(stringResource(R.string.add_amount_label)) },
+            label = {
+                Text(
+                    stringResource(
+                        if (state.payoff) R.string.recurring_total_label else R.string.add_amount_label
+                    )
+                )
+            },
             suffix = { Text(LocalCurrency.current.code) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
@@ -219,6 +246,55 @@ fun RecurringEditorScreen(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+        if (state.payoff) {
+            Text(
+                text = stringResource(R.string.recurring_mode_payoff),
+                style = MaterialTheme.typography.titleMedium
+            )
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(3, 6, 9, 12, 24).forEach { months ->
+                    FilterChip(
+                        selected = state.payoffMonths == months,
+                        onClick = { onPayoffMonthsSelected(months) },
+                        label = { Text(stringResource(R.string.recurring_months, months)) }
+                    )
+                }
+                FilterChip(
+                    selected = state.payoffMonths == null,
+                    onClick = { onPayoffMonthsSelected(null) },
+                    label = { Text(stringResource(R.string.recurring_pick_date)) }
+                )
+            }
+            if (state.payoffMonths == null) {
+                FormDateField(
+                    dateInput = state.endDateInput,
+                    onDateSelected = onEndDateChange,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            val plan = state.payoffPlan()
+            Text(
+                text = if (plan == null) {
+                    stringResource(R.string.recurring_plan_invalid)
+                } else if (plan.lastPaymentMinor == plan.paymentMinor) {
+                    stringResource(
+                        R.string.recurring_plan,
+                        plan.count,
+                        Money.formatManat(plan.paymentMinor) + " " + LocalCurrency.current.code
+                    )
+                } else {
+                    stringResource(
+                        R.string.recurring_plan_last,
+                        plan.count,
+                        Money.formatManat(plan.paymentMinor) + " " + LocalCurrency.current.code,
+                        Money.formatManat(plan.lastPaymentMinor) + " " + LocalCurrency.current.code
+                    )
+                },
+                style = MaterialTheme.typography.bodyLarge,
+                color = if (plan == null) MaterialTheme.colorScheme.onSurfaceVariant
+                else MaterialTheme.colorScheme.primary
+            )
+        }
         state.errorMessage?.let { message ->
             Text(
                 text = message,

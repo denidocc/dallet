@@ -7,6 +7,7 @@ import android.graphics.pdf.PdfDocument
 import com.dallet.app.AppStrings
 import com.dallet.app.R
 import com.dallet.app.ledger.CategoryExpenseTotal
+import com.dallet.app.ledger.DebtDirection
 import com.dallet.app.ledger.Money
 import com.dallet.app.ledger.OperationKind
 import com.dallet.app.ledger.PeriodReport
@@ -101,6 +102,36 @@ object ReportPdf {
             current.incomesByCategory,
             current.incomeTotalMinor
         )
+
+        if (report.goals.isNotEmpty()) {
+            writer.heading(strings.get(R.string.pdf_goals))
+            report.goals.forEach { item ->
+                writer.pairRow(
+                    label = item.goal.name,
+                    value = strings.get(
+                        R.string.pdf_goal_value,
+                        money(item.savedMinor),
+                        money(item.goal.targetMinor),
+                        item.percent
+                    )
+                )
+            }
+            writer.space(12f)
+        }
+        if (report.debts.isNotEmpty()) {
+            writer.heading(strings.get(R.string.pdf_debts))
+            report.debts.forEach { item ->
+                val direction = strings.get(
+                    if (item.debt.direction == DebtDirection.LENT) R.string.analytics_debts_owed_to_me
+                    else R.string.analytics_debts_i_owe
+                )
+                writer.pairRow(
+                    label = item.debt.person + " · " + direction,
+                    value = money(item.remainingMinor)
+                )
+            }
+            writer.space(12f)
+        }
 
         writer.heading(strings.get(R.string.pdf_operations))
         if (report.rows.isEmpty()) {
@@ -232,6 +263,19 @@ object ReportPdf {
                 y += 14f
             }
             y += 22f
+        }
+
+        fun pairRow(label: String, value: String) {
+            ensure(20f)
+            val valueWidth = bodyPaint.measureText(value)
+            canvas.drawText(
+                fit(label, bodyPaint, CONTENT_RIGHT - MARGIN - valueWidth - 12f),
+                MARGIN,
+                y + 11f,
+                bodyPaint
+            )
+            canvas.drawText(value, CONTENT_RIGHT - valueWidth, y + 11f, bodyPaint)
+            y += 20f
         }
 
         fun categoryBlock(title: String, rows: List<CategoryExpenseTotal>, total: Long) {

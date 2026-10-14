@@ -37,6 +37,7 @@ import com.dallet.app.ui.DueItemUi
 import com.dallet.app.ui.recurring.DueSection
 import com.dallet.app.ui.moneyText
 import com.dallet.app.ui.AccountRowUi
+import com.dallet.app.ledger.Money
 import com.dallet.app.ui.ExpenseRowUi
 import com.dallet.app.ui.HomeUiState
 import com.dallet.app.ui.categories.categoryIcon
@@ -49,8 +50,7 @@ fun HomeScreen(
     state: HomeUiState,
     onExpenseClick: (Long) -> Unit,
     onBudgetsClick: () -> Unit,
-    onShoppingClick: () -> Unit,
-    onGoalsClick: () -> Unit,
+    links: HomeLinks,
     onDueConfirm: (DueItemUi, String, (Boolean) -> Unit) -> Unit,
     onDueSkip: (DueItemUi) -> Unit
 ) {
@@ -132,70 +132,38 @@ fun HomeScreen(
             }
         }
 
-        SurfaceCard(onClick = onShoppingClick) {
-            Text(
-                text = stringResource(R.string.more_shopping),
-                style = MaterialTheme.typography.titleMedium
-            )
-            Text(
-                text = stringResource(R.string.home_shopping_hint),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        SurfaceCard(onClick = onGoalsClick) {
-            Text(
-                text = stringResource(R.string.goals_title),
-                style = MaterialTheme.typography.titleMedium
-            )
-            val goal = state.goal
-            if (goal == null) {
-                Text(
-                    text = stringResource(R.string.home_goals_hint),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            } else {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = goal.name,
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.weight(1f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = "${goal.percent}%",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .padding(vertical = 8.dp)
-                        .fillMaxWidth()
-                        .height(8.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .fillMaxWidth(goal.percent.coerceIn(0, 100) / 100f)
-                            .background(MaterialTheme.colorScheme.primary)
-                    )
-                }
-                Text(
-                    text = moneyText(goal.savedLabel) + " / " + moneyText(goal.targetLabel),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
+        HomeListCard(
+            title = stringResource(R.string.more_shopping),
+            rows = links.shopping,
+            emptyText = stringResource(R.string.home_shopping_hint),
+            allText = stringResource(R.string.home_all_shopping),
+            onRow = links.onShopping,
+            onAll = links.onShoppingAll
+        )
+        HomeListCard(
+            title = stringResource(R.string.goals_title),
+            rows = links.goals,
+            emptyText = stringResource(R.string.home_goals_hint),
+            allText = stringResource(R.string.home_all_goals),
+            onRow = links.onGoal,
+            onAll = links.onGoalsAll
+        )
+        HomeListCard(
+            title = stringResource(R.string.debts_title),
+            rows = links.debts,
+            emptyText = stringResource(R.string.home_debts_empty),
+            allText = stringResource(R.string.home_all_debts),
+            onRow = links.onDebt,
+            onAll = links.onDebtsAll
+        )
+        HomeListCard(
+            title = stringResource(R.string.recurring_title),
+            rows = links.recurring,
+            emptyText = stringResource(R.string.recurring_empty),
+            allText = stringResource(R.string.home_all_recurring),
+            onRow = links.onRecurring,
+            onAll = links.onRecurringAll
+        )
 
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(

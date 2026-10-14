@@ -15,7 +15,10 @@ data class ReportRow(
 
 data class PeriodReport(
     val comparison: AnalyticsComparison,
-    val rows: List<ReportRow>
+    val rows: List<ReportRow>,
+    /** Active goals and unsettled debts as they stand now; they do not depend on the period. */
+    val goals: List<GoalSummary> = emptyList(),
+    val debts: List<DebtSummary> = emptyList()
 )
 
 object ReportCsv {
@@ -65,5 +68,46 @@ object ReportCsv {
     private fun escape(field: String): String {
         val needsQuotes = field.any { it == ';' || it == '"' || it == '\n' || it == '\r' }
         return if (needsQuotes) "\"" + field.replace("\"", "\"\"") + "\"" else field
+    }
+
+    /** Goals and debts as two extra tables below the operations. */
+    fun savingsSection(
+        goals: List<GoalSummary>,
+        debts: List<DebtSummary>,
+        goalsTitle: String,
+        debtsTitle: String,
+        goalHeader: List<String>,
+        debtHeader: List<String>,
+        directionLabel: (DebtDirection) -> String
+    ): String {
+        val builder = StringBuilder()
+        if (goals.isNotEmpty()) {
+            builder.append(LINE_BREAK).append(escape(goalsTitle)).append(LINE_BREAK)
+            builder.append(goalHeader.joinToString(SEPARATOR)).append(LINE_BREAK)
+            goals.forEach { item ->
+                val fields = listOf(
+                    item.goal.name,
+                    Money.formatManat(item.savedMinor),
+                    Money.formatManat(item.goal.targetMinor),
+                    "${item.percent}%"
+                )
+                builder.append(fields.joinToString(SEPARATOR) { escape(it) }).append(LINE_BREAK)
+            }
+        }
+        if (debts.isNotEmpty()) {
+            builder.append(LINE_BREAK).append(escape(debtsTitle)).append(LINE_BREAK)
+            builder.append(debtHeader.joinToString(SEPARATOR)).append(LINE_BREAK)
+            debts.forEach { item ->
+                val fields = listOf(
+                    item.debt.person,
+                    directionLabel(item.debt.direction),
+                    Money.formatManat(item.issuedMinor),
+                    Money.formatManat(item.repaidMinor + item.writtenOffMinor),
+                    Money.formatManat(item.remainingMinor)
+                )
+                builder.append(fields.joinToString(SEPARATOR) { escape(it) }).append(LINE_BREAK)
+            }
+        }
+        return builder.toString()
     }
 }

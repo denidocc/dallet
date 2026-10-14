@@ -193,4 +193,82 @@ class RecurringTest {
         assertThat(rule.frequency).isEqualTo(Frequency.MONTHLY)
         assertThat(rule.nextDue).isEqualTo(LocalDate.of(2026, 1, 10))
     }
+
+    @Test
+    fun plan_splitsTotalOverMonthlyPaymentsAndPutsRemainderInTheLast() {
+        val start = LocalDate.of(2026, 1, 15)
+        val end = RecurringSchedule.endForMonths(start, 3)
+
+        val plan = RecurringSchedule.plan(Frequency.MONTHLY, start, end, 1_000L)
+
+        assertThat(plan).isEqualTo(RecurringPlan(count = 3, paymentMinor = 333L, lastPaymentMinor = 334L))
+    }
+
+    @Test
+    fun plan_twelveMonthsGivesTwelvePayments() {
+        val start = LocalDate.of(2026, 1, 31)
+        val end = RecurringSchedule.endForMonths(start, 12)
+
+        val plan = RecurringSchedule.plan(Frequency.MONTHLY, start, end, 120_000L)
+
+        assertThat(plan!!.count).isEqualTo(12)
+        assertThat(plan.paymentMinor).isEqualTo(10_000L)
+    }
+
+    @Test
+    fun plan_weeklyUntilDateCountsEveryWeek() {
+        val start = LocalDate.of(2026, 3, 2)
+
+        val plan = RecurringSchedule.plan(Frequency.WEEKLY, start, LocalDate.of(2026, 3, 23), 400L)
+
+        assertThat(plan!!.count).isEqualTo(4)
+    }
+
+    @Test
+    fun plan_isNullForBadInput() {
+        val start = LocalDate.of(2026, 3, 2)
+
+        assertThat(RecurringSchedule.plan(Frequency.MONTHLY, start, start.minusDays(1), 100L)).isNull()
+        assertThat(RecurringSchedule.plan(Frequency.MONTHLY, start, start.plusMonths(3), 0L)).isNull()
+        assertThat(RecurringSchedule.plan(Frequency.MONTHLY, start, start.plusMonths(12), 5L)).isNull()
+    }
+
+    @Test
+    fun rule_withEndDateStopsAfterLastPaymentAndFinishes() = runTest {
+        val e = env()
+        val start = LocalDate.of(2026, 1, 10)
+        val plan = RecurringSchedule.plan(
+            Frequency.MONTHLY, start, RecurringSchedule.endForMonths(start, 2), 1_001L
+        )!!
+        val id = e.ledger.addRecurring(
+            OperationKind.EXPENSE, e.accountId, e.expenseId, plan.paymentMinor, "Loan",
+            Frequency.MONTHLY, start, RecurringSchedule.endForMonths(start, 2),
+            plan.lastPaymentMinor, plan.count
+        )
+
+        val today = LocalDate.of(2026, 6, 1)
+        val due = e.ledger.dueItems(today)
+        assertThat(due.map { it.dueDate }).containsExactly(start, start.plusMonths(1)).inOrder()
+        assertThat(RecurringSchedule.amountFor(due[0].rule, due[0].dueDate)).isEqualTo(500L)
+        assertThat(RecurringSchedule.amountFor(due[1].rule, due[1].dueDate)).isEqualTo(501L)
+
+        e.ledger.confirmDue(id, start, 500L)
+        e.ledger.confirmDue(id, start.plusMonths(1), 501L)
+
+        val rule = e.ledger.recurringRules().single()
+        assertThat(RecurringSchedule.isFinished(rule)).isTrue()
+        assertThat(RecurringSchedule.remainingPayments(rule)).isEqualTo(0)
+        assertThat(e.ledger.dueItems(today)).isEmpty()
+    }
+
+    @Test
+    fun codec_keepsEndDateFields() {
+        val rule = rule(Frequency.MONTHLY, LocalDate.of(2026, 1, 10)).copy(
+            endDate = LocalDate.of(2026, 12, 9), lastAmountMinor = 105L, totalPayments = 12
+        )
+
+        val decoded = RecurringCodec.fromText(RecurringCodec.toText(listOf(rule)))
+
+        assertThat(decoded).containsExactly(rule)
+    }
 }

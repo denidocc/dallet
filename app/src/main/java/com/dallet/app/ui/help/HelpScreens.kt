@@ -60,7 +60,12 @@ private val FAQ = listOf(
     FaqEntry(R.string.faq_q9, R.string.faq_a9),
     FaqEntry(R.string.faq_q10, R.string.faq_a10),
     FaqEntry(R.string.faq_q11, R.string.faq_a11),
-    FaqEntry(R.string.faq_q12, R.string.faq_a12)
+    FaqEntry(R.string.faq_q12, R.string.faq_a12),
+    FaqEntry(R.string.faq_q13, R.string.faq_a13),
+    FaqEntry(R.string.faq_q14, R.string.faq_a14),
+    FaqEntry(R.string.faq_q15, R.string.faq_a15),
+    FaqEntry(R.string.faq_q16, R.string.faq_a16),
+    FaqEntry(R.string.faq_q17, R.string.faq_a17)
 )
 
 @Composable

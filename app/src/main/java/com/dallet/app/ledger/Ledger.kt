@@ -169,9 +169,13 @@ class Ledger(
         amountMinor: Long,
         comment: String?,
         frequency: Frequency,
-        startDate: LocalDate
+        startDate: LocalDate,
+        endDate: LocalDate? = null,
+        lastAmountMinor: Long? = null,
+        totalPayments: Int? = null
     ): Long {
         requireRecurringTargets(kind, accountId, categoryId, amountMinor)
+        require(endDate == null || !endDate.isBefore(startDate)) { "end before start" }
         val rules = settings.recurring()
         val id = (rules.maxOfOrNull { it.id } ?: 0L) + 1L
         settings.saveRecurring(
@@ -184,7 +188,10 @@ class Ledger(
                 comment = comment?.takeIf { it.isNotBlank() },
                 frequency = frequency,
                 startDate = startDate,
-                nextDue = startDate
+                nextDue = startDate,
+                endDate = endDate,
+                lastAmountMinor = lastAmountMinor,
+                totalPayments = totalPayments
             )
         )
         return id
@@ -198,9 +205,13 @@ class Ledger(
         amountMinor: Long,
         comment: String?,
         frequency: Frequency,
-        startDate: LocalDate
+        startDate: LocalDate,
+        endDate: LocalDate? = null,
+        lastAmountMinor: Long? = null,
+        totalPayments: Int? = null
     ) {
         requireRecurringTargets(kind, accountId, categoryId, amountMinor)
+        require(endDate == null || !endDate.isBefore(startDate)) { "end before start" }
         val rules = settings.recurring()
         val old = rules.firstOrNull { it.id == id } ?: error("rule not found")
         val scheduleChanged = old.startDate != startDate || old.frequency != frequency
@@ -217,7 +228,10 @@ class Ledger(
                         comment = comment?.takeIf { text -> text.isNotBlank() },
                         frequency = frequency,
                         startDate = startDate,
-                        nextDue = if (scheduleChanged) startDate else old.nextDue
+                        nextDue = if (scheduleChanged) startDate else old.nextDue,
+                        endDate = endDate,
+                        lastAmountMinor = lastAmountMinor,
+                        totalPayments = totalPayments
                     )
                 }
             }
@@ -823,7 +837,12 @@ class Ledger(
                     comment = operation.comment
                 )
             }
-        return PeriodReport(comparison = comparison, rows = rows)
+        return PeriodReport(
+            comparison = comparison,
+            rows = rows,
+            goals = goals().filter { !it.goal.archived },
+            debts = debts().filter { !it.settled }
+        )
     }
 
     /** Totals per top-level category: a subcategory counts toward its parent and shows as a part of it. */

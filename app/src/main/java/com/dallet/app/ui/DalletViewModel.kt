@@ -44,6 +44,9 @@ import com.dallet.app.ledger.PurchaseExpenseLockedException
 import com.dallet.app.ledger.categoryVsCategory
 import com.dallet.app.ledger.periodVsPeriod
 import com.dallet.app.ledger.SameAccountTransferException
+import com.dallet.app.ledger.DebtDirection
+import com.dallet.app.ledger.RecurringPlan
+import com.dallet.app.ledger.RecurringSchedule
 import com.dallet.app.ledger.ReportCsv
 import com.dallet.app.ledger.percentChange
 import com.dallet.app.ledger.shiftAsOf
@@ -97,7 +100,11 @@ data class RecurringRuleUi(
     val title: String,
     val subtitle: String,
     val amountLabel: String,
-    val isIncome: Boolean
+    val isIncome: Boolean,
+    /** "Left 8 of 12 payments" for a rule with an end, else null. */
+    val progress: String? = null,
+    val nextDueEpoch: Long = 0L,
+    val finished: Boolean = false
 )
 
 data class RecurringUiState(
@@ -116,10 +123,37 @@ data class RecurringEditorUiState(
     val commentInput: String = "",
     val frequency: Frequency = Frequency.MONTHLY,
     val startDateInput: String = LocalDate.now().toString(),
+    /** True when the amount is a total to split until [endDateInput] or over [payoffMonths]. */
+    val payoff: Boolean = false,
+    /** 3, 6, 9, 12 or 24 months; null means the user picks the end date. */
+    val payoffMonths: Int? = 12,
+    val endDateInput: String = LocalDate.now().plusMonths(12).toString(),
     val submitting: Boolean = false,
     val errorMessage: String? = null,
     val done: Boolean = false
 )
+
+private fun RecurringEditorUiState.payoffStart(): LocalDate? =
+    runCatching { LocalDate.parse(startDateInput.trim()) }.getOrNull()
+
+private fun RecurringEditorUiState.payoffEnd(): LocalDate? {
+    val start = payoffStart() ?: return null
+    val months = payoffMonths
+    return if (months != null) {
+        RecurringSchedule.endForMonths(start, months)
+    } else {
+        runCatching { LocalDate.parse(endDateInput.trim()) }.getOrNull()
+    }
+}
+
+/** The split of the entered total, or null when payoff mode is off or the input does not fit. */
+fun RecurringEditorUiState.payoffPlan(): RecurringPlan? {
+    if (!payoff) return null
+    val start = payoffStart() ?: return null
+    val end = payoffEnd() ?: return null
+    val total = runCatching { Money.parseManat(amountInput) }.getOrNull() ?: return null
+    return RecurringSchedule.plan(frequency, start, end, total)
+}
 
 private fun frequencyRes(frequency: Frequency): Int = when (frequency) {
     Frequency.WEEKLY -> R.string.freq_weekly
@@ -161,16 +195,7 @@ data class HomeUiState(
     val budgetAlerts: List<BudgetRowUi> = emptyList(),
     val accountRows: List<AccountRowUi> = emptyList(),
     val recentExpenses: List<ExpenseRowUi> = emptyList(),
-    /** The goal that is closest to being reached, shown on the home card; null when there is none. */
-    val goal: HomeGoalUi? = null,
     val errorMessage: String? = null
-)
-
-data class HomeGoalUi(
-    val name: String,
-    val savedLabel: String,
-    val targetLabel: String,
-    val percent: Int
 )
 
 data class AccountRowUi(
@@ -765,6 +790,32 @@ class DalletViewModel(
                                 strings.get(R.string.add_comment_label)
                             ),
                             kindLabel = { kind -> strings.get(kindRes(kind)) }
+                        ).plus(
+                            ReportCsv.savingsSection(
+                                goals = report.goals,
+                                debts = report.debts,
+                                goalsTitle = strings.get(R.string.pdf_goals),
+                                debtsTitle = strings.get(R.string.pdf_debts),
+                                goalHeader = listOf(
+                                    strings.get(R.string.pdf_col_name),
+                                    strings.get(R.string.pdf_col_saved),
+                                    strings.get(R.string.pdf_col_target),
+                                    strings.get(R.string.pdf_col_progress)
+                                ),
+                                debtHeader = listOf(
+                                    strings.get(R.string.pdf_col_person),
+                                    strings.get(R.string.pdf_col_direction),
+                                    strings.get(R.string.pdf_col_given),
+                                    strings.get(R.string.pdf_col_returned),
+                                    strings.get(R.string.pdf_col_left)
+                                ),
+                                directionLabel = { direction ->
+                                    strings.get(
+                                        if (direction == DebtDirection.LENT) R.string.analytics_debts_owed_to_me
+                                        else R.string.analytics_debts_i_owe
+                                    )
+                                }
+                            )
                         ).toByteArray(Charsets.UTF_8)
                         ReportFormat.PDF -> ReportPdf.render(
                             report = report,
@@ -1019,7 +1070,7 @@ class DalletViewModel(
                 dateLabel = item.dueDate.format(format),
                 title = rule.comment ?: categories[rule.categoryId]?.name.orEmpty(),
                 accountName = accounts[rule.accountId].orEmpty(),
-                amountInput = Money.formatManat(rule.amountMinor),
+                amountInput = Money.formatManat(RecurringSchedule.amountFor(rule, item.dueDate)),
                 isIncome = rule.kind == OperationKind.INCOME,
                 isFirst = item.isFirst
             )
@@ -1038,10 +1089,23 @@ class DalletViewModel(
                     subtitle = listOf(
                         accounts[rule.accountId].orEmpty(),
                         strings.get(frequencyRes(rule.frequency)),
-                        strings.get(R.string.recurring_next, rule.nextDue.format(format))
+                        if (RecurringSchedule.isFinished(rule)) {
+                            strings.get(R.string.recurring_finished)
+                        } else {
+                            strings.get(R.string.recurring_next, rule.nextDue.format(format))
+                        }
                     ).filter { it.isNotBlank() }.joinToString(" · "),
                     amountLabel = Money.formatManat(rule.amountMinor),
-                    isIncome = rule.kind == OperationKind.INCOME
+                    isIncome = rule.kind == OperationKind.INCOME,
+                    nextDueEpoch = rule.nextDue.toEpochDay(),
+                    finished = RecurringSchedule.isFinished(rule),
+                    progress = RecurringSchedule.remainingPayments(rule)?.let { left ->
+                        if (left == 0) {
+                            null
+                        } else {
+                            strings.get(R.string.recurring_progress, left, rule.totalPayments ?: left)
+                        }
+                    }
                 )
             }
         )
@@ -1102,7 +1166,19 @@ class DalletViewModel(
     fun prepareEditRecurring(id: Long) {
         viewModelScope.launch {
             val rule = ledger.recurringRules().firstOrNull { it.id == id } ?: return@launch
+            val endDate = rule.endDate
+            val total = if (endDate == null) {
+                rule.amountMinor
+            } else {
+                val count = rule.totalPayments
+                    ?: RecurringSchedule.plan(rule.frequency, rule.startDate, endDate, rule.amountMinor)?.count
+                    ?: 1
+                rule.amountMinor * (count - 1) + (rule.lastAmountMinor ?: rule.amountMinor)
+            }
             _recurringEditor.value = RecurringEditorUiState(
+                payoff = endDate != null,
+                payoffMonths = null,
+                endDateInput = (endDate ?: rule.startDate.plusMonths(12)).toString(),
                 isNew = false,
                 ruleId = id,
                 kind = rule.kind,
@@ -1110,7 +1186,7 @@ class DalletViewModel(
                 categories = recurringCategoryOptions(rule.kind),
                 selectedAccountId = rule.accountId,
                 selectedCategoryId = rule.categoryId,
-                amountInput = Money.formatManat(rule.amountMinor),
+                amountInput = Money.formatManat(total),
                 commentInput = rule.comment.orEmpty(),
                 frequency = rule.frequency,
                 startDateInput = rule.startDate.toString()
@@ -1152,6 +1228,18 @@ class DalletViewModel(
         _recurringEditor.update { it.copy(frequency = frequency, errorMessage = null) }
     }
 
+    fun onRecurringPayoffChange(enabled: Boolean) {
+        _recurringEditor.update { it.copy(payoff = enabled, errorMessage = null) }
+    }
+
+    fun onRecurringPayoffMonthsSelected(months: Int?) {
+        _recurringEditor.update { it.copy(payoffMonths = months, errorMessage = null) }
+    }
+
+    fun onRecurringEndDateChange(value: String) {
+        _recurringEditor.update { it.copy(endDateInput = value, errorMessage = null) }
+    }
+
     fun onRecurringStartDateChange(value: String) {
         _recurringEditor.update { it.copy(startDateInput = value, errorMessage = null) }
     }
@@ -1161,20 +1249,24 @@ class DalletViewModel(
             val state = _recurringEditor.value
             _recurringEditor.update { it.copy(submitting = true, errorMessage = null) }
             try {
-                val amount = Money.parseManat(state.amountInput)
                 val start = LocalDate.parse(state.startDateInput.trim())
+                val plan = if (state.payoff) state.payoffPlan() ?: error("plan") else null
+                val endDate = if (plan != null) state.payoffEnd() else null
+                val amount = plan?.paymentMinor ?: Money.parseManat(state.amountInput)
                 val accountId = state.selectedAccountId ?: error("account")
                 val categoryId = state.selectedCategoryId ?: error("category")
                 val ruleId = state.ruleId
                 if (ruleId == null) {
                     ledger.addRecurring(
                         state.kind, accountId, categoryId, amount,
-                        state.commentInput, state.frequency, start
+                        state.commentInput, state.frequency, start,
+                        endDate, plan?.lastPaymentMinor, plan?.count
                     )
                 } else {
                     ledger.updateRecurring(
                         ruleId, state.kind, accountId, categoryId, amount,
-                        state.commentInput, state.frequency, start
+                        state.commentInput, state.frequency, start,
+                        endDate, plan?.lastPaymentMinor, plan?.count
                     )
                 }
                 _recurringEditor.update { it.copy(submitting = false, done = true) }
@@ -1263,9 +1355,6 @@ class DalletViewModel(
                     val month = ledger.analytics(AnalyticsPeriod.MONTH, LocalDate.now())
                     val budgetStatuses = ledger.budgetStatuses(LocalDate.now())
                     val dueUi = dueItemsUi()
-                    val nearestGoal = ledger.goals()
-                        .filter { !it.goal.archived && !it.reached }
-                        .maxByOrNull { it.percent }
                     _budgets.value = budgetsStateOf(budgetStatuses)
                     _home.value = HomeUiState(
                         loading = false,
@@ -1281,14 +1370,6 @@ class DalletViewModel(
                         recentExpenses = ledger.recentExpenses(limit = 10).map { operation ->
                             operation.toExpenseRow(categoriesById, accountNames)
                         },
-                        goal = nearestGoal?.let {
-                            HomeGoalUi(
-                                name = it.goal.name,
-                                savedLabel = Money.formatManat(it.savedMinor),
-                                targetLabel = Money.formatManat(it.goal.targetMinor),
-                                percent = it.percent
-                            )
-                        }
                     )
                     refreshHistoryInternal()
                     refreshAccountsInternal()

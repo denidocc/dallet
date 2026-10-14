@@ -110,6 +110,11 @@ import com.dallet.app.ui.history.HistoryScreen
 import com.dallet.app.ui.home.HomeScreen
 import com.dallet.app.ui.lock.LockScreen
 import com.dallet.app.ui.more.AutoBackupScreen
+import com.dallet.app.ui.home.HomeLinks
+import com.dallet.app.ui.home.debtLinkRows
+import com.dallet.app.ui.home.goalLinkRows
+import com.dallet.app.ui.home.recurringLinkRows
+import com.dallet.app.ui.home.shoppingLinkRows
 import com.dallet.app.ui.more.ExportPasswordDialog
 import com.dallet.app.ui.more.ImportConfirmDialog
 import com.dallet.app.ui.more.ImportPasswordDialog
@@ -206,6 +211,9 @@ private fun RecurringEditor(viewModel: DalletViewModel, state: RecurringEditorUi
         onCommentChange = viewModel::onRecurringCommentChange,
         onFrequencySelected = viewModel::onRecurringFrequencySelected,
         onStartDateChange = viewModel::onRecurringStartDateChange,
+        onPayoffChange = viewModel::onRecurringPayoffChange,
+        onPayoffMonthsSelected = viewModel::onRecurringPayoffMonthsSelected,
+        onEndDateChange = viewModel::onRecurringEndDateChange,
         onSave = viewModel::saveRecurring,
         onDelete = viewModel::deleteRecurring
     )
@@ -525,6 +533,12 @@ private fun DalletAppContent(
             popExitTransition = { fadeOut(tween(NAV_FADE_OUT_MS)) }
         ) {
             composable(DalletDestination.Home.route) {
+                LaunchedEffect(Unit) {
+                    goalsViewModel.refreshList()
+                    debtsViewModel.refreshList()
+                    shoppingViewModel.refreshHub()
+                    viewModel.refreshRecurring()
+                }
                 HomeScreen(
                     state = homeState,
                     onExpenseClick = ::openEdit,
@@ -532,14 +546,41 @@ private fun DalletAppContent(
                         viewModel.refreshBudgets()
                         navController.navigate(BUDGETS_ROUTE)
                     },
-                    onGoalsClick = {
-                        goalsViewModel.refreshList()
-                        navController.navigate(GOALS_ROUTE)
-                    },
-                    onShoppingClick = {
-                        shoppingViewModel.refreshHub()
-                        navController.navigate(SHOPPING_ROUTE)
-                    },
+                    links = HomeLinks(
+                        shopping = shoppingLinkRows(hubState.lists),
+                        goals = goalLinkRows(goalsListState.goals),
+                        debts = debtLinkRows(debtsListState),
+                        recurring = recurringLinkRows(recurringState.rules),
+                        onShopping = { id -> navController.navigate("shopping/$id") },
+                        onShoppingAll = {
+                            shoppingViewModel.refreshHub()
+                            navController.navigate(SHOPPING_ROUTE)
+                        },
+                        onGoal = { id ->
+                            goalsViewModel.openGoal(id)
+                            navController.navigate("goals/$id")
+                        },
+                        onGoalsAll = {
+                            goalsViewModel.refreshList()
+                            navController.navigate(GOALS_ROUTE)
+                        },
+                        onDebt = { id ->
+                            debtsViewModel.openDebt(id)
+                            navController.navigate("debts/$id")
+                        },
+                        onDebtsAll = {
+                            debtsViewModel.refreshList()
+                            navController.navigate(DEBTS_ROUTE)
+                        },
+                        onRecurring = { id ->
+                            viewModel.prepareEditRecurring(id)
+                            navController.navigate("recurring/$id")
+                        },
+                        onRecurringAll = {
+                            viewModel.refreshRecurring()
+                            navController.navigate(RECURRING_ROUTE)
+                        }
+                    ),
                     onDueConfirm = { item, amount, onResult ->
                         viewModel.confirmDue(item.ruleId, item.dueDate, amount, onResult)
                     },

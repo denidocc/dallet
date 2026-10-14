@@ -16,12 +16,14 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import java.text.Collator
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -86,67 +88,31 @@ fun MoreScreen(
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.padding(bottom = 4.dp)
         )
-        SurfaceCard(onClick = onAccountsClick) {
-            Text(
-                text = stringResource(R.string.more_accounts),
-                style = MaterialTheme.typography.titleMedium
-            )
-        }
-        SurfaceCard(onClick = onCategoriesClick) {
-            Text(
-                text = stringResource(R.string.more_categories),
-                style = MaterialTheme.typography.titleMedium
-            )
-        }
+        val collator = remember { Collator.getInstance() }
+        fun sorted(items: List<MoreEntry>) = items.sortedWith { x, y -> collator.compare(x.title, y.title) }
 
-        SurfaceCard(onClick = onRecurringClick) {
-            Text(
-                text = stringResource(R.string.recurring_title),
-                style = MaterialTheme.typography.titleMedium
+        MoreGroup(
+            title = stringResource(R.string.more_group_money),
+            items = sorted(
+                listOf(
+                    MoreEntry(stringResource(R.string.budgets_title), onClick = onBudgetsClick),
+                    MoreEntry(stringResource(R.string.debts_title), onClick = onDebtsClick),
+                    MoreEntry(stringResource(R.string.recurring_title), onClick = onRecurringClick),
+                    MoreEntry(stringResource(R.string.more_shopping), onClick = onShoppingClick),
+                    MoreEntry(stringResource(R.string.goals_title), onClick = onGoalsClick)
+                )
             )
-        }
-        SurfaceCard(onClick = onBudgetsClick) {
-            Text(
-                text = stringResource(R.string.budgets_title),
-                style = MaterialTheme.typography.titleMedium
+        )
+        MoreGroup(
+            title = stringResource(R.string.more_group_lists),
+            items = sorted(
+                listOf(
+                    MoreEntry(stringResource(R.string.more_categories), onClick = onCategoriesClick),
+                    MoreEntry(stringResource(R.string.more_accounts), onClick = onAccountsClick),
+                    MoreEntry(stringResource(R.string.more_rates), onClick = onRatesClick)
+                )
             )
-        }
-        SurfaceCard(onClick = onDebtsClick) {
-            Text(
-                text = stringResource(R.string.debts_title),
-                style = MaterialTheme.typography.titleMedium
-            )
-        }
-        SurfaceCard(onClick = onGoalsClick) {
-            Text(
-                text = stringResource(R.string.goals_title),
-                style = MaterialTheme.typography.titleMedium
-            )
-        }
-        SurfaceCard(onClick = onShoppingClick) {
-            Text(
-                text = stringResource(R.string.more_shopping),
-                style = MaterialTheme.typography.titleMedium
-            )
-        }
-        SurfaceCard(onClick = onRatesClick) {
-            Text(
-                text = stringResource(R.string.more_rates),
-                style = MaterialTheme.typography.titleMedium
-            )
-        }
-        SurfaceCard(onClick = onSettingsClick) {
-            Text(
-                text = stringResource(R.string.more_settings),
-                style = MaterialTheme.typography.titleMedium
-            )
-        }
-        SurfaceCard(onClick = onSecurityClick) {
-            Text(
-                text = stringResource(R.string.more_security),
-                style = MaterialTheme.typography.titleMedium
-            )
-        }
+        )
 
         Text(
             text = stringResource(R.string.more_data_title),
@@ -164,69 +130,55 @@ fun MoreScreen(
                 }
             )
         }
-        SurfaceCard(onClick = if (dataState.busy) null else onExportClick) {
-            Text(
-                text = stringResource(R.string.more_export),
-                style = MaterialTheme.typography.titleMedium
+        MoreCards(
+            sorted(
+                listOf(
+                    MoreEntry(
+                        stringResource(R.string.autobackup_title),
+                        hint = stringResource(R.string.autobackup_card_hint),
+                        onClick = onAutoBackupClick
+                    ),
+                    MoreEntry(
+                        stringResource(R.string.more_export),
+                        hint = stringResource(R.string.more_export_hint),
+                        onClick = if (dataState.busy) null else onExportClick
+                    ),
+                    MoreEntry(
+                        stringResource(R.string.more_import),
+                        hint = stringResource(R.string.more_import_hint),
+                        onClick = if (dataState.busy) null else ({ showImportDialog = true })
+                    )
+                )
+            ) + MoreEntry(
+                stringResource(R.string.more_reset),
+                hint = stringResource(R.string.more_reset_hint),
+                danger = true,
+                onClick = if (dataState.busy) null else ({ showResetDialog = true })
             )
-            Text(
-                text = stringResource(R.string.more_export_hint),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        SurfaceCard(onClick = if (dataState.busy) null else ({ showImportDialog = true })) {
-            Text(
-                text = stringResource(R.string.more_import),
-                style = MaterialTheme.typography.titleMedium
-            )
-            Text(
-                text = stringResource(R.string.more_import_hint),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        SurfaceCard(onClick = onAutoBackupClick) {
-            Text(
-                text = stringResource(R.string.autobackup_title),
-                style = MaterialTheme.typography.titleMedium
-            )
-            Text(
-                text = stringResource(R.string.autobackup_card_hint),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        SurfaceCard(onClick = if (dataState.busy) null else ({ showResetDialog = true })) {
-            Text(
-                text = stringResource(R.string.more_reset),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.error
-            )
-            Text(
-                text = stringResource(R.string.more_reset_hint),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+        )
 
-        SurfaceCard(onClick = onFaqClick) {
-            Text(
-                text = stringResource(R.string.faq_title),
-                style = MaterialTheme.typography.titleMedium
+        MoreGroup(
+            title = stringResource(R.string.more_group_app),
+            items = sorted(
+                listOf(
+                    MoreEntry(stringResource(R.string.more_security), onClick = onSecurityClick),
+                    MoreEntry(stringResource(R.string.more_settings), onClick = onSettingsClick)
+                )
             )
-        }
-        SurfaceCard(onClick = onFeedbackClick) {
-            Text(
-                text = stringResource(R.string.feedback_title),
-                style = MaterialTheme.typography.titleMedium
+        )
+        MoreGroup(
+            title = stringResource(R.string.more_group_help),
+            items = sorted(
+                listOf(
+                    MoreEntry(stringResource(R.string.faq_title), onClick = onFaqClick),
+                    MoreEntry(
+                        stringResource(R.string.feedback_title),
+                        hint = stringResource(R.string.feedback_card_hint),
+                        onClick = onFeedbackClick
+                    )
+                )
             )
-            Text(
-                text = stringResource(R.string.feedback_card_hint),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+        )
 
         Text(
             text = stringResource(R.string.about_title),
@@ -347,5 +299,42 @@ fun MoreScreen(
                 }
             }
         )
+    }
+}
+
+private data class MoreEntry(
+    val title: String,
+    val hint: String? = null,
+    val danger: Boolean = false,
+    val onClick: (() -> Unit)?
+)
+
+@Composable
+private fun MoreGroup(title: String, items: List<MoreEntry>) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleMedium,
+        modifier = Modifier.padding(top = 12.dp)
+    )
+    MoreCards(items)
+}
+
+@Composable
+private fun MoreCards(items: List<MoreEntry>) {
+    items.forEach { item ->
+        SurfaceCard(onClick = item.onClick) {
+            Text(
+                text = item.title,
+                style = MaterialTheme.typography.titleMedium,
+                color = if (item.danger) MaterialTheme.colorScheme.error else Color.Unspecified
+            )
+            item.hint?.let { hint ->
+                Text(
+                    text = hint,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
