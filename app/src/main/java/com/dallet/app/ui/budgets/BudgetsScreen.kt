@@ -1,5 +1,6 @@
 package com.dallet.app.ui.budgets
 
+import com.dallet.app.ui.common.AppButtonShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -128,7 +129,7 @@ fun BudgetsScreen(
         state.rows.forEach { row ->
             BudgetRowView(row = row, onClick = { editing = row })
         }
-        Button(
+        Button(shape = AppButtonShape, 
             onClick = { adding = true },
             enabled = state.available.isNotEmpty(),
             modifier = Modifier.fillMaxWidth()

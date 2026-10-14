@@ -1,10 +1,14 @@
 package com.dallet.app.ui.history
 
+import com.dallet.app.ui.common.AppButtonShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -13,6 +17,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -89,24 +95,42 @@ fun HistoryScreen(
                     singleLine = true,
                     placeholder = { Text(stringResource(R.string.history_search_hint)) },
                     trailingIcon = {
-                        if (state.query.isNotEmpty()) {
-                            IconButton(onClick = { actions.onQueryChange("") }) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = stringResource(R.string.history_clear_search)
-                                )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (state.query.isNotEmpty()) {
+                                IconButton(onClick = { actions.onQueryChange("") }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = stringResource(R.string.history_clear_search)
+                                    )
+                                }
                             }
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = null,
+                                modifier = Modifier.padding(end = 12.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                 )
-                OutlinedButton(onClick = { showFilters = true }) {
-                    Text(
-                        if (state.restrictionCount > 0) {
-                            stringResource(R.string.history_filters_count, state.restrictionCount)
-                        } else {
-                            stringResource(R.string.history_filters)
-                        }
+                OutlinedButton(
+                    shape = AppButtonShape,
+                    onClick = { showFilters = true },
+                    modifier = Modifier
+                        .height(56.dp)
+                        .defaultMinSize(minWidth = 56.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.FilterList,
+                        contentDescription = stringResource(R.string.history_filters)
                     )
+                    if (state.restrictionCount > 0) {
+                        Text(
+                            text = state.restrictionCount.toString(),
+                            modifier = Modifier.padding(start = 6.dp)
+                        )
+                    }
                 }
             }
             ActiveRestrictions(state = state, actions = actions)

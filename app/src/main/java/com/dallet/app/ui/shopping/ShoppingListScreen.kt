@@ -1,5 +1,6 @@
 package com.dallet.app.ui.shopping
 
+import com.dallet.app.ui.common.AppButtonShape
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -417,7 +418,7 @@ private fun AddItemForm(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
                 )
             }
-            Button(
+            Button(shape = AppButtonShape, 
                 onClick = actions.onAddItem,
                 enabled = state.nameInput.isNotBlank(),
                 modifier = Modifier.fillMaxWidth()
@@ -503,7 +504,7 @@ private fun UnitPicker(
 ) {
     var expanded by remember { mutableStateOf(false) }
     Box {
-        OutlinedButton(
+        OutlinedButton(shape = AppButtonShape, 
             onClick = { expanded = true },
             modifier = Modifier.height(56.dp),
             contentPadding = PaddingValues(horizontal = 10.dp)
@@ -571,10 +572,10 @@ private fun BottomPanel(
                     .padding(top = 6.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                OutlinedButton(onClick = onSavePrices, modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(shape = AppButtonShape, onClick = onSavePrices, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.shopping_save_prices))
                 }
-                Button(
+                Button(shape = AppButtonShape, 
                     onClick = onClose,
                     enabled = state.checkedCount > 0,
                     modifier = Modifier.fillMaxWidth()
@@ -589,10 +590,10 @@ private fun BottomPanel(
                     .padding(top = 6.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Button(onClick = onGoHome, modifier = Modifier.fillMaxWidth()) {
+                Button(shape = AppButtonShape, onClick = onGoHome, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.shopping_go_home))
                 }
-                OutlinedButton(onClick = onGoShopping, modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(shape = AppButtonShape, onClick = onGoShopping, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.shopping_go_shopping))
                 }
                 state.operationId?.let { operationId ->
@@ -775,7 +776,7 @@ private fun OptionPicker(
     var expanded by remember { mutableStateOf(false) }
     val selected = options.firstOrNull { it.id == selectedId }?.label ?: "—"
     Box(modifier = Modifier.fillMaxWidth()) {
-        OutlinedButton(
+        OutlinedButton(shape = AppButtonShape, 
             onClick = { expanded = true },
             modifier = Modifier.fillMaxWidth()
         ) {

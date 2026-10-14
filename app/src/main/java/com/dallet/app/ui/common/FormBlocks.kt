@@ -13,8 +13,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -61,7 +61,7 @@ fun SegmentedChoice(
     onSelected: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val shape = RoundedCornerShape(12.dp)
+    val shape = AppButtonShape
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -80,7 +80,7 @@ fun SegmentedChoice(
                 else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
                     .weight(1f)
-                    .clip(RoundedCornerShape(9.dp))
+                    .clip(RoundedCornerShape(4.dp))
                     .background(if (selected) MaterialTheme.colorScheme.primary else Color.Transparent)
                     .clickable { onSelected(index) }
                     .padding(vertical = 10.dp)
@@ -106,7 +106,7 @@ fun AmountCard(
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        TextField(
+        OutlinedTextField(
             value = value,
             onValueChange = onChange,
             modifier = Modifier.fillMaxWidth(),
@@ -121,14 +121,10 @@ fun AmountCard(
                 )
             },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color.Transparent,
-                unfocusedContainerColor = Color.Transparent,
-                disabledContainerColor = Color.Transparent,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-                disabledIndicatorColor = Color.Transparent,
-                disabledTextColor = MaterialTheme.colorScheme.onSurface
+            colors = OutlinedTextFieldDefaults.colors(
+                disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                disabledBorderColor = MaterialTheme.colorScheme.outline,
+                disabledSuffixColor = MaterialTheme.colorScheme.onSurfaceVariant
             )
         )
         if (supporting != null) {

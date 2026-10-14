@@ -1,5 +1,6 @@
 package com.dallet.app.ui.rates
 
+import com.dallet.app.ui.common.AppButtonShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -106,7 +107,7 @@ fun RatesScreen(
                     modifier = Modifier.padding(top = 8.dp)
                 )
             }
-            Button(
+            Button(shape = AppButtonShape, 
                 onClick = {
                     onSave(inputs.toMap()) { ok ->
                         message = if (ok) R.string.rates_saved else R.string.rates_save_error

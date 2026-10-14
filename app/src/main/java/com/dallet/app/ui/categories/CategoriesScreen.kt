@@ -1,5 +1,6 @@
 package com.dallet.app.ui.categories
 
+import com.dallet.app.ui.common.AppButtonShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -70,7 +71,7 @@ fun CategoriesScreen(
                 label = { Text(stringResource(R.string.add_kind_income)) }
             )
         }
-        Button(
+        Button(shape = AppButtonShape, 
             onClick = onAddClick,
             modifier = Modifier
                 .fillMaxWidth()
@@ -173,7 +174,7 @@ fun CategoryEditorScreen(
         state.errorMessage?.let {
             Text(text = it, color = MaterialTheme.colorScheme.error)
         }
-        Button(
+        Button(shape = AppButtonShape, 
             onClick = onSave,
             enabled = !state.submitting,
             modifier = Modifier.fillMaxWidth()
@@ -181,7 +182,7 @@ fun CategoryEditorScreen(
             Text(stringResource(R.string.edit_save))
         }
         if (!state.isNew) {
-            Button(
+            Button(shape = AppButtonShape, 
                 onClick = onDelete,
                 enabled = !state.submitting,
                 modifier = Modifier.fillMaxWidth(),

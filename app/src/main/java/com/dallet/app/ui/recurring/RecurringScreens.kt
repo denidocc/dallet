@@ -1,5 +1,6 @@
 package com.dallet.app.ui.recurring
 
+import com.dallet.app.ui.common.AppButtonShape
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -112,7 +113,7 @@ fun RecurringScreen(
                 }
             }
         }
-        Button(onClick = onAdd, modifier = Modifier.fillMaxWidth()) {
+        Button(shape = AppButtonShape, onClick = onAdd, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.recurring_add))
         }
     }
@@ -219,7 +220,7 @@ fun RecurringEditorScreen(
                 style = MaterialTheme.typography.bodyLarge
             )
         }
-        Button(
+        Button(shape = AppButtonShape, 
             onClick = onSave,
             enabled = !state.submitting,
             modifier = Modifier.fillMaxWidth()

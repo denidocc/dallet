@@ -1,5 +1,6 @@
 package com.dallet.app.ui.rates
 
+import com.dallet.app.ui.common.AppButtonShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -109,7 +110,7 @@ fun ConverterPanel(
             )
         }
         if (onApply != null) {
-            Button(
+            Button(shape = AppButtonShape, 
                 onClick = { result?.let { onApply(RateMath.displayTwo(it)) } },
                 enabled = result != null,
                 modifier = Modifier.fillMaxWidth()

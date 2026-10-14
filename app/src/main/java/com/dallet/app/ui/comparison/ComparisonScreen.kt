@@ -1,5 +1,6 @@
 package com.dallet.app.ui.comparison
 
+import com.dallet.app.ui.common.AppButtonShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -73,10 +74,10 @@ fun ComparisonScreen(state: ComparisonUiState, actions: ComparisonActions) {
         if (!state.loaded || a == null || b == null) return@Column
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = actions.onPeriodVsPeriod, modifier = Modifier.weight(1f)) {
+            OutlinedButton(shape = AppButtonShape, onClick = actions.onPeriodVsPeriod, modifier = Modifier.weight(1f)) {
                 Text(stringResource(R.string.comparison_period_vs_period))
             }
-            OutlinedButton(
+            OutlinedButton(shape = AppButtonShape, 
                 onClick = {
                     actions.onCategoryVsCategory()
                     // B starts without categories: let the user pick the ones to compare with.

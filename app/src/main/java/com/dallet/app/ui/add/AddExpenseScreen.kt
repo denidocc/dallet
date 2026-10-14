@@ -1,5 +1,6 @@
 package com.dallet.app.ui.add
 
+import com.dallet.app.ui.common.AppButtonShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -129,7 +130,7 @@ fun AddExpenseScreen(
         state.errorMessage?.let { message ->
             Text(text = message, color = MaterialTheme.colorScheme.error)
         }
-        Button(
+        Button(shape = AppButtonShape, 
             onClick = onSubmit,
             enabled = !state.submitting,
             modifier = Modifier.fillMaxWidth()

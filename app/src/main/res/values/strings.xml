@@ -56,7 +56,7 @@
     <string name="add_save">Сохранить</string>
     <string name="history_title">История</string>
     <string name="history_empty">Пока нет операций</string>
-    <string name="history_search_hint">Поиск по операциям</string>
+    <string name="history_search_hint">Поиск</string>
     <string name="history_found_summary">Найдено: %1$d · Расходы %2$s · Доходы %3$s</string>
     <string name="history_not_found">Ничего не найдено</string>
     <string name="history_reset_filter">Сбросить фильтр</string>

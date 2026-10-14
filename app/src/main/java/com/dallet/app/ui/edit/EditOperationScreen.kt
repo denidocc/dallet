@@ -1,5 +1,6 @@
 package com.dallet.app.ui.edit
 
+import com.dallet.app.ui.common.AppButtonShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -149,7 +150,7 @@ fun EditOperationScreen(
         state.errorMessage?.let {
             Text(text = it, color = MaterialTheme.colorScheme.error)
         }
-        Button(
+        Button(shape = AppButtonShape, 
             onClick = onSave,
             enabled = !state.submitting,
             modifier = Modifier.fillMaxWidth()

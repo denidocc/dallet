@@ -1,5 +1,6 @@
 package com.dallet.app.ui.analytics
 
+import com.dallet.app.ui.common.AppButtonShape
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -144,7 +145,7 @@ fun AnalyticsScreen(
             onForward = { onStep(1) }
         )
         if (SHOW_COMPARISON) {
-            OutlinedButton(onClick = onCompare, modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(shape = AppButtonShape, onClick = onCompare, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.analytics_compare))
             }
         }

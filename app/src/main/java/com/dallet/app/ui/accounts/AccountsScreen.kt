@@ -1,5 +1,6 @@
 package com.dallet.app.ui.accounts
 
+import com.dallet.app.ui.common.AppButtonShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -45,7 +46,7 @@ fun AccountsScreen(
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.padding(bottom = 16.dp)
         )
-        Button(
+        Button(shape = AppButtonShape, 
             onClick = onAddClick,
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -127,7 +128,7 @@ fun AccountEditorScreen(
         state.errorMessage?.let {
             Text(text = it, color = MaterialTheme.colorScheme.error)
         }
-        Button(
+        Button(shape = AppButtonShape, 
             onClick = onSave,
             enabled = !state.submitting,
             modifier = Modifier.fillMaxWidth()
@@ -135,7 +136,7 @@ fun AccountEditorScreen(
             Text(stringResource(R.string.edit_save))
         }
         if (!state.isNew) {
-            Button(
+            Button(shape = AppButtonShape, 
                 onClick = onDelete,
                 enabled = !state.submitting,
                 modifier = Modifier.fillMaxWidth(),

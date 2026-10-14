@@ -1,5 +1,6 @@
 package com.dallet.app.ui.onboarding
 
+import com.dallet.app.ui.common.AppButtonShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -260,7 +261,7 @@ fun OnboardingScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (page > PAGE_WELCOME) {
-                OutlinedButton(
+                OutlinedButton(shape = AppButtonShape, 
                     onClick = { page -= 1 },
                     enabled = !state.submitting,
                     modifier = Modifier.weight(1f)
@@ -268,7 +269,7 @@ fun OnboardingScreen(
                     Text(stringResource(R.string.onboarding_back))
                 }
             }
-            Button(
+            Button(shape = AppButtonShape, 
                 onClick = {
                     when {
                         page == PAGE_ACCOUNTS && !hasAccount -> showPickError += 1

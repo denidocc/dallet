@@ -1,5 +1,6 @@
 package com.dallet.app.ui.history
 
+import com.dallet.app.ui.common.AppButtonShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -168,7 +169,7 @@ fun HistoryFilterSheet(
                 TextButton(onClick = onReset) {
                     Text(stringResource(R.string.history_filter_reset))
                 }
-                Button(onClick = onDismiss) {
+                Button(shape = AppButtonShape, onClick = onDismiss) {
                     Text(stringResource(R.string.history_filter_done))
                 }
             }

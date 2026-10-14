@@ -1,5 +1,6 @@
 package com.dallet.app.ui.more
 
+import com.dallet.app.ui.common.AppButtonShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -112,7 +113,7 @@ fun AutoBackupScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        OutlinedButton(
+        OutlinedButton(shape = AppButtonShape, 
             onClick = onRunNow,
             enabled = state.folderUri != null && !busy,
             modifier = Modifier.fillMaxWidth()
