@@ -51,8 +51,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.dallet.app.R
-
-private const val SHOW_COMPARISON = false
 import com.dallet.app.ui.moneyText
 import com.dallet.app.ledger.AnalyticsPeriod
 import com.dallet.app.ui.AccountStatUi
@@ -69,6 +67,8 @@ import com.dallet.app.ui.common.DateRangePickerDialog
 import java.time.LocalDate
 import java.util.Locale
 import kotlin.math.abs
+
+private const val SHOW_COMPARISON = false
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
