@@ -26,6 +26,16 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.dallet.app.ui.SelectableOption
+import com.dallet.app.ui.common.OutlineAction
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -83,7 +93,10 @@ fun CategoriesScreen(
         }
         LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             items(state.rows, key = { it.id }) { row ->
-                SurfaceCard(onClick = { onCategoryClick(row.id) }) {
+                SurfaceCard(
+                    onClick = { onCategoryClick(row.id) },
+                    modifier = Modifier.padding(start = if (row.isChild) 28.dp else 0.dp)
+                ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(14.dp)
@@ -117,6 +130,8 @@ fun CategoryEditorScreen(
     onNameChange: (String) -> Unit,
     onColorSelected: (Int) -> Unit,
     onIconSelected: (String) -> Unit,
+    onParentSelected: (Long?) -> Unit,
+    onAddSubcategory: () -> Unit,
     onSave: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -149,6 +164,19 @@ fun CategoryEditorScreen(
             label = { Text(stringResource(R.string.categories_name_label)) },
             singleLine = true
         )
+        if (!state.hasChildren) {
+            ParentChoice(
+                options = state.parentOptions,
+                selectedId = state.parentId,
+                onSelected = onParentSelected
+            )
+        } else {
+            Text(
+                text = stringResource(R.string.categories_has_children_hint),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
         Text(text = stringResource(R.string.categories_color_label))
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -186,6 +214,12 @@ fun CategoryEditorScreen(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(stringResource(R.string.edit_save))
+        }
+        if (!state.isNew && state.parentId == null) {
+            OutlineAction(
+                text = stringResource(R.string.categories_add_sub),
+                onClick = onAddSubcategory
+            )
         }
         if (!state.isNew) {
             Button(shape = AppButtonShape, 
@@ -255,6 +289,54 @@ private fun CategoryIconGrid(
             }
             repeat(ICON_COLUMNS - rowKeys.size) {
                 Spacer(modifier = Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ParentChoice(
+    options: List<SelectableOption>,
+    selectedId: Long?,
+    onSelected: (Long?) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val none = stringResource(R.string.categories_parent_none)
+    val selectedLabel = options.firstOrNull { it.id == selectedId }?.label ?: none
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it }
+    ) {
+        OutlinedTextField(
+            value = selectedLabel,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.categories_parent_label)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .menuAnchor()
+                .fillMaxWidth()
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text(none) },
+                onClick = {
+                    onSelected(null)
+                    expanded = false
+                }
+            )
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option.label) },
+                    onClick = {
+                        onSelected(option.id)
+                        expanded = false
+                    }
+                )
             }
         }
     }

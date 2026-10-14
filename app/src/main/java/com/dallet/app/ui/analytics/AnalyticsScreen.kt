@@ -247,11 +247,19 @@ fun AnalyticsScreen(
                                     .clip(CircleShape)
                                     .background(Color(slice.colorArgb))
                             )
-                            Text(
-                                text = slice.name,
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.weight(1f)
-                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = slice.name,
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                                if (slice.details.isNotEmpty()) {
+                                    Text(
+                                        text = slice.details,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
                             Text(
                                 text = moneyText(slice.amountLabel),
                                 style = MaterialTheme.typography.titleMedium

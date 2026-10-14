@@ -34,7 +34,8 @@ private fun CategoryEntity.toDomain(): Category =
         name = name,
         kind = CategoryKind.valueOf(kind),
         colorArgb = colorArgb,
-        iconKey = iconKey
+        iconKey = iconKey,
+        parentId = parentId
     )
 
 private fun Category.toEntity(): CategoryEntity =
@@ -43,5 +44,6 @@ private fun Category.toEntity(): CategoryEntity =
         name = name,
         kind = kind.name,
         colorArgb = colorArgb,
-        iconKey = iconKey
+        iconKey = iconKey,
+        parentId = parentId
     )

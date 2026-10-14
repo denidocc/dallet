@@ -567,4 +567,12 @@
     <string name="debts_move_repaid">You paid back</string>
     <string name="debts_move_writeoff">Written off (not paid back)</string>
     <string name="debts_move_forgiven">Forgiven to you</string>
+    <string name="categories_parent_label">Inside category</string>
+    <string name="categories_parent_none">None (top-level category)</string>
+    <string name="categories_add_sub">Add a subcategory</string>
+    <string name="categories_has_children_hint">This category has subcategories, so it stays top-level.</string>
+    <string name="err_category_has_children">Delete or move the subcategories first</string>
+    <string name="analytics_no_subcategory">No subcategory</string>
+    <string name="faq_q12">How do subcategories work?</string>
+    <string name="faq_a12">In More, then Categories, open a category and tap Add a subcategory (for example Groceries inside Food). In the operation picker a subcategory shows as Food › Groceries. In Analytics subcategories add up to their main category, with a breakdown under it. A budget on the main category counts its subcategories too. Subcategories can be renamed, moved to another category or made top-level.</string>
 </resources>

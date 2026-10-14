@@ -494,7 +494,7 @@ class ShoppingViewModel(
         viewModelScope.launch {
             try {
                 val accounts = ledger.accountBalances().map { SelectableOption(it.account.id, it.account.name) }
-                val categories = ledger.categories(CategoryKind.EXPENSE)
+                val categories = ledger.displayCategories(CategoryKind.EXPENSE)
                     .map { SelectableOption(it.id, it.name) }
                 _closeForm.value = CloseFormUiState(
                     accounts = accounts,

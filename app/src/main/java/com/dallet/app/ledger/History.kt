@@ -78,7 +78,8 @@ internal fun OperationFilter.matches(
     operation: Operation,
     accountNames: Map<Long, String>,
     categoryNames: Map<Long, String>,
-    range: Pair<LocalDate, LocalDate>? = null
+    range: Pair<LocalDate, LocalDate>? = null,
+    categoryParents: Map<Long, Long> = emptyMap()
 ): Boolean {
     if (range != null && (operation.date.isBefore(range.first) || operation.date.isAfter(range.second))) {
         return false
@@ -89,8 +90,10 @@ internal fun OperationFilter.matches(
         if (touched.none { it in accountIds }) return false
     }
     if (categoryIds.isNotEmpty() && kind != OperationKind.TRANSFER) {
-        val categoryId = operation.categoryId
-        if (categoryId == null || categoryId !in categoryIds) return false
+        val categoryId = operation.categoryId ?: return false
+        // Picking a category also picks its subcategories.
+        val parentId = categoryParents[categoryId]
+        if (categoryId !in categoryIds && (parentId == null || parentId !in categoryIds)) return false
     }
     return matchesText(operation, accountNames, categoryNames)
 }

@@ -30,7 +30,10 @@ data class CategoryExpenseTotal(
     val categoryId: Long,
     val categoryName: String,
     val colorArgb: Int,
-    val amountMinor: Long
+    val amountMinor: Long,
+    /** What was booked on the category itself, apart from its subcategories. */
+    val directMinor: Long = amountMinor,
+    val children: List<NamedAmount> = emptyList()
 )
 
 data class ExpenseFlowPoint(

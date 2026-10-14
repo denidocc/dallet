@@ -567,4 +567,12 @@
     <string name="debts_move_repaid">Вы вернули</string>
     <string name="debts_move_writeoff">Списано (не вернули)</string>
     <string name="debts_move_forgiven">Вам простили</string>
+    <string name="categories_parent_label">Внутри категории</string>
+    <string name="categories_parent_none">Нет (основная категория)</string>
+    <string name="categories_add_sub">Добавить подкатегорию</string>
+    <string name="categories_has_children_hint">У этой категории есть подкатегории, поэтому она остаётся основной.</string>
+    <string name="err_category_has_children">Сначала удалите или перенесите подкатегории</string>
+    <string name="analytics_no_subcategory">Без подкатегории</string>
+    <string name="faq_q12">Как работают подкатегории?</string>
+    <string name="faq_a12">В «Ещё → Категории» откройте категорию и нажмите «Добавить подкатегорию» (например, «Продукты» внутри «Еда»). В списке выбора операции подкатегория показана как «Еда › Продукты». В Аналитике подкатегории входят в сумму основной категории, а под ней видна разбивка. Бюджет на основную категорию учитывает и подкатегории. Подкатегории можно переименовать, перенести в другую категорию или сделать основной.</string>
 </resources>

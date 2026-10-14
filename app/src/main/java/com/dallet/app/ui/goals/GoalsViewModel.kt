@@ -158,7 +158,7 @@ class GoalsViewModel(
             accounts = balances.map {
                 SelectableOption(it.account.id, it.account.name + " · " + Money.formatManat(it.balanceMinor))
             },
-            incomeCategories = ledger.categories(CategoryKind.INCOME).map { SelectableOption(it.id, it.name) },
+            incomeCategories = ledger.displayCategories(CategoryKind.INCOME).map { SelectableOption(it.id, it.name) },
             message = message,
             isError = isError
         )

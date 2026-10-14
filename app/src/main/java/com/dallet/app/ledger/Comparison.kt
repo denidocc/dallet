@@ -80,13 +80,17 @@ internal fun buildComparison(
     categories: List<Category>,
     today: LocalDate
 ): Comparison {
-    val categoryNames = categories.associate { it.id to it.name }
+    val byId = categories.associateBy { it.id }
+    val categoryNames = categories.associate { category ->
+        category.id to (category.parentId?.let { byId[it] }?.let { it.name + " › " + category.name } ?: category.name)
+    }
+    val categoryParents = categories.filter { it.parentId != null }.associate { it.id to it.parentId!! }
     val earliest = operations.minOfOrNull { it.date } ?: today
 
     fun found(filter: OperationFilter): Pair<Pair<LocalDate, LocalDate>, List<Operation>> {
         // Without dates a side covers everything from the first operation up to today.
         val range = filter.dateRange(today) ?: (earliest to today)
-        return range to operations.filter { filter.matches(it, accountNames, categoryNames, range) }
+        return range to operations.filter { filter.matches(it, accountNames, categoryNames, range, categoryParents) }
     }
 
     val (rangeA, foundA) = found(a)
@@ -113,9 +117,11 @@ private fun categoryRows(
     foundB: List<Operation>,
     categories: List<Category>
 ): List<ComparisonCategoryRow> {
+    val parentOf = categories.filter { it.parentId != null }.associate { it.id to it.parentId!! }
+    // A subcategory counts toward its top-level category.
     fun totals(items: List<Operation>): Map<Long, Long> = items
         .filter { it.kind != OperationKind.TRANSFER && it.categoryId != null }
-        .groupBy { it.categoryId!! }
+        .groupBy { parentOf[it.categoryId!!] ?: it.categoryId!! }
         .mapValues { (_, ops) -> ops.sumOf { it.amountMinor } }
 
     val totalsA = totals(foundA)

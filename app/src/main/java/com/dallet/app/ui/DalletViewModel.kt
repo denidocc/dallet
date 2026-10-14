@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.dallet.app.ledger.AccountHasOperationsException
+import com.dallet.app.ledger.CategoryHasChildrenException
 import com.dallet.app.ledger.CategoryHasOperationsException
 import com.dallet.app.AppStrings
 import com.dallet.app.R
@@ -399,7 +400,8 @@ data class CategoryManageRowUi(
     val id: Long,
     val name: String,
     val colorArgb: Int,
-    val iconKey: String
+    val iconKey: String,
+    val isChild: Boolean = false
 )
 
 data class CategoryEditorUiState(
@@ -409,6 +411,11 @@ data class CategoryEditorUiState(
     val nameInput: String = "",
     val colorArgb: Int = 0xFFE65100.toInt(),
     val iconKey: String = "other",
+    /** The top-level category this one sits under; null for a top-level category. */
+    val parentId: Long? = null,
+    val parentOptions: List<SelectableOption> = emptyList(),
+    /** A category that has subcategories stays top-level. */
+    val hasChildren: Boolean = false,
     val submitting: Boolean = false,
     val errorMessage: String? = null,
     val done: Boolean = false
@@ -504,7 +511,9 @@ data class AnalyticsCategorySliceUi(
     val name: String,
     val colorArgb: Int,
     val amountLabel: String,
-    val fraction: Float
+    val fraction: Float,
+    /** The parts of a category that has subcategories, as one line; empty otherwise. */
+    val details: String = ""
 )
 
 data class AnalyticsFlowPointUi(
@@ -937,7 +946,7 @@ class DalletViewModel(
         val withBudget = statuses.map { it.category.id }.toSet()
         return BudgetsUiState(
             rows = statuses.map { it.toBudgetRow() },
-            available = ledger.categories(CategoryKind.EXPENSE)
+            available = ledger.displayCategories(CategoryKind.EXPENSE)
                 .filter { it.id !in withBudget }
                 .map { SelectableOption(it.id, it.name) }
         )
@@ -979,14 +988,13 @@ class DalletViewModel(
     val recurringEditor: StateFlow<RecurringEditorUiState> = _recurringEditor.asStateFlow()
 
     private suspend fun categoryLookup(): Map<Long, Category> =
-        (ledger.categories(CategoryKind.EXPENSE) + ledger.categories(CategoryKind.INCOME))
-            .associateBy { it.id }
+        ledger.displayCategories().associateBy { it.id }
 
     private suspend fun accountOptions(): List<SelectableOption> =
         ledger.accountBalances().map { SelectableOption(it.account.id, it.account.name) }
 
     private suspend fun recurringCategoryOptions(kind: OperationKind): List<SelectableOption> =
-        ledger.categories(
+        ledger.displayCategories(
             if (kind == OperationKind.INCOME) CategoryKind.INCOME else CategoryKind.EXPENSE
         ).map { SelectableOption(it.id, it.name) }
 
@@ -1239,7 +1247,7 @@ class DalletViewModel(
                 if (needsOnboarding) {
                     _home.value = HomeUiState(loading = false, needsOnboarding = true)
                 } else {
-                    val categoriesById = ledger.categories(CategoryKind.EXPENSE)
+                    val categoriesById = ledger.displayCategories(CategoryKind.EXPENSE)
                         .associateBy { it.id }
                     val accountNames = ledger.accountBalances()
                         .associate { it.account.id to it.account.name }
@@ -1400,27 +1408,43 @@ class DalletViewModel(
                     id = category.id,
                     name = category.name,
                     colorArgb = category.colorArgb,
-                    iconKey = category.iconKey
+                    iconKey = category.iconKey,
+                    isChild = category.parentId != null
                 )
             }
         )
     }
 
-    fun prepareNewCategory() {
+    /** Top-level categories of [kind] a category may be placed under, except the one being edited. */
+    private suspend fun parentOptions(kind: CategoryKind, exceptId: Long?): List<SelectableOption> =
+        ledger.categories(kind)
+            .filter { it.parentId == null && it.id != exceptId }
+            .map { SelectableOption(it.id, it.name) }
+
+    fun prepareNewCategory(parentId: Long? = null) {
         val kind = _categories.value.selectedKind
-        _categoryEditor.value = CategoryEditorUiState(
-            isNew = true,
-            kind = kind,
-            colorArgb = CategoryStyleOptions.colors.first(),
-            iconKey = CategoryStyleOptions.icons.first()
-        )
+        viewModelScope.launch {
+            val parent = parentId?.let { id -> ledger.categories(kind).firstOrNull { it.id == id } }
+            _categoryEditor.value = CategoryEditorUiState(
+                isNew = true,
+                kind = kind,
+                colorArgb = parent?.colorArgb ?: CategoryStyleOptions.colors.first(),
+                iconKey = CategoryStyleOptions.icons.first(),
+                parentId = parent?.id,
+                parentOptions = parentOptions(kind, null)
+            )
+        }
+    }
+
+    fun onCategoryParentSelected(parentId: Long?) {
+        _categoryEditor.update { it.copy(parentId = parentId, errorMessage = null) }
     }
 
     fun prepareEditCategory(categoryId: Long) {
         viewModelScope.launch {
-            val category = ledger.categories(CategoryKind.EXPENSE)
+            val allCategories = ledger.categories(CategoryKind.EXPENSE)
                 .plus(ledger.categories(CategoryKind.INCOME))
-                .firstOrNull { it.id == categoryId }
+            val category = allCategories.firstOrNull { it.id == categoryId }
             if (category == null) {
                 _categoryEditor.value = CategoryEditorUiState(errorMessage = strings.get(R.string.err_category_not_found))
                 return@launch
@@ -1431,7 +1455,10 @@ class DalletViewModel(
                 kind = category.kind,
                 nameInput = category.name,
                 colorArgb = category.colorArgb,
-                iconKey = category.iconKey
+                iconKey = category.iconKey,
+                parentId = category.parentId,
+                parentOptions = parentOptions(category.kind, category.id),
+                hasChildren = allCategories.any { it.parentId == category.id }
             )
         }
     }
@@ -1462,14 +1489,16 @@ class DalletViewModel(
                         name = state.nameInput,
                         kind = state.kind,
                         colorArgb = state.colorArgb,
-                        iconKey = state.iconKey
+                        iconKey = state.iconKey,
+                        parentId = state.parentId
                     )
                 } else {
                     ledger.updateCategory(
                         categoryId = state.categoryId ?: error("id"),
                         name = state.nameInput,
                         colorArgb = state.colorArgb,
-                        iconKey = state.iconKey
+                        iconKey = state.iconKey,
+                        parentId = state.parentId
                     )
                 }
                 _categoryEditor.update { it.copy(submitting = false, done = true) }
@@ -1491,6 +1520,10 @@ class DalletViewModel(
                 ledger.deleteCategory(categoryId)
                 _categoryEditor.update { it.copy(submitting = false, done = true) }
                 refreshHome()
+            } catch (error: CategoryHasChildrenException) {
+                _categoryEditor.update {
+                    it.copy(submitting = false, errorMessage = strings.get(R.string.err_category_has_children))
+                }
             } catch (error: CategoryHasOperationsException) {
                 _categoryEditor.update {
                     it.copy(submitting = false, errorMessage = strings.get(R.string.err_category_has_ops))
@@ -1696,7 +1729,18 @@ class DalletViewModel(
                 name = row.categoryName,
                 colorArgb = row.colorArgb,
                 amountLabel = Money.formatManat(row.amountMinor),
-                fraction = if (total > 0L) row.amountMinor.toFloat() / total.toFloat() else 0f
+                fraction = if (total > 0L) row.amountMinor.toFloat() / total.toFloat() else 0f,
+                details = if (row.children.isEmpty()) {
+                    ""
+                } else {
+                    val parts = row.children.map { it.name + " " + Money.formatManat(it.amountMinor) }
+                    val own = if (row.directMinor > 0L) {
+                        listOf(strings.get(R.string.analytics_no_subcategory) + " " + Money.formatManat(row.directMinor))
+                    } else {
+                        emptyList()
+                    }
+                    (parts + own).joinToString(" · ")
+                }
             )
         }
 
@@ -1808,9 +1852,9 @@ class DalletViewModel(
     private suspend fun buildComparisonUi(): ComparisonUiState {
         val result = ledger.compare(comparisonA, comparisonB)
         val accountOptions = ledger.accountBalances().map { SelectableOption(it.account.id, it.account.name) }
-        val categoryOptions = ledger.categories(CategoryKind.EXPENSE).map {
+        val categoryOptions = ledger.displayCategories(CategoryKind.EXPENSE).map {
             HistoryCategoryOption(it.id, it.name, CategoryKind.EXPENSE)
-        } + ledger.categories(CategoryKind.INCOME).map {
+        } + ledger.displayCategories(CategoryKind.INCOME).map {
             HistoryCategoryOption(it.id, it.name, CategoryKind.INCOME)
         }
         return result.toUi(
@@ -2018,8 +2062,8 @@ class DalletViewModel(
 
     private suspend fun refreshHistoryInternal() {
         val filter = historyFilter
-        val expenseCategories = ledger.categories(CategoryKind.EXPENSE)
-        val incomeCategories = ledger.categories(CategoryKind.INCOME)
+        val expenseCategories = ledger.displayCategories(CategoryKind.EXPENSE)
+        val incomeCategories = ledger.displayCategories(CategoryKind.INCOME)
         val accounts = ledger.accountBalances().map { it.account }
         val accountNames = accounts.associate { it.id to it.name }
         val categoryNames = (expenseCategories + incomeCategories).associate { it.id to it.name }
@@ -2091,7 +2135,7 @@ class DalletViewModel(
                 AddOperationKind.INCOME -> CategoryKind.INCOME
                 AddOperationKind.TRANSFER -> null
             }
-            val categories = categoryKind?.let { ledger.categories(it) }
+            val categories = categoryKind?.let { ledger.displayCategories(it) }
                 ?.map { SelectableOption(it.id, it.name) }
                 .orEmpty()
             _addExpense.value = AddExpenseUiState(
@@ -2126,7 +2170,7 @@ class DalletViewModel(
                     OperationKind.INCOME -> CategoryKind.INCOME
                     OperationKind.TRANSFER -> null
                 }
-                val categories = categoryKind?.let { ledger.categories(it) }
+                val categories = categoryKind?.let { ledger.displayCategories(it) }
                     ?.map { SelectableOption(it.id, it.name) }
                     .orEmpty()
                 val purchase = ledger.purchaseOf(operation.id)

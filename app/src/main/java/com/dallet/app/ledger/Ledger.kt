@@ -122,14 +122,25 @@ class Ledger(
             .filter { it.kind == OperationKind.EXPENSE && YearMonth.from(it.date) == month }
             .groupBy { it.categoryId }
             .mapValues { entry -> entry.value.sumOf { it.amountMinor } }
-        return categoryRepository.getAll()
+        val all = categoryRepository.getAll()
+        val byId = all.associateBy { it.id }
+        val childrenOf = all.groupBy { it.parentId }
+        // A budget on a category covers its subcategories too.
+        fun spentOn(id: Long): Long =
+            (spent[id] ?: 0L) + (childrenOf[id]?.sumOf { spent[it.id] ?: 0L } ?: 0L)
+        return all
             .filter { it.kind == CategoryKind.EXPENSE && budgets.containsKey(it.id) }
-            .map { BudgetStatus(it, budgets.getValue(it.id), spent[it.id] ?: 0L) }
+            .map { BudgetStatus(withLabel(it, byId), budgets.getValue(it.id), spentOn(it.id)) }
             .sortedByDescending { it.fraction }
     }
 
-    suspend fun budgetStatus(categoryId: Long, today: LocalDate): BudgetStatus? =
-        budgetStatuses(today).firstOrNull { it.category.id == categoryId }
+    /** The tightest budget touched by an expense on [categoryId]: its own or its parent's. */
+    suspend fun budgetStatus(categoryId: Long, today: LocalDate): BudgetStatus? {
+        val parentId = categoryRepository.getAll().firstOrNull { it.id == categoryId }?.parentId
+        return budgetStatuses(today)
+            .filter { it.category.id == categoryId || it.category.id == parentId }
+            .maxByOrNull { it.fraction }
+    }
 
     suspend fun recurringRules(): List<RecurringRule> = settings.recurring()
 
@@ -312,7 +323,38 @@ class Ledger(
 
     suspend fun categories(kind: CategoryKind): List<Category> {
         ensureCategoriesSeeded()
-        return categoryRepository.getAll().filter { it.kind == kind }
+        return hierarchical(categoryRepository.getAll().filter { it.kind == kind })
+    }
+
+    /**
+     * Categories ready for display: parents first, each followed by its subcategories, and a
+     * subcategory named "Parent › Child". Use [categories] when the real name is needed.
+     */
+    suspend fun displayCategories(kind: CategoryKind? = null): List<Category> {
+        ensureCategoriesSeeded()
+        val all = categoryRepository.getAll()
+        val byId = all.associateBy { it.id }
+        return hierarchical(all.filter { kind == null || it.kind == kind }).map { withLabel(it, byId) }
+    }
+
+    /** Id to display name ("Parent › Child" for subcategories) of every category. */
+    suspend fun categoryLabels(): Map<Long, String> =
+        displayCategories().associate { it.id to it.name }
+
+    /** Subcategory id to the id of its parent. */
+    private suspend fun categoryParentMap(): Map<Long, Long> =
+        categoryRepository.getAll().filter { it.parentId != null }.associate { it.id to it.parentId!! }
+
+    private fun withLabel(category: Category, byId: Map<Long, Category>): Category {
+        val parent = category.parentId?.let { byId[it] } ?: return category
+        return category.copy(name = parent.name + " › " + category.name)
+    }
+
+    private fun hierarchical(list: List<Category>): List<Category> {
+        val ids = list.map { it.id }.toSet()
+        val roots = list.filter { it.parentId == null || it.parentId !in ids }
+        val children = list.filter { it.parentId != null && it.parentId in ids }.groupBy { it.parentId }
+        return roots.flatMap { root -> listOf(root) + (children[root.id] ?: emptyList()) }
     }
 
     suspend fun accountBalances(): List<AccountBalance> =
@@ -436,10 +478,11 @@ class Ledger(
         val operations = allOperations()
         if (filter.isEmpty) return groupHistory(operations)
         val accountNames = accountRepository.getAll().associate { it.id to it.name }
-        val categoryNames = categoryRepository.getAll().associate { it.id to it.name }
+        val categoryNames = categoryLabels()
+        val categoryParents = categoryParentMap()
         val range = filter.dateRange(today)
         return groupHistory(
-            operations.filter { filter.matches(it, accountNames, categoryNames, range) }
+            operations.filter { filter.matches(it, accountNames, categoryNames, range, categoryParents) }
         )
     }
 
@@ -624,12 +667,14 @@ class Ledger(
         name: String,
         kind: CategoryKind,
         colorArgb: Int,
-        iconKey: String
+        iconKey: String,
+        parentId: Long? = null
     ): Long {
         ensureCategoriesSeeded()
         val trimmed = name.trim()
         require(trimmed.isNotEmpty()) { "name required" }
         require(iconKey.isNotBlank()) { "icon required" }
+        requireValidParent(parentId, kind, selfId = null)
         val nextId = (categoryRepository.getAll().maxOfOrNull { it.id } ?: 0L) + 1L
         return categoryRepository.insert(
             Category(
@@ -637,16 +682,31 @@ class Ledger(
                 name = trimmed,
                 kind = kind,
                 colorArgb = colorArgb,
-                iconKey = iconKey.trim()
+                iconKey = iconKey.trim(),
+                parentId = parentId
             )
         )
+    }
+
+    /** A parent must be a top-level category of the same kind, and not the category itself. */
+    private suspend fun requireValidParent(parentId: Long?, kind: CategoryKind, selfId: Long?) {
+        if (parentId == null) return
+        val all = categoryRepository.getAll()
+        val parent = all.firstOrNull { it.id == parentId } ?: error("parent not found")
+        require(parentId != selfId) { "a category cannot be its own parent" }
+        require(parent.kind == kind) { "parent must be of the same kind" }
+        require(parent.parentId == null) { "subcategories cannot have subcategories" }
+        if (selfId != null) {
+            require(all.none { it.parentId == selfId }) { "a category with subcategories stays top-level" }
+        }
     }
 
     suspend fun updateCategory(
         categoryId: Long,
         name: String,
         colorArgb: Int,
-        iconKey: String
+        iconKey: String,
+        parentId: Long? = null
     ) {
         ensureCategoriesSeeded()
         val trimmed = name.trim()
@@ -654,11 +714,13 @@ class Ledger(
         require(iconKey.isNotBlank()) { "icon required" }
         val existing = categoryRepository.getAll().firstOrNull { it.id == categoryId }
             ?: error("category not found")
+        requireValidParent(parentId, existing.kind, selfId = categoryId)
         categoryRepository.update(
             existing.copy(
                 name = trimmed,
                 colorArgb = colorArgb,
-                iconKey = iconKey.trim()
+                iconKey = iconKey.trim(),
+                parentId = parentId
             )
         )
     }
@@ -666,6 +728,9 @@ class Ledger(
     suspend fun deleteCategory(categoryId: Long) {
         ensureCategoriesSeeded()
         require(categoryRepository.getAll().any { it.id == categoryId }) { "category not found" }
+        if (categoryRepository.getAll().any { it.parentId == categoryId }) {
+            throw CategoryHasChildrenException()
+        }
         val used = operationRepository.getAll().any { it.categoryId == categoryId }
         if (used) {
             throw CategoryHasOperationsException()
@@ -737,7 +802,7 @@ class Ledger(
         val from = comparison.current.fromInclusive
         val to = comparison.current.toInclusive
         val accountNames = accountRepository.getAll().associate { it.id to it.name }
-        val categoryNames = categoryRepository.getAll().associate { it.id to it.name }
+        val categoryNames = categoryLabels()
         val rows = operationRepository.getAll()
             .filter { !it.date.isBefore(from) && !it.date.isAfter(to) }
             .sortedWith(compareBy<Operation>({ it.date }, { it.time ?: LocalTime.MIN }, { it.id }))
@@ -761,23 +826,42 @@ class Ledger(
         return PeriodReport(comparison = comparison, rows = rows)
     }
 
+    /** Totals per top-level category: a subcategory counts toward its parent and shows as a part of it. */
     private fun categoryTotals(
         operations: List<Operation>,
         categoriesById: Map<Long, Category>
-    ): List<CategoryExpenseTotal> =
-        operations
-            .groupBy { it.categoryId }
-            .mapNotNull { (categoryId, ops) ->
-                val id = categoryId ?: return@mapNotNull null
-                val category = categoriesById[id] ?: return@mapNotNull null
+    ): List<CategoryExpenseTotal> {
+        fun rootOf(category: Category): Category =
+            category.parentId?.let { categoriesById[it] } ?: category
+        return operations
+            .mapNotNull { operation ->
+                val category = operation.categoryId?.let { categoriesById[it] } ?: return@mapNotNull null
+                operation to category
+            }
+            .groupBy { (_, category) -> rootOf(category).id }
+            .map { (rootId, pairs) ->
+                val root = categoriesById.getValue(rootId)
+                val parts = pairs.filter { it.second.id != rootId }
+                    .groupBy { it.second.id }
+                    .map { (childId, items) ->
+                        NamedAmount(
+                            id = childId,
+                            name = categoriesById.getValue(childId).name,
+                            amountMinor = items.sumOf { it.first.amountMinor }
+                        )
+                    }
+                    .sortedByDescending { it.amountMinor }
                 CategoryExpenseTotal(
-                    categoryId = id,
-                    categoryName = category.name,
-                    colorArgb = category.colorArgb,
-                    amountMinor = ops.sumOf { it.amountMinor }
+                    categoryId = rootId,
+                    categoryName = root.name,
+                    colorArgb = root.colorArgb,
+                    amountMinor = pairs.sumOf { it.first.amountMinor },
+                    directMinor = pairs.filter { it.second.id == rootId }.sumOf { it.first.amountMinor },
+                    children = parts
                 )
             }
             .sortedByDescending { it.amountMinor }
+    }
 
     private fun expenseFlowSeries(
         period: AnalyticsPeriod,

@@ -755,7 +755,17 @@ private fun DalletAppContent(
             }
             composable(FAQ_ROUTE) { FaqScreen() }
             composable(FEEDBACK_ROUTE) {
-                FeedbackScreen(onDone = { navigateTo(DalletDestination.Home) })
+                FeedbackScreen(
+                    onDone = {
+                        // Without saveState the "More" tab forgets this form, so it opens clean later.
+                        navController.navigate(DalletDestination.Home.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                inclusive = false
+                            }
+                            launchSingleTop = true
+                        }
+                    }
+                )
             }
             composable(DEBTS_ROUTE) {
                 LaunchedEffect(Unit) { debtsViewModel.refreshList() }
@@ -944,6 +954,11 @@ private fun DalletAppContent(
                     onNameChange = viewModel::onCategoryNameChange,
                     onColorSelected = viewModel::onCategoryColorSelected,
                     onIconSelected = viewModel::onCategoryIconSelected,
+                    onParentSelected = viewModel::onCategoryParentSelected,
+                    onAddSubcategory = {
+                        viewModel.prepareNewCategory(categoryEditorState.categoryId)
+                        navController.navigate(CATEGORY_NEW_ROUTE)
+                    },
                     onSave = viewModel::saveCategory,
                     onDelete = viewModel::deleteCategory
                 )
@@ -959,6 +974,11 @@ private fun DalletAppContent(
                     onNameChange = viewModel::onCategoryNameChange,
                     onColorSelected = viewModel::onCategoryColorSelected,
                     onIconSelected = viewModel::onCategoryIconSelected,
+                    onParentSelected = viewModel::onCategoryParentSelected,
+                    onAddSubcategory = {
+                        viewModel.prepareNewCategory(categoryEditorState.categoryId)
+                        navController.navigate(CATEGORY_NEW_ROUTE)
+                    },
                     onSave = viewModel::saveCategory,
                     onDelete = viewModel::deleteCategory
                 )

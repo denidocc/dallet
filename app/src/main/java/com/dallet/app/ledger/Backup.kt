@@ -31,7 +31,7 @@ data class BackupData(
 )
 
 object BackupCodec {
-    const val SCHEMA_VERSION = 4
+    const val SCHEMA_VERSION = 5
     private const val APP_MARKER = "dallet"
     private const val NOT_A_BACKUP = "Файл не похож на резервную копию Dallet"
     private const val TOO_NEW = "Резервная копия создана в более новой версии Dallet"
@@ -59,6 +59,7 @@ object BackupCodec {
                         .put("kind", category.kind.name)
                         .put("colorArgb", category.colorArgb)
                         .put("iconKey", category.iconKey)
+                        .apply { category.parentId?.let { put("parentId", it) } }
                 )
             }
         })
@@ -368,7 +369,8 @@ object BackupCodec {
                     name = it.getString("name"),
                     kind = CategoryKind.valueOf(it.getString("kind")),
                     colorArgb = it.getInt("colorArgb"),
-                    iconKey = it.getString("iconKey")
+                    iconKey = it.getString("iconKey"),
+                    parentId = it.optNullableLong("parentId")
                 )
             }
             val operations = root.getJSONArray("operations").objects().map {
@@ -422,6 +424,14 @@ object BackupCodec {
         requireValid(hasUniquePositiveIds(data.operations.map { it.id }))
         requireValid(data.accounts.all { it.name.isNotBlank() && it.openingBalanceMinor >= 0 })
         requireValid(data.categories.all { it.name.isNotBlank() })
+        val categoriesById = data.categories.associateBy { it.id }
+        requireValid(
+            data.categories.all { category ->
+                val parent = category.parentId?.let { categoriesById[it] }
+                category.parentId == null ||
+                    (parent != null && parent.kind == category.kind && parent.parentId == null)
+            }
+        )
         validateShopping(data.shopping)
         validateGoals(data.goals, data.accounts.map { it.id }.toSet())
         validateDebts(data.debts, data.accounts.map { it.id }.toSet())

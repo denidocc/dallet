@@ -17,7 +17,7 @@ import androidx.room.RoomDatabase
         DebtEntity::class,
         DebtEntryEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class DalletDatabase : RoomDatabase() {
