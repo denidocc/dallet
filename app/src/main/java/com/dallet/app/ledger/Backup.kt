@@ -23,13 +23,14 @@ data class BackupData(
     val categories: List<Category>,
     val operations: List<Operation>,
     val shopping: ShoppingData = ShoppingData.EMPTY,
+    val goals: GoalData = GoalData.EMPTY,
     val mainCurrency: Currency = Currency.DEFAULT,
     val budgets: Map<Long, Long> = emptyMap(),
     val recurring: List<RecurringRule> = emptyList()
 )
 
 object BackupCodec {
-    const val SCHEMA_VERSION = 2
+    const val SCHEMA_VERSION = 3
     private const val APP_MARKER = "dallet"
     private const val NOT_A_BACKUP = "Файл не похож на резервную копию Dallet"
     private const val TOO_NEW = "Резервная копия создана в более новой версии Dallet"
@@ -77,6 +78,7 @@ object BackupCodec {
             }
         })
         root.put("shopping", encodeShopping(data.shopping))
+        root.put("goals", encodeGoals(data.goals))
         root.put("mainCurrency", data.mainCurrency.name)
         root.put("recurring", RecurringCodec.encode(data.recurring))
         root.put("budgets", JSONArray().apply {
@@ -85,6 +87,69 @@ object BackupCodec {
             }
         })
         return root.toString()
+    }
+
+    private fun encodeGoals(data: GoalData): JSONObject {
+        val root = JSONObject()
+        root.put("goals", JSONArray().apply {
+            data.goals.forEach { goal ->
+                put(
+                    JSONObject()
+                        .put("id", goal.id)
+                        .put("name", goal.name)
+                        .put("targetMinor", goal.targetMinor)
+                        .put("createdAt", goal.createdAt.toString())
+                        .put("archived", goal.archived)
+                )
+            }
+        })
+        root.put("entries", JSONArray().apply {
+            data.entries.forEach { entry ->
+                val item = JSONObject()
+                    .put("id", entry.id)
+                    .put("goalId", entry.goalId)
+                    .put("accountId", entry.accountId)
+                    .put("amountMinor", entry.amountMinor)
+                    .put("date", entry.date.toString())
+                entry.operationId?.let { item.put("operationId", it) }
+                put(item)
+            }
+        })
+        return root
+    }
+
+    private fun decodeGoals(root: JSONObject): GoalData = GoalData(
+        goals = root.optJSONArray("goals").objectsOrEmpty().map {
+            Goal(
+                id = it.getLong("id"),
+                name = it.getString("name"),
+                targetMinor = it.getLong("targetMinor"),
+                createdAt = LocalDate.parse(it.getString("createdAt")),
+                archived = it.optBoolean("archived", false)
+            )
+        },
+        entries = root.optJSONArray("entries").objectsOrEmpty().map {
+            GoalEntry(
+                id = it.getLong("id"),
+                goalId = it.getLong("goalId"),
+                accountId = it.getLong("accountId"),
+                amountMinor = it.getLong("amountMinor"),
+                date = LocalDate.parse(it.getString("date")),
+                operationId = it.optNullableLong("operationId")
+            )
+        }
+    )
+
+    private fun validateGoals(goals: GoalData, accountIds: Set<Long>) {
+        requireValid(hasUniquePositiveIds(goals.goals.map { it.id }))
+        requireValid(hasUniquePositiveIds(goals.entries.map { it.id }))
+        val goalIds = goals.goals.map { it.id }.toSet()
+        requireValid(goals.goals.all { it.name.isNotBlank() && it.targetMinor > 0 })
+        requireValid(
+            goals.entries.all { it.goalId in goalIds && it.accountId in accountIds && it.amountMinor != 0L }
+        )
+        val saved = goals.entries.groupBy { it.goalId }.mapValues { (_, list) -> list.sumOf { it.amountMinor } }
+        requireValid(saved.values.all { it >= 0L })
     }
 
     private fun encodeShopping(data: ShoppingData): JSONObject {
@@ -248,11 +313,12 @@ object BackupCodec {
             }
             val shopping = root.optJSONObject("shopping")?.let { decodeShopping(it) }
                 ?: ShoppingData.EMPTY
+            val goals = root.optJSONObject("goals")?.let { decodeGoals(it) } ?: GoalData.EMPTY
             val currency = Currency.fromName(root.optNullableString("mainCurrency"))
             val budgets = root.optJSONArray("budgets").objectsOrEmpty()
                 .associate { it.getLong("categoryId") to it.getLong("limitMinor") }
             val recurring = RecurringCodec.decode(root.optJSONArray("recurring"))
-            return BackupData(accounts, categories, operations, shopping, currency, budgets, recurring)
+            return BackupData(accounts, categories, operations, shopping, currency, budgets, recurring, goals)
         } catch (error: InvalidBackupException) {
             throw error
         } catch (error: JSONException) {
@@ -272,6 +338,7 @@ object BackupCodec {
         requireValid(data.accounts.all { it.name.isNotBlank() && it.openingBalanceMinor >= 0 })
         requireValid(data.categories.all { it.name.isNotBlank() })
         validateShopping(data.shopping)
+        validateGoals(data.goals, data.accounts.map { it.id }.toSet())
         val expenseIds = data.categories.filter { it.kind == CategoryKind.EXPENSE }.map { it.id }.toSet()
         requireValid(data.budgets.all { it.key in expenseIds && it.value > 0 })
         val validAccountIds = data.accounts.map { it.id }.toSet()

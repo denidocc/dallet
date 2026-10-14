@@ -6,7 +6,8 @@ interface LedgerDataStore {
         accounts: List<Account>,
         categories: List<Category>,
         operations: List<Operation>,
-        shopping: ShoppingData
+        shopping: ShoppingData,
+        goals: GoalData
     )
 }
 
@@ -14,17 +15,20 @@ class RepositoryLedgerDataStore(
     private val accountRepository: AccountRepository,
     private val categoryRepository: CategoryRepository,
     private val operationRepository: OperationRepository,
-    private val shoppingRepository: ShoppingRepository
+    private val shoppingRepository: ShoppingRepository,
+    private val goalRepository: GoalRepository
 ) : LedgerDataStore {
     override suspend fun replaceAll(
         accounts: List<Account>,
         categories: List<Category>,
         operations: List<Operation>,
-        shopping: ShoppingData
+        shopping: ShoppingData,
+        goals: GoalData
     ) {
         operationRepository.replaceAll(operations)
         accountRepository.replaceAll(accounts)
         categoryRepository.replaceAll(categories)
         shoppingRepository.replaceAll(shopping)
+        goalRepository.replaceAll(goals)
     }
 }

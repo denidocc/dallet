@@ -51,6 +51,7 @@ fun MoreScreen(
     onSettingsClick: () -> Unit,
     onRatesClick: () -> Unit,
     onShoppingClick: () -> Unit,
+    onGoalsClick: () -> Unit,
     onExportClick: () -> Unit,
     onImportClick: () -> Unit,
     onAutoBackupClick: () -> Unit,
@@ -104,6 +105,12 @@ fun MoreScreen(
         SurfaceCard(onClick = onBudgetsClick) {
             Text(
                 text = stringResource(R.string.budgets_title),
+                style = MaterialTheme.typography.titleMedium
+            )
+        }
+        SurfaceCard(onClick = onGoalsClick) {
+            Text(
+                text = stringResource(R.string.goals_title),
                 style = MaterialTheme.typography.titleMedium
             )
         }

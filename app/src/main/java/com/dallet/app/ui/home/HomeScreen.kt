@@ -47,6 +47,7 @@ fun HomeScreen(
     onExpenseClick: (Long) -> Unit,
     onBudgetsClick: () -> Unit,
     onShoppingClick: () -> Unit,
+    onGoalsClick: () -> Unit,
     onDueConfirm: (DueItemUi, String, (Boolean) -> Unit) -> Unit,
     onDueSkip: (DueItemUi) -> Unit
 ) {
@@ -135,6 +136,17 @@ fun HomeScreen(
             )
             Text(
                 text = stringResource(R.string.home_shopping_hint),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        SurfaceCard(onClick = onGoalsClick) {
+            Text(
+                text = stringResource(R.string.goals_title),
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = stringResource(R.string.home_goals_hint),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

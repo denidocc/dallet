@@ -96,6 +96,10 @@ import com.dallet.app.ui.edit.EditOperationScreen
 import com.dallet.app.ui.comparison.ComparisonActions
 import com.dallet.app.ui.comparison.ComparisonScreen
 import com.dallet.app.ui.history.HistoryFilterActions
+import com.dallet.app.ui.goals.GoalDetailActions
+import com.dallet.app.ui.goals.GoalDetailScreen
+import com.dallet.app.ui.goals.GoalsScreen
+import com.dallet.app.ui.goals.GoalsViewModel
 import com.dallet.app.ui.history.HistoryScreen
 import com.dallet.app.ui.home.HomeScreen
 import com.dallet.app.ui.lock.LockScreen
@@ -116,6 +120,8 @@ private const val ACCOUNTS_ROUTE = "accounts"
 private const val ACCOUNT_NEW_ROUTE = "account/new"
 private const val ACCOUNT_EDIT_ROUTE = "account/{accountId}"
 private const val SECURITY_ROUTE = "security"
+private const val GOALS_ROUTE = "goals"
+private const val GOAL_ROUTE = "goals/{goalId}"
 private const val AUTOBACKUP_ROUTE = "autobackup"
 private const val SETTINGS_ROUTE = "settings"
 private const val RATES_ROUTE = "rates"
@@ -145,7 +151,8 @@ fun DalletApp(
     openAddRequest: Boolean = false,
     onOpenAddHandled: () -> Unit = {},
     viewModel: DalletViewModel = viewModel(factory = DalletViewModel.factory(ledger, pinLock, strings, rememberWidgetRefresh())),
-    shoppingViewModel: ShoppingViewModel = viewModel(factory = ShoppingViewModel.factory(ledger, shopping, strings))
+    shoppingViewModel: ShoppingViewModel = viewModel(factory = ShoppingViewModel.factory(ledger, shopping, strings)),
+    goalsViewModel: GoalsViewModel = viewModel(factory = GoalsViewModel.factory(ledger, strings))
 ) {
     val currency by viewModel.currency.collectAsStateWithLifecycle()
     var shownLanguage by remember { mutableStateOf(language) }
@@ -159,6 +166,7 @@ fun DalletApp(
         DalletAppContent(
             viewModel,
             shoppingViewModel,
+            goalsViewModel,
             themeMode,
             onThemeModeChange,
             language,
@@ -195,6 +203,7 @@ private fun RecurringEditor(viewModel: DalletViewModel, state: RecurringEditorUi
 private fun DalletAppContent(
     viewModel: DalletViewModel,
     shoppingViewModel: ShoppingViewModel,
+    goalsViewModel: GoalsViewModel,
     themeMode: ThemeMode,
     onThemeModeChange: (ThemeMode) -> Unit,
     language: AppLanguage,
@@ -214,6 +223,8 @@ private fun DalletAppContent(
     val analyticsState by viewModel.analytics.collectAsStateWithLifecycle()
     val comparisonState by viewModel.comparison.collectAsStateWithLifecycle()
     val dataState by viewModel.data.collectAsStateWithLifecycle()
+    val goalsListState by goalsViewModel.list.collectAsStateWithLifecycle()
+    val goalDetailState by goalsViewModel.detail.collectAsStateWithLifecycle()
     val lockState by viewModel.lock.collectAsStateWithLifecycle()
     val securityState by viewModel.security.collectAsStateWithLifecycle()
     val ratesState by viewModel.rates.collectAsStateWithLifecycle()
@@ -423,6 +434,7 @@ private fun DalletAppContent(
     val isInnerScreen = backStackEntry != null && (
         currentRoute.startsWith("edit/") ||
         currentRoute == SECURITY_ROUTE ||
+        currentRoute?.startsWith("goals") == true ||
         currentRoute == AUTOBACKUP_ROUTE ||
         currentRoute == SETTINGS_ROUTE ||
         currentRoute == RATES_ROUTE ||
@@ -500,6 +512,10 @@ private fun DalletAppContent(
                     onBudgetsClick = {
                         viewModel.refreshBudgets()
                         navController.navigate(BUDGETS_ROUTE)
+                    },
+                    onGoalsClick = {
+                        goalsViewModel.refreshList()
+                        navController.navigate(GOALS_ROUTE)
                     },
                     onShoppingClick = {
                         shoppingViewModel.refreshHub()
@@ -581,6 +597,10 @@ private fun DalletAppContent(
                     onRatesClick = {
                         viewModel.refreshRates()
                         navController.navigate(RATES_ROUTE)
+                    },
+                    onGoalsClick = {
+                        goalsViewModel.refreshList()
+                        navController.navigate(GOALS_ROUTE)
                     },
                     onShoppingClick = {
                         shoppingViewModel.refreshHub()
@@ -670,6 +690,42 @@ private fun DalletAppContent(
                         autoState = AutoBackup.state(context)
                     },
                     onRunNow = runAutoBackup
+                )
+            }
+            composable(GOALS_ROUTE) {
+                LaunchedEffect(Unit) { goalsViewModel.refreshList() }
+                GoalsScreen(
+                    state = goalsListState,
+                    onGoalClick = { id ->
+                        goalsViewModel.openGoal(id)
+                        navController.navigate("goals/$id")
+                    },
+                    onCreate = { name, target ->
+                        goalsViewModel.createGoal(name, target) { id ->
+                            goalsViewModel.openGoal(id)
+                            navController.navigate("goals/$id")
+                        }
+                    },
+                    onMessageShown = goalsViewModel::consumeListMessage
+                )
+            }
+            composable(
+                route = GOAL_ROUTE,
+                arguments = listOf(navArgument("goalId") { type = NavType.LongType })
+            ) { entry ->
+                val goalId = entry.arguments?.getLong("goalId") ?: return@composable
+                LaunchedEffect(goalId) { goalsViewModel.openGoal(goalId) }
+                GoalDetailScreen(
+                    state = goalDetailState,
+                    actions = GoalDetailActions(
+                        onDeposit = goalsViewModel::deposit,
+                        onWithdraw = goalsViewModel::withdraw,
+                        onUpdate = goalsViewModel::updateGoal,
+                        onArchive = goalsViewModel::setArchived,
+                        onDelete = { goalsViewModel.deleteGoal { navController.popBackStack() } },
+                        onDeleteEntry = goalsViewModel::deleteEntry,
+                        onMessageShown = goalsViewModel::consumeMessage
+                    )
                 )
             }
             composable(SECURITY_ROUTE) {

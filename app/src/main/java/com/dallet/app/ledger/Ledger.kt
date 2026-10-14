@@ -15,12 +15,14 @@ class Ledger(
     private val operationRepository: OperationRepository,
     private val shoppingRepository: ShoppingRepository = InMemoryShoppingRepository(),
     private val settings: SettingsStore = InMemorySettingsStore(),
+    private val goalRepository: GoalRepository = InMemoryGoalRepository(),
     private val dataStore: LedgerDataStore =
         RepositoryLedgerDataStore(
             accountRepository,
             categoryRepository,
             operationRepository,
-            shoppingRepository
+            shoppingRepository,
+            goalRepository
         )
 ) {
     suspend fun hasCompletedOnboarding(): Boolean = accountRepository.getAll().isNotEmpty()
@@ -36,6 +38,7 @@ class Ledger(
                 categories = categories,
                 operations = operationRepository.getAll(),
                 shopping = shoppingRepository.getAll(),
+                goals = goalRepository.getAll(),
                 mainCurrency = settings.mainCurrency(),
                 budgets = settings.budgets().filterKeys { it in expenseIds },
                 recurring = settings.recurring().filter { rule ->
@@ -57,7 +60,13 @@ class Ledger(
                 if (linked != null && linked !in operationIds) list.copy(operationId = null) else list
             }
         )
-        dataStore.replaceAll(data.accounts, data.categories, data.operations, shopping)
+        val goals = data.goals.copy(
+            entries = data.goals.entries.map { entry ->
+                val linked = entry.operationId
+                if (linked != null && linked !in operationIds) entry.copy(operationId = null) else entry
+            }
+        )
+        dataStore.replaceAll(data.accounts, data.categories, data.operations, shopping, goals)
         settings.saveRates(emptyList())
         settings.setMainCurrency(data.mainCurrency)
         settings.saveBudgets(data.budgets)
@@ -65,7 +74,7 @@ class Ledger(
     }
 
     suspend fun resetAll() {
-        dataStore.replaceAll(emptyList(), emptyList(), emptyList(), ShoppingData.EMPTY)
+        dataStore.replaceAll(emptyList(), emptyList(), emptyList(), ShoppingData.EMPTY, GoalData.EMPTY)
         settings.saveRates(emptyList())
         settings.saveBudgets(emptyMap())
         settings.saveRecurring(emptyList())
@@ -547,6 +556,9 @@ class Ledger(
         operationRepository.delete(operationId)
         // A purchase that pointed at this expense stays closed, only without the link.
         purchaseOf(operationId)?.let { shoppingRepository.updateList(it.copy(operationId = null)) }
+        // A goal deposit made "as income" keeps its money in the goal, now taken from the account.
+        goalRepository.getAll().entries.filter { it.operationId == operationId }
+            .forEach { goalRepository.updateEntry(it.copy(operationId = null)) }
     }
 
     /** The purchase whose closing created this expense, or null for an ordinary operation. */
@@ -587,7 +599,8 @@ class Ledger(
                 operation.fromAccountId == accountId ||
                 operation.toAccountId == accountId
         }
-        if (used) {
+        val usedByGoal = goalRepository.getAll().entries.any { it.accountId == accountId }
+        if (used || usedByGoal) {
             throw AccountHasOperationsException()
         }
         accountRepository.delete(accountId)
@@ -856,8 +869,126 @@ class Ledger(
         }
     }
 
+    // ---- Goals
+
+    suspend fun goals(): List<GoalSummary> {
+        val data = goalRepository.getAll()
+        val saved = data.entries.groupBy { it.goalId }.mapValues { (_, list) -> list.sumOf { it.amountMinor } }
+        return data.goals.map { GoalSummary(it, saved[it.id] ?: 0L) }
+    }
+
+    suspend fun goalSummary(goalId: Long): GoalSummary? = goals().firstOrNull { it.goal.id == goalId }
+
+    /** Entries of a goal, newest first. */
+    suspend fun goalEntries(goalId: Long): List<GoalEntry> =
+        goalRepository.getAll().entries.filter { it.goalId == goalId }
+            .sortedWith(compareByDescending<GoalEntry> { it.date }.thenByDescending { it.id })
+
+    suspend fun createGoal(name: String, targetMinor: Long, today: LocalDate): Long {
+        val trimmed = name.trim()
+        require(trimmed.isNotEmpty()) { "name required" }
+        require(targetMinor > 0) { "target must be positive" }
+        return goalRepository.insertGoal(
+            Goal(id = 0L, name = trimmed, targetMinor = targetMinor, createdAt = today)
+        )
+    }
+
+    suspend fun updateGoal(goalId: Long, name: String, targetMinor: Long) {
+        val goal = goalRepository.goal(goalId) ?: error("goal not found")
+        val trimmed = name.trim()
+        require(trimmed.isNotEmpty()) { "name required" }
+        require(targetMinor > 0) { "target must be positive" }
+        goalRepository.updateGoal(goal.copy(name = trimmed, targetMinor = targetMinor))
+    }
+
+    suspend fun setGoalArchived(goalId: Long, archived: Boolean) {
+        val goal = goalRepository.goal(goalId) ?: error("goal not found")
+        goalRepository.updateGoal(goal.copy(archived = archived))
+    }
+
+    /** Removes the goal; what was saved in it goes back to the accounts it came from. */
+    suspend fun deleteGoal(goalId: Long) {
+        require(goalRepository.goal(goalId) != null) { "goal not found" }
+        goalRepository.deleteGoal(goalId)
+    }
+
+    /** Moves money from an account into the goal; the account balance drops. */
+    suspend fun depositToGoal(goalId: Long, accountId: Long, amountMinor: Long, date: LocalDate): Long {
+        requireOpenGoal(goalId)
+        require(amountMinor > 0) { "amount must be positive" }
+        require(accountRepository.getAll().any { it.id == accountId }) { "account not found" }
+        return goalRepository.insertEntry(
+            GoalEntry(id = 0L, goalId = goalId, accountId = accountId, amountMinor = amountMinor, date = date)
+        )
+    }
+
+    /**
+     * Records [amountMinor] as income and puts it straight into the goal: the income shows in
+     * the analytics, while the account balance stays as it was.
+     */
+    suspend fun depositToGoalAsIncome(
+        goalId: Long,
+        accountId: Long,
+        categoryId: Long,
+        amountMinor: Long,
+        date: LocalDate,
+        comment: String?
+    ): Long {
+        val goal = requireOpenGoal(goalId)
+        val operationId = addIncome(
+            accountId = accountId,
+            categoryId = categoryId,
+            amountMinor = amountMinor,
+            date = date,
+            comment = comment?.takeIf { it.isNotBlank() } ?: goal.name
+        )
+        return goalRepository.insertEntry(
+            GoalEntry(
+                id = 0L,
+                goalId = goalId,
+                accountId = accountId,
+                amountMinor = amountMinor,
+                date = date,
+                operationId = operationId
+            )
+        )
+    }
+
+    /** Takes money out of the goal back to an account; at most what is saved. */
+    suspend fun withdrawFromGoal(goalId: Long, accountId: Long, amountMinor: Long, date: LocalDate): Long {
+        requireOpenGoal(goalId)
+        require(amountMinor > 0) { "amount must be positive" }
+        require(accountRepository.getAll().any { it.id == accountId }) { "account not found" }
+        val saved = goalSummary(goalId)?.savedMinor ?: 0L
+        if (amountMinor > saved) throw GoalFundsException()
+        return goalRepository.insertEntry(
+            GoalEntry(id = 0L, goalId = goalId, accountId = accountId, amountMinor = -amountMinor, date = date)
+        )
+    }
+
+    /** Undoes one entry (and the income created with it). Refused if the goal would go negative. */
+    suspend fun deleteGoalEntry(entryId: Long) {
+        val entry = goalRepository.getAll().entries.firstOrNull { it.id == entryId } ?: error("entry not found")
+        val saved = goalSummary(entry.goalId)?.savedMinor ?: 0L
+        if (saved - entry.amountMinor < 0L) throw GoalFundsException()
+        goalRepository.deleteEntry(entryId)
+        entry.operationId?.let { id ->
+            if (operationRepository.getAll().any { it.id == id }) operationRepository.delete(id)
+        }
+    }
+
+    private suspend fun requireOpenGoal(goalId: Long): Goal {
+        val goal = goalRepository.goal(goalId) ?: error("goal not found")
+        require(!goal.archived) { "goal is archived" }
+        return goal
+    }
+
     private suspend fun balanceFor(account: Account): Long {
         var balance = account.openingBalanceMinor
+        // Money put into a goal has left the account; money taken back (negative) returns.
+        for (entry in goalRepository.getAll().entries) {
+            if (entry.accountId == account.id) balance -= entry.amountMinor
+        }
         for (operation in operationRepository.getAll()) {
             when (operation.kind) {
                 OperationKind.EXPENSE -> {

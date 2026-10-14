@@ -56,3 +56,26 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
         db.execSQL("ALTER TABLE shopping_lists ADD COLUMN note TEXT NOT NULL DEFAULT ''")
     }
 }
+
+/** Adds savings goals and the money moved into them. */
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `goals` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`name` TEXT NOT NULL, " +
+                "`targetMinor` INTEGER NOT NULL, " +
+                "`createdEpochDay` INTEGER NOT NULL, " +
+                "`archived` INTEGER NOT NULL)"
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `goal_entries` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`goalId` INTEGER NOT NULL, " +
+                "`accountId` INTEGER NOT NULL, " +
+                "`amountMinor` INTEGER NOT NULL, " +
+                "`dateEpochDay` INTEGER NOT NULL, " +
+                "`operationId` INTEGER)"
+        )
+    }
+}

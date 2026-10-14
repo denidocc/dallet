@@ -6,6 +6,8 @@ import com.dallet.app.data.DalletDatabase
 import com.dallet.app.data.MIGRATION_2_3
 import com.dallet.app.data.MIGRATION_3_4
 import com.dallet.app.data.MIGRATION_4_5
+import com.dallet.app.data.MIGRATION_5_6
+import com.dallet.app.data.RoomGoalRepository
 import com.dallet.app.data.RoomAccountRepository
 import com.dallet.app.data.RoomCategoryRepository
 import com.dallet.app.data.RoomLedgerDataStore
@@ -44,7 +46,7 @@ class DalletApplication : Application() {
             this,
             DalletDatabase::class.java,
             "dallet.db"
-        ).addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+        ).addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
             .fallbackToDestructiveMigrationFrom(1)
             .build()
         settings = SharedPreferencesSettingsStore(this)
@@ -56,18 +58,21 @@ class DalletApplication : Application() {
         val categoryRepository = RoomCategoryRepository(database.categoryDao())
         val operationRepository = RoomOperationRepository(database.operationDao())
         val shoppingRepository = RoomShoppingRepository(database.shoppingDao())
+        val goalRepository = RoomGoalRepository(database.goalDao())
         ledger = Ledger(
             accountRepository = accountRepository,
             categoryRepository = categoryRepository,
             operationRepository = operationRepository,
             shoppingRepository = shoppingRepository,
             settings = settings,
+            goalRepository = goalRepository,
             dataStore = RoomLedgerDataStore(
                 database = database,
                 accountRepository = accountRepository,
                 categoryRepository = categoryRepository,
                 operationRepository = operationRepository,
-                shoppingRepository = shoppingRepository
+                shoppingRepository = shoppingRepository,
+                goalRepository = goalRepository
             )
         )
         shopping = ShoppingService(ledger, shoppingRepository)
