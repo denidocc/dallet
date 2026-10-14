@@ -23,6 +23,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dallet.app.R
 import com.dallet.app.ledger.CategoryKind
@@ -87,7 +89,7 @@ fun ComparisonScreen(state: ComparisonUiState, actions: ComparisonActions) {
         }
         SideCard(side = a, onEdit = { editing = ComparisonSideId.A })
         SideCard(side = b, onEdit = { editing = ComparisonSideId.B })
-        DifferenceCard(state = state)
+        DifferenceCard(state = state, a = a, b = b)
         if (state.lengthsDiffer) {
             Text(
                 text = stringResource(R.string.comparison_lengths_differ, a.days, b.days),
@@ -105,11 +107,15 @@ fun ComparisonScreen(state: ComparisonUiState, actions: ComparisonActions) {
         CategoryTable(
             title = stringResource(R.string.comparison_expense_by_category),
             rows = state.rows.filter { it.kind == CategoryKind.EXPENSE },
+            titleA = a.title,
+            titleB = b.title,
             higherIsGood = false
         )
         CategoryTable(
             title = stringResource(R.string.comparison_income_by_category),
             rows = state.rows.filter { it.kind == CategoryKind.INCOME },
+            titleA = a.title,
+            titleB = b.title,
             higherIsGood = true
         )
         if (state.rows.isEmpty()) {
@@ -143,31 +149,21 @@ private fun SideCard(side: ComparisonSideUi, onEdit: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = side.label,
-                style = MaterialTheme.typography.titleMedium
-            )
-            Text(
-                text = stringResource(R.string.comparison_days, side.days),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = side.title,
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f)
             )
             TextButton(onClick = onEdit) {
                 Text(stringResource(R.string.comparison_edit))
             }
         }
         Text(
-            text = side.periodLabel,
+            text = listOf(side.subtitle, stringResource(R.string.comparison_days, side.days))
+                .filter { it.isNotEmpty() }
+                .joinToString(" · "),
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 2.dp)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        if (side.restrictionsLabel.isNotEmpty()) {
-            Text(
-                text = side.restrictionsLabel,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
         Spacer(modifier = Modifier.height(10.dp))
         AmountRow(
             label = stringResource(R.string.analytics_expense_label),
@@ -203,17 +199,23 @@ private fun AmountRow(label: String, value: String, average: String, color: Colo
 }
 
 @Composable
-private fun DifferenceCard(state: ComparisonUiState) {
+private fun DifferenceCard(state: ComparisonUiState, a: ComparisonSideUi, b: ComparisonSideUi) {
     SurfaceCard {
         Text(
             text = stringResource(R.string.comparison_difference),
             style = MaterialTheme.typography.titleMedium
+        )
+        Text(
+            text = stringResource(R.string.comparison_difference_hint, a.title, b.title),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         DifferenceRow(
             label = stringResource(R.string.analytics_expense_label),
             diff = moneyText(state.expenseDiffLabel),
             sign = state.expenseDiffSign,
             percent = state.expenseChangePercent,
+            baseTitle = b.title,
             higherIsGood = false
         )
         DifferenceRow(
@@ -221,6 +223,7 @@ private fun DifferenceCard(state: ComparisonUiState) {
             diff = moneyText(state.incomeDiffLabel),
             sign = state.incomeDiffSign,
             percent = state.incomeChangePercent,
+            baseTitle = b.title,
             higherIsGood = true
         )
     }
@@ -232,6 +235,7 @@ private fun DifferenceRow(
     diff: String,
     sign: Int,
     percent: Int?,
+    baseTitle: String,
     higherIsGood: Boolean
 ) {
     val color = changeColor(sign, higherIsGood)
@@ -244,7 +248,7 @@ private fun DifferenceRow(
             Text(text = diff, style = MaterialTheme.typography.titleMedium, color = color)
         }
         Text(
-            text = percentText(percent),
+            text = percentText(percent, baseTitle),
             style = MaterialTheme.typography.labelMedium,
             color = if (percent == null) MaterialTheme.colorScheme.onSurfaceVariant else color
         )
@@ -252,18 +256,43 @@ private fun DifferenceRow(
 }
 
 @Composable
-private fun CategoryTable(title: String, rows: List<ComparisonRowUi>, higherIsGood: Boolean) {
+private fun CategoryTable(
+    title: String,
+    rows: List<ComparisonRowUi>,
+    titleA: String,
+    titleB: String,
+    higherIsGood: Boolean
+) {
     if (rows.isEmpty()) return
     Text(text = title, style = MaterialTheme.typography.titleMedium)
     SurfaceCard {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            rows.forEach { row -> CategoryRow(row = row, higherIsGood = higherIsGood) }
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = titleA,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = titleB,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            rows.forEach { row -> CategoryRow(row = row, higherIsGood = higherIsGood, baseTitle = titleB) }
         }
     }
 }
 
 @Composable
-private fun CategoryRow(row: ComparisonRowUi, higherIsGood: Boolean) {
+private fun CategoryRow(row: ComparisonRowUi, higherIsGood: Boolean, baseTitle: String) {
     val color = changeColor(row.diffSign, higherIsGood)
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(text = row.name, style = MaterialTheme.typography.bodyLarge)
@@ -272,18 +301,18 @@ private fun CategoryRow(row: ComparisonRowUi, higherIsGood: Boolean) {
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = "A ${moneyText(row.aLabel)}",
+                text = moneyText(row.aLabel),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                text = "B ${moneyText(row.bLabel)}",
+                text = moneyText(row.bLabel),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         Text(
-            text = moneyText(row.diffLabel) + " · " + percentText(row.changePercent),
+            text = moneyText(row.diffLabel) + " · " + percentText(row.changePercent, baseTitle),
             style = MaterialTheme.typography.labelLarge,
             color = color
         )
@@ -299,8 +328,8 @@ private fun changeColor(sign: Int, higherIsGood: Boolean): Color = when {
 }
 
 @Composable
-private fun percentText(percent: Int?): String {
-    if (percent == null) return stringResource(R.string.comparison_no_base)
+private fun percentText(percent: Int?, baseTitle: String): String {
+    if (percent == null) return stringResource(R.string.comparison_no_base, baseTitle)
     val arrow = when {
         percent > 0 -> "▲"
         percent < 0 -> "▼"

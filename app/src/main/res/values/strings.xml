@@ -107,12 +107,12 @@
     <string name="analytics_compare">Сравнить</string>
     <string name="comparison_title">Сравнение</string>
     <string name="comparison_edit">Изменить</string>
-    <string name="comparison_period_vs_period">Период с периодом</string>
-    <string name="comparison_category_vs_category">Категория с категорией</string>
+    <string name="comparison_period_vs_period">С прошлым периодом</string>
+    <string name="comparison_category_vs_category">С другой категорией</string>
     <string name="comparison_days">%1$d дн.</string>
     <string name="comparison_average_day">в среднем в день: %1$s</string>
-    <string name="comparison_difference">Разница (A − B)</string>
-    <string name="comparison_no_base">в B не было</string>
+    <string name="comparison_difference">Разница</string>
+    <string name="comparison_no_base">в «%1$s» не было</string>
     <string name="comparison_lengths_differ">Периоды разной длины: %1$d и %2$d дн. Смотрите «в среднем в день».</string>
     <string name="comparison_expense_by_category">Расходы по категориям</string>
     <string name="comparison_income_by_category">Доходы по категориям</string>
@@ -412,4 +412,7 @@
     <string name="autobackup_now">Сделать копию сейчас</string>
     <string name="autobackup_last">Последняя копия: %1$s</string>
     <string name="autobackup_failed">Не удалось сохранить копию. Проверьте, что папка доступна, или выберите её заново.</string>
+    <string name="comparison_difference_hint">«%1$s» по сравнению с «%2$s»</string>
+    <string name="comparison_all_operations">Все операции</string>
+    <string name="shopping_add_title">Добавить товар</string>
 </resources>

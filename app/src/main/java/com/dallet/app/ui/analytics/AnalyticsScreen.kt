@@ -68,7 +68,7 @@ import java.time.LocalDate
 import java.util.Locale
 import kotlin.math.abs
 
-private const val SHOW_COMPARISON = false
+private const val SHOW_COMPARISON = true
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -143,7 +143,6 @@ fun AnalyticsScreen(
             onBack = { onStep(-1) },
             onForward = { onStep(1) }
         )
-        // Comparison entry is hidden until the screen is reworked (A/B labels are unclear).
         if (SHOW_COMPARISON) {
             OutlinedButton(onClick = onCompare, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.analytics_compare))

@@ -107,12 +107,12 @@
     <string name="analytics_compare">Compare</string>
     <string name="comparison_title">Comparison</string>
     <string name="comparison_edit">Edit</string>
-    <string name="comparison_period_vs_period">Period vs period</string>
-    <string name="comparison_category_vs_category">Category vs category</string>
+    <string name="comparison_period_vs_period">Vs previous period</string>
+    <string name="comparison_category_vs_category">Vs another category</string>
     <string name="comparison_days">%1$d d</string>
     <string name="comparison_average_day">average per day: %1$s</string>
-    <string name="comparison_difference">Difference (A − B)</string>
-    <string name="comparison_no_base">nothing in B</string>
+    <string name="comparison_difference">Difference</string>
+    <string name="comparison_no_base">nothing in “%1$s”</string>
     <string name="comparison_lengths_differ">The periods differ in length: %1$d and %2$d days. See the average per day.</string>
     <string name="comparison_expense_by_category">Expenses by category</string>
     <string name="comparison_income_by_category">Income by category</string>
@@ -412,4 +412,7 @@
     <string name="autobackup_now">Back up now</string>
     <string name="autobackup_last">Last backup: %1$s</string>
     <string name="autobackup_failed">Could not save the backup. Check that the folder is available, or choose it again.</string>
+    <string name="comparison_difference_hint">“%1$s” compared with “%2$s”</string>
+    <string name="comparison_all_operations">All operations</string>
+    <string name="shopping_add_title">Add an item</string>
 </resources>

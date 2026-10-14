@@ -1,6 +1,15 @@
 package com.dallet.app.ui.shopping
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Surface
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -135,9 +144,11 @@ fun ShoppingListScreen(
                 .weight(1f)
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
-            contentPadding = PaddingValues(top = 20.dp, bottom = 12.dp)
+            // The back arrow floats over the top-right corner, so the first card starts below it.
+            contentPadding = PaddingValues(top = 52.dp, bottom = 12.dp)
         ) {
             item {
+                SurfaceCard {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.Top
@@ -149,8 +160,7 @@ fun ShoppingListScreen(
                         if (state.readOnly) {
                             Text(
                                 text = state.title,
-                                style = MaterialTheme.typography.titleLarge,
-                                modifier = Modifier.padding(end = 48.dp)
+                                style = MaterialTheme.typography.titleLarge
                             )
                             if (state.note.isNotBlank()) {
                                 Text(
@@ -165,7 +175,6 @@ fun ShoppingListScreen(
                                 onValueChange = { titleInput = it },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(end = 48.dp)
                                     .onFocusChanged { if (!it.isFocused) saveInfo() },
                                 label = { Text(stringResource(R.string.shopping_list_name)) },
                                 singleLine = true
@@ -197,6 +206,7 @@ fun ShoppingListScreen(
                             )
                         }
                     }
+                }
                 }
             }
 
@@ -365,6 +375,11 @@ private fun AddItemForm(
 ) {
     SurfaceCard {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(
+                text = stringResource(R.string.shopping_add_title),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             OutlinedTextField(
                 value = state.nameInput,
                 onValueChange = actions.onNameChange,
@@ -373,34 +388,11 @@ private fun AddItemForm(
                 singleLine = true
             )
             if (state.suggestions.isNotEmpty()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 180.dp)
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    state.suggestions.forEach { suggestion ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { actions.onSuggestionSelected(suggestion) }
-                                .padding(vertical = 10.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = suggestion.name + " · " + stringResource(suggestion.unit.labelRes()),
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                            suggestion.lastPriceMinor?.let { price ->
-                                Text(
-                                    text = Money.formatManat(price),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                }
+                SuggestionDropdown(
+                    query = state.nameInput,
+                    suggestions = state.suggestions,
+                    onSelected = actions.onSuggestionSelected
+                )
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -433,6 +425,74 @@ private fun AddItemForm(
                 Text(stringResource(R.string.shopping_add))
             }
         }
+    }
+}
+
+/** Saved products that match the typed name, in a raised panel right under the name field. */
+@Composable
+private fun SuggestionDropdown(
+    query: String,
+    suggestions: List<SuggestionUi>,
+    onSelected: (SuggestionUi) -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 3.dp,
+        shadowElevation = 6.dp,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Column(
+            modifier = Modifier
+                .heightIn(max = 220.dp)
+                .verticalScroll(rememberScrollState())
+        ) {
+            suggestions.forEachIndexed { index, suggestion ->
+                if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSelected(suggestion) }
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = highlightMatch(suggestion.name, query),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Text(
+                            text = stringResource(suggestion.unit.labelRes()),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    suggestion.lastPriceMinor?.let { price ->
+                        Text(
+                            text = Money.formatManat(price),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** The typed part of a name in bold, so the user sees why it was suggested. */
+private fun highlightMatch(name: String, query: String): AnnotatedString {
+    val needle = query.trim()
+    val start = if (needle.isEmpty()) -1 else name.indexOf(needle, ignoreCase = true)
+    if (start < 0) return AnnotatedString(name)
+    return buildAnnotatedString {
+        append(name.substring(0, start))
+        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+            append(name.substring(start, start + needle.length))
+        }
+        append(name.substring(start + needle.length))
     }
 }
 

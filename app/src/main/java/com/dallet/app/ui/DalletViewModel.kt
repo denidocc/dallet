@@ -246,10 +246,10 @@ data class OnboardingUiState(
 enum class ComparisonSideId { A, B }
 
 data class ComparisonSideUi(
-    val label: String,
-    val periodLabel: String,
-    /** Kind, accounts and categories of the side as one line; empty when it has none. */
-    val restrictionsLabel: String,
+    /** What tells this side from the other: its dates, or its categories when the dates are equal. */
+    val title: String,
+    /** The other part (dates or kind, accounts and categories); empty when there is nothing more. */
+    val subtitle: String,
     val days: Long,
     val incomeLabel: String,
     val expenseLabel: String,
@@ -1757,21 +1757,25 @@ class DalletViewModel(
         restrictionsA: String,
         restrictionsB: String
     ): ComparisonUiState {
-        fun sideUi(label: String, s: ComparisonSide, restrictions: String) = ComparisonSideUi(
-            label = label,
-            periodLabel = dateRangeLabel(s.from, s.to),
-            restrictionsLabel = restrictions,
-            days = s.days,
-            incomeLabel = Money.formatManat(s.incomeMinor),
-            expenseLabel = Money.formatManat(s.expenseMinor),
-            averageIncomeLabel = Money.formatManat(s.averageIncomePerDayMinor),
-            averageExpenseLabel = Money.formatManat(s.averageExpensePerDayMinor),
-            isComplete = s.isComplete
-        )
+        val samePeriod = a.from == b.from && a.to == b.to
+        fun sideUi(s: ComparisonSide, restrictions: String): ComparisonSideUi {
+            val dates = dateRangeLabel(s.from, s.to)
+            val what = restrictions.ifEmpty { strings.get(R.string.comparison_all_operations) }
+            return ComparisonSideUi(
+                title = if (samePeriod) what else dates,
+                subtitle = if (samePeriod) dates else restrictions,
+                days = s.days,
+                incomeLabel = Money.formatManat(s.incomeMinor),
+                expenseLabel = Money.formatManat(s.expenseMinor),
+                averageIncomeLabel = Money.formatManat(s.averageIncomePerDayMinor),
+                averageExpenseLabel = Money.formatManat(s.averageExpensePerDayMinor),
+                isComplete = s.isComplete
+            )
+        }
         return ComparisonUiState(
             loaded = true,
-            a = sideUi("A", a, restrictionsA),
-            b = sideUi("B", b, restrictionsB),
+            a = sideUi(a, restrictionsA),
+            b = sideUi(b, restrictionsB),
             sheetA = sheetA,
             sheetB = sheetB,
             expenseDiffLabel = signedMoney(expenseDiffMinor),
