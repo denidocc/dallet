@@ -1,5 +1,6 @@
 package com.dallet.app.ui.goals
 
+import com.dallet.app.ui.common.OverdraftDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -156,6 +157,8 @@ class GoalDetailActions(
     val onArchive: (Boolean) -> Unit,
     val onDelete: () -> Unit,
     val onDeleteEntry: (Long) -> Unit,
+    val onConfirmOverdraft: () -> Unit,
+    val onCancelOverdraft: () -> Unit,
     val onMessageShown: () -> Unit
 )
 
@@ -305,6 +308,13 @@ fun GoalDetailScreen(state: GoalDetailUi, actions: GoalDetailActions) {
         )
     }
 
+    state.overdraft?.let { prompt ->
+        OverdraftDialog(
+            prompt = prompt,
+            onConfirm = actions.onConfirmOverdraft,
+            onDismiss = actions.onCancelOverdraft
+        )
+    }
     if (showDeposit) {
         DepositDialog(
             accounts = state.accounts,

@@ -161,7 +161,16 @@ data class HomeUiState(
     val budgetAlerts: List<BudgetRowUi> = emptyList(),
     val accountRows: List<AccountRowUi> = emptyList(),
     val recentExpenses: List<ExpenseRowUi> = emptyList(),
+    /** The goal that is closest to being reached, shown on the home card; null when there is none. */
+    val goal: HomeGoalUi? = null,
     val errorMessage: String? = null
+)
+
+data class HomeGoalUi(
+    val name: String,
+    val savedLabel: String,
+    val targetLabel: String,
+    val percent: Int
 )
 
 data class AccountRowUi(
@@ -1254,6 +1263,9 @@ class DalletViewModel(
                     val month = ledger.analytics(AnalyticsPeriod.MONTH, LocalDate.now())
                     val budgetStatuses = ledger.budgetStatuses(LocalDate.now())
                     val dueUi = dueItemsUi()
+                    val nearestGoal = ledger.goals()
+                        .filter { !it.goal.archived && !it.reached }
+                        .maxByOrNull { it.percent }
                     _budgets.value = budgetsStateOf(budgetStatuses)
                     _home.value = HomeUiState(
                         loading = false,
@@ -1268,6 +1280,14 @@ class DalletViewModel(
                         accountRows = ledger.accountBalances().map { it.toRow() },
                         recentExpenses = ledger.recentExpenses(limit = 10).map { operation ->
                             operation.toExpenseRow(categoriesById, accountNames)
+                        },
+                        goal = nearestGoal?.let {
+                            HomeGoalUi(
+                                name = it.goal.name,
+                                savedLabel = Money.formatManat(it.savedMinor),
+                                targetLabel = Money.formatManat(it.goal.targetMinor),
+                                percent = it.percent
+                            )
                         }
                     )
                     refreshHistoryInternal()

@@ -12,8 +12,8 @@ android {
         applicationId = "com.dallet.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 36
-        versionName = "0.6.0"
+        versionCode = 37
+        versionName = "0.6.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

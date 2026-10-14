@@ -575,4 +575,20 @@
     <string name="analytics_no_subcategory">No subcategory</string>
     <string name="faq_q12">How do subcategories work?</string>
     <string name="faq_a12">In More, then Categories, open a category and tap Add a subcategory (for example Groceries inside Food). In the operation picker a subcategory shows as Food › Groceries. In Analytics subcategories add up to their main category, with a breakdown under it. A budget on the main category counts its subcategories too. Subcategories can be renamed, moved to another category or made top-level.</string>
+    <string name="delete_confirm">Delete</string>
+    <string name="delete_operation_title">Delete the operation?</string>
+    <string name="delete_operation_text">The operation disappears and the account balance is recalculated. This cannot be undone.</string>
+    <string name="delete_account_title">Delete the account?</string>
+    <string name="delete_account_text">The account is deleted if it has no operations, goals or debts. This cannot be undone.</string>
+    <string name="delete_category_title">Delete the category?</string>
+    <string name="delete_category_text">The category is deleted if it has no operations and no subcategories. This cannot be undone.</string>
+    <string name="delete_recurring_title">Delete the recurring operation?</string>
+    <string name="delete_recurring_text">It stops repeating. Operations already created stay.</string>
+    <string name="delete_item_title">Delete the item?</string>
+    <string name="delete_item_text">%1$s will be removed from the list.</string>
+    <string name="delete_budget_title">Remove the budget?</string>
+    <string name="delete_budget_text">The limit of this category will be deleted.</string>
+    <string name="overdraft_title">Not enough money on the account</string>
+    <string name="overdraft_text">The account %1$s does not have enough: its balance would become %2$s. Continue?</string>
+    <string name="overdraft_confirm">Continue anyway</string>
 </resources>

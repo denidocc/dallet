@@ -749,6 +749,8 @@ private fun DalletAppContent(
                         onArchive = goalsViewModel::setArchived,
                         onDelete = { goalsViewModel.deleteGoal { navController.popBackStack() } },
                         onDeleteEntry = goalsViewModel::deleteEntry,
+                        onConfirmOverdraft = goalsViewModel::confirmOverdraft,
+                        onCancelOverdraft = goalsViewModel::cancelOverdraft,
                         onMessageShown = goalsViewModel::consumeMessage
                     )
                 )
@@ -782,6 +784,8 @@ private fun DalletAppContent(
                             navController.navigate("debts/$id")
                         }
                     },
+                    onConfirmOverdraft = debtsViewModel::confirmListOverdraft,
+                    onCancelOverdraft = debtsViewModel::cancelListOverdraft,
                     onMessageShown = debtsViewModel::consumeListMessage
                 )
             }
@@ -799,6 +803,8 @@ private fun DalletAppContent(
                         onWriteOff = debtsViewModel::writeOff,
                         onDelete = { debtsViewModel.deleteDebt { navController.popBackStack() } },
                         onUndoPayment = debtsViewModel::undoPayment,
+                        onConfirmOverdraft = debtsViewModel::confirmOverdraft,
+                        onCancelOverdraft = debtsViewModel::cancelOverdraft,
                         onMessageShown = debtsViewModel::consumeMessage
                     )
                 )

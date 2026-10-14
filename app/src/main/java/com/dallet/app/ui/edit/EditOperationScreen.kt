@@ -1,5 +1,7 @@
 package com.dallet.app.ui.edit
 
+import com.dallet.app.ui.common.ConfirmDeleteDialog
+import com.dallet.app.ui.common.OutlineAction
 import com.dallet.app.ui.common.AppButtonShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -166,14 +168,22 @@ fun EditOperationScreen(
         ) {
             Text(stringResource(R.string.edit_save))
         }
-        TextButton(
-            onClick = onDelete,
+        var confirmDelete by remember { mutableStateOf(false) }
+        OutlineAction(
+            text = stringResource(R.string.edit_delete),
+            onClick = { confirmDelete = true },
             enabled = !state.submitting,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                text = stringResource(R.string.edit_delete),
-                color = MaterialTheme.colorScheme.error
+            danger = true
+        )
+        if (confirmDelete) {
+            ConfirmDeleteDialog(
+                title = stringResource(R.string.delete_operation_title),
+                text = stringResource(R.string.delete_operation_text),
+                onConfirm = {
+                    confirmDelete = false
+                    onDelete()
+                },
+                onDismiss = { confirmDelete = false }
             )
         }
     }

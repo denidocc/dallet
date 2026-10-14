@@ -1,5 +1,6 @@
 package com.dallet.app.ui.debts
 
+import com.dallet.app.ui.common.OverdraftDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -69,6 +70,8 @@ fun DebtsScreen(
     accounts: List<SelectableOption>,
     onDebtClick: (Long) -> Unit,
     onCreate: (String, DebtDirection, String, Long?, String) -> Unit,
+    onConfirmOverdraft: () -> Unit,
+    onCancelOverdraft: () -> Unit,
     onMessageShown: () -> Unit
 ) {
     var tab by remember { mutableStateOf(DebtDirection.LENT) }
@@ -167,6 +170,9 @@ fun DebtsScreen(
             }
         }
     }
+    state.overdraft?.let { prompt ->
+        OverdraftDialog(prompt = prompt, onConfirm = onConfirmOverdraft, onDismiss = onCancelOverdraft)
+    }
     if (showCreate) {
         NewDebtDialog(
             initialDirection = tab,
@@ -186,6 +192,8 @@ class DebtDetailActions(
     val onWriteOff: () -> Unit,
     val onDelete: () -> Unit,
     val onUndoPayment: (Long) -> Unit,
+    val onConfirmOverdraft: () -> Unit,
+    val onCancelOverdraft: () -> Unit,
     val onMessageShown: () -> Unit
 )
 
@@ -324,6 +332,13 @@ fun DebtDetailScreen(state: DebtDetailUi, actions: DebtDetailActions) {
         )
     }
 
+    state.overdraft?.let { prompt ->
+        OverdraftDialog(
+            prompt = prompt,
+            onConfirm = actions.onConfirmOverdraft,
+            onDismiss = actions.onCancelOverdraft
+        )
+    }
     if (showRepay) {
         RepayDialog(
             lent = lent,

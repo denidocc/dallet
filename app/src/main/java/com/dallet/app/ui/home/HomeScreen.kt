@@ -1,5 +1,8 @@
 package com.dallet.app.ui.home
 
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -145,11 +148,53 @@ fun HomeScreen(
                 text = stringResource(R.string.goals_title),
                 style = MaterialTheme.typography.titleMedium
             )
-            Text(
-                text = stringResource(R.string.home_goals_hint),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            val goal = state.goal
+            if (goal == null) {
+                Text(
+                    text = stringResource(R.string.home_goals_hint),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = goal.name,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = "${goal.percent}%",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .padding(vertical = 8.dp)
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .fillMaxWidth(goal.percent.coerceIn(0, 100) / 100f)
+                            .background(MaterialTheme.colorScheme.primary)
+                    )
+                }
+                Text(
+                    text = moneyText(goal.savedLabel) + " / " + moneyText(goal.targetLabel),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {

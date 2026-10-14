@@ -575,4 +575,20 @@
     <string name="analytics_no_subcategory">Без подкатегории</string>
     <string name="faq_q12">Как работают подкатегории?</string>
     <string name="faq_a12">В «Ещё → Категории» откройте категорию и нажмите «Добавить подкатегорию» (например, «Продукты» внутри «Еда»). В списке выбора операции подкатегория показана как «Еда › Продукты». В Аналитике подкатегории входят в сумму основной категории, а под ней видна разбивка. Бюджет на основную категорию учитывает и подкатегории. Подкатегории можно переименовать, перенести в другую категорию или сделать основной.</string>
+    <string name="delete_confirm">Удалить</string>
+    <string name="delete_operation_title">Удалить операцию?</string>
+    <string name="delete_operation_text">Операция исчезнет, баланс счёта пересчитается. Отменить это нельзя.</string>
+    <string name="delete_account_title">Удалить счёт?</string>
+    <string name="delete_account_text">Счёт удалится, если по нему нет операций, целей и долгов. Отменить это нельзя.</string>
+    <string name="delete_category_title">Удалить категорию?</string>
+    <string name="delete_category_text">Категория удалится, если в ней нет операций и подкатегорий. Отменить это нельзя.</string>
+    <string name="delete_recurring_title">Удалить регулярную операцию?</string>
+    <string name="delete_recurring_text">Повторения прекратятся. Уже созданные операции останутся.</string>
+    <string name="delete_item_title">Удалить товар?</string>
+    <string name="delete_item_text">«%1$s» исчезнет из списка.</string>
+    <string name="delete_budget_title">Убрать бюджет?</string>
+    <string name="delete_budget_text">Лимит этой категории будет удалён.</string>
+    <string name="overdraft_title">Не хватает денег на счёте</string>
+    <string name="overdraft_text">На счёте «%1$s» не хватит денег: после этого баланс станет %2$s. Продолжить?</string>
+    <string name="overdraft_confirm">Всё равно продолжить</string>
 </resources>

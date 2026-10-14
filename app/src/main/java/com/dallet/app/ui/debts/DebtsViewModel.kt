@@ -1,5 +1,6 @@
 package com.dallet.app.ui.debts
 
+import com.dallet.app.ui.common.OverdraftPrompt
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -35,7 +36,8 @@ data class DebtsListUi(
     val iOwe: List<DebtRowUi> = emptyList(),
     val owedToMeTotalLabel: String = "0.00",
     val iOweTotalLabel: String = "0.00",
-    val message: String? = null
+    val message: String? = null,
+    val overdraft: OverdraftPrompt? = null
 )
 
 data class DebtEntryUi(
@@ -62,7 +64,8 @@ data class DebtDetailUi(
     val entries: List<DebtEntryUi> = emptyList(),
     val accounts: List<SelectableOption> = emptyList(),
     val message: String? = null,
-    val isError: Boolean = false
+    val isError: Boolean = false,
+    val overdraft: OverdraftPrompt? = null
 )
 
 private val DISPLAY_DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
@@ -120,6 +123,9 @@ class DebtsViewModel(
             SelectableOption(it.account.id, it.account.name + " · " + Money.formatManat(it.balanceMinor))
         }
 
+    private var pendingList: (suspend () -> Unit)? = null
+    private var pendingDetail: (suspend () -> Unit)? = null
+
     fun createDebt(
         person: String,
         direction: DebtDirection,
@@ -134,13 +140,46 @@ class DebtsViewModel(
                 _list.update { it.copy(message = strings.get(R.string.err_debt_input)) }
                 return@launch
             }
-            try {
-                val id = ledger.createDebt(person, direction, amount, accountId, LocalDate.now(), note)
-                refreshList()
-                onCreated(id)
-            } catch (error: Exception) {
-                _list.update { it.copy(message = strings.get(R.string.err_generic)) }
+            val perform: suspend () -> Unit = {
+                try {
+                    val id = ledger.createDebt(person, direction, amount, accountId, LocalDate.now(), note)
+                    refreshList()
+                    onCreated(id)
+                } catch (error: Exception) {
+                    _list.update { it.copy(message = strings.get(R.string.err_generic)) }
+                }
             }
+            // Lending takes money out of the account.
+            val prompt = if (direction == DebtDirection.LENT) overdraftOf(accountId, amount) else null
+            if (prompt == null) {
+                perform()
+            } else {
+                pendingList = perform
+                _list.update { it.copy(overdraft = prompt) }
+            }
+        }
+    }
+
+    fun confirmListOverdraft() {
+        val action = pendingList
+        pendingList = null
+        _list.update { it.copy(overdraft = null) }
+        if (action != null) viewModelScope.launch { action() }
+    }
+
+    fun cancelListOverdraft() {
+        pendingList = null
+        _list.update { it.copy(overdraft = null) }
+    }
+
+    private suspend fun overdraftOf(accountId: Long?, amountMinor: Long): OverdraftPrompt? {
+        if (accountId == null) return null
+        val balance = ledger.accountBalances().firstOrNull { it.account.id == accountId } ?: return null
+        val after = balance.balanceMinor - amountMinor
+        return if (after < 0L) {
+            OverdraftPrompt(balance.account.name, "−" + Money.formatManat(-after))
+        } else {
+            null
         }
     }
 
@@ -214,15 +253,38 @@ class DebtsViewModel(
                 showMessage(strings.get(R.string.err_debt_input), isError = true)
                 return@launch
             }
-            try {
-                ledger.repayDebt(debtId, amount, accountId, LocalDate.now())
-                loadDetail(debtId, strings.get(R.string.msg_debt_repaid))
-            } catch (error: DebtOverpayException) {
-                showMessage(strings.get(R.string.err_debt_overpay), isError = true)
-            } catch (error: Exception) {
-                showMessage(strings.get(R.string.err_generic), isError = true)
+            val perform: suspend () -> Unit = {
+                try {
+                    ledger.repayDebt(debtId, amount, accountId, LocalDate.now())
+                    loadDetail(debtId, strings.get(R.string.msg_debt_repaid))
+                } catch (error: DebtOverpayException) {
+                    showMessage(strings.get(R.string.err_debt_overpay), isError = true)
+                } catch (error: Exception) {
+                    showMessage(strings.get(R.string.err_generic), isError = true)
+                }
+            }
+            // Paying back a debt of the user's takes money out of the account.
+            val borrowed = _detail.value.direction == DebtDirection.BORROWED
+            val prompt = if (borrowed) overdraftOf(accountId, amount) else null
+            if (prompt == null) {
+                perform()
+            } else {
+                pendingDetail = perform
+                _detail.update { it.copy(overdraft = prompt) }
             }
         }
+    }
+
+    fun confirmOverdraft() {
+        val action = pendingDetail
+        pendingDetail = null
+        _detail.update { it.copy(overdraft = null) }
+        if (action != null) viewModelScope.launch { action() }
+    }
+
+    fun cancelOverdraft() {
+        pendingDetail = null
+        _detail.update { it.copy(overdraft = null) }
     }
 
     fun writeOff() {

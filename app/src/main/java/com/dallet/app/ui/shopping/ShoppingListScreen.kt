@@ -1,5 +1,6 @@
 package com.dallet.app.ui.shopping
 
+import com.dallet.app.ui.common.ConfirmDeleteDialog
 import com.dallet.app.ui.common.AppButtonShape
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -619,6 +620,18 @@ private fun EditItemDialog(
     var quantity by remember(item.id) { mutableStateOf(item.quantityInput) }
     var unit by remember(item.id) { mutableStateOf(item.unit) }
     var price by remember(item.id) { mutableStateOf(item.priceInput) }
+    var confirmDelete by remember(item.id) { mutableStateOf(false) }
+    if (confirmDelete) {
+        ConfirmDeleteDialog(
+            title = stringResource(R.string.delete_item_title),
+            text = stringResource(R.string.delete_item_text, item.name),
+            onConfirm = {
+                confirmDelete = false
+                onDelete()
+            },
+            onDismiss = { confirmDelete = false }
+        )
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -661,7 +674,7 @@ private fun EditItemDialog(
         },
         dismissButton = {
             Row {
-                TextButton(onClick = onDelete) {
+                TextButton(onClick = { confirmDelete = true }) {
                     Text(
                         text = stringResource(R.string.shopping_delete),
                         color = MaterialTheme.colorScheme.error

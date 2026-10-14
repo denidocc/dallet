@@ -1,5 +1,6 @@
 package com.dallet.app.ui.goals
 
+import com.dallet.app.ui.common.OverdraftPrompt
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -59,7 +60,8 @@ data class GoalDetailUi(
     val accounts: List<SelectableOption> = emptyList(),
     val incomeCategories: List<SelectableOption> = emptyList(),
     val message: String? = null,
-    val isError: Boolean = false
+    val isError: Boolean = false,
+    val overdraft: OverdraftPrompt? = null
 )
 
 enum class DepositMode { FROM_ACCOUNT, AS_INCOME }
@@ -181,6 +183,8 @@ class GoalsViewModel(
         }
     }
 
+    private var pendingAfterOverdraft: (suspend () -> Unit)? = null
+
     fun deposit(mode: DepositMode, amountInput: String, accountId: Long?, categoryId: Long?) {
         val goalId = _detail.value.goalId
         viewModelScope.launch {
@@ -191,17 +195,49 @@ class GoalsViewModel(
                 showMessage(strings.get(R.string.err_goal_input), isError = true)
                 return@launch
             }
-            try {
-                when (mode) {
-                    DepositMode.FROM_ACCOUNT ->
-                        ledger.depositToGoal(goalId, accountId, amount, LocalDate.now())
-                    DepositMode.AS_INCOME ->
-                        ledger.depositToGoalAsIncome(goalId, accountId, categoryId!!, amount, LocalDate.now(), null)
+            val perform: suspend () -> Unit = {
+                try {
+                    when (mode) {
+                        DepositMode.FROM_ACCOUNT ->
+                            ledger.depositToGoal(goalId, accountId, amount, LocalDate.now())
+                        DepositMode.AS_INCOME ->
+                            ledger.depositToGoalAsIncome(goalId, accountId, categoryId!!, amount, LocalDate.now(), null)
+                    }
+                    loadDetail(goalId, strings.get(R.string.msg_goal_deposited))
+                } catch (error: Exception) {
+                    showMessage(strings.get(R.string.err_generic), isError = true)
                 }
-                loadDetail(goalId, strings.get(R.string.msg_goal_deposited))
-            } catch (error: Exception) {
-                showMessage(strings.get(R.string.err_generic), isError = true)
             }
+            // Only money taken from an account can push it below zero.
+            val prompt = if (mode == DepositMode.FROM_ACCOUNT) overdraftOf(accountId, amount) else null
+            if (prompt == null) {
+                perform()
+            } else {
+                pendingAfterOverdraft = perform
+                _detail.update { it.copy(overdraft = prompt) }
+            }
+        }
+    }
+
+    fun confirmOverdraft() {
+        val action = pendingAfterOverdraft
+        pendingAfterOverdraft = null
+        _detail.update { it.copy(overdraft = null) }
+        if (action != null) viewModelScope.launch { action() }
+    }
+
+    fun cancelOverdraft() {
+        pendingAfterOverdraft = null
+        _detail.update { it.copy(overdraft = null) }
+    }
+
+    private suspend fun overdraftOf(accountId: Long, amountMinor: Long): OverdraftPrompt? {
+        val balance = ledger.accountBalances().firstOrNull { it.account.id == accountId } ?: return null
+        val after = balance.balanceMinor - amountMinor
+        return if (after < 0L) {
+            OverdraftPrompt(balance.account.name, "−" + Money.formatManat(-after))
+        } else {
+            null
         }
     }
 

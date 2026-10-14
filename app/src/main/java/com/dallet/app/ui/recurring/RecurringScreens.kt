@@ -1,5 +1,10 @@
 package com.dallet.app.ui.recurring
 
+import com.dallet.app.ui.common.ConfirmDeleteDialog
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
 import com.dallet.app.ui.common.AppButtonShape
 import com.dallet.app.ui.common.OutlineAction
 import android.Manifest
@@ -229,11 +234,23 @@ fun RecurringEditorScreen(
             Text(stringResource(R.string.add_save))
         }
         if (!state.isNew) {
+            var confirmDelete by remember { mutableStateOf(false) }
             OutlineAction(
                 text = stringResource(R.string.edit_delete),
-                onClick = onDelete,
+                onClick = { confirmDelete = true },
                 danger = true
             )
+            if (confirmDelete) {
+                ConfirmDeleteDialog(
+                    title = stringResource(R.string.delete_recurring_title),
+                    text = stringResource(R.string.delete_recurring_text),
+                    onConfirm = {
+                        confirmDelete = false
+                        onDelete()
+                    },
+                    onDismiss = { confirmDelete = false }
+                )
+            }
         }
     }
 }

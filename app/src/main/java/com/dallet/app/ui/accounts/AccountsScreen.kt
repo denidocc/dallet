@@ -1,5 +1,11 @@
 package com.dallet.app.ui.accounts
 
+import com.dallet.app.ui.common.ConfirmDeleteDialog
+import com.dallet.app.ui.common.OutlineAction
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
 import com.dallet.app.ui.common.AppButtonShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -46,7 +52,7 @@ fun AccountsScreen(
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.padding(bottom = 16.dp)
         )
-        Button(shape = AppButtonShape, 
+        Button(shape = AppButtonShape,
             onClick = onAddClick,
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -128,7 +134,7 @@ fun AccountEditorScreen(
         state.errorMessage?.let {
             Text(text = it, color = MaterialTheme.colorScheme.error)
         }
-        Button(shape = AppButtonShape, 
+        Button(shape = AppButtonShape,
             onClick = onSave,
             enabled = !state.submitting,
             modifier = Modifier.fillMaxWidth()
@@ -136,15 +142,23 @@ fun AccountEditorScreen(
             Text(stringResource(R.string.edit_save))
         }
         if (!state.isNew) {
-            Button(shape = AppButtonShape, 
-                onClick = onDelete,
+            var confirmDelete by remember { mutableStateOf(false) }
+            OutlineAction(
+                text = stringResource(R.string.edit_delete),
+                onClick = { confirmDelete = true },
                 enabled = !state.submitting,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error
+                danger = true
+            )
+            if (confirmDelete) {
+                ConfirmDeleteDialog(
+                    title = stringResource(R.string.delete_account_title),
+                    text = stringResource(R.string.delete_account_text),
+                    onConfirm = {
+                        confirmDelete = false
+                        onDelete()
+                    },
+                    onDismiss = { confirmDelete = false }
                 )
-            ) {
-                Text(stringResource(R.string.edit_delete))
             }
         }
     }

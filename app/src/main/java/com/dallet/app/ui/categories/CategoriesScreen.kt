@@ -1,5 +1,6 @@
 package com.dallet.app.ui.categories
 
+import com.dallet.app.ui.common.ConfirmDeleteDialog
 import com.dallet.app.ui.common.AppButtonShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -83,7 +84,7 @@ fun CategoriesScreen(
                 label = { Text(stringResource(R.string.add_kind_income)) }
             )
         }
-        Button(shape = AppButtonShape, 
+        Button(shape = AppButtonShape,
             onClick = onAddClick,
             modifier = Modifier
                 .fillMaxWidth()
@@ -208,7 +209,7 @@ fun CategoryEditorScreen(
         state.errorMessage?.let {
             Text(text = it, color = MaterialTheme.colorScheme.error)
         }
-        Button(shape = AppButtonShape, 
+        Button(shape = AppButtonShape,
             onClick = onSave,
             enabled = !state.submitting,
             modifier = Modifier.fillMaxWidth()
@@ -222,15 +223,23 @@ fun CategoryEditorScreen(
             )
         }
         if (!state.isNew) {
-            Button(shape = AppButtonShape, 
-                onClick = onDelete,
+            var confirmDelete by remember { mutableStateOf(false) }
+            OutlineAction(
+                text = stringResource(R.string.edit_delete),
+                onClick = { confirmDelete = true },
                 enabled = !state.submitting,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error
+                danger = true
+            )
+            if (confirmDelete) {
+                ConfirmDeleteDialog(
+                    title = stringResource(R.string.delete_category_title),
+                    text = stringResource(R.string.delete_category_text),
+                    onConfirm = {
+                        confirmDelete = false
+                        onDelete()
+                    },
+                    onDismiss = { confirmDelete = false }
                 )
-            ) {
-                Text(stringResource(R.string.edit_delete))
             }
         }
     }

@@ -1,5 +1,6 @@
 package com.dallet.app.ui.budgets
 
+import com.dallet.app.ui.common.ConfirmDeleteDialog
 import com.dallet.app.ui.common.AppButtonShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -141,6 +142,19 @@ fun BudgetsScreen(
     editing?.let { row ->
         var input by remember(row) { mutableStateOf(row.limitInput) }
         var failed by remember(row) { mutableStateOf(false) }
+        var confirmRemove by remember(row) { mutableStateOf(false) }
+        if (confirmRemove) {
+            ConfirmDeleteDialog(
+                title = stringResource(R.string.delete_budget_title),
+                text = stringResource(R.string.delete_budget_text),
+                onConfirm = {
+                    confirmRemove = false
+                    onRemove(row.categoryId)
+                    editing = null
+                },
+                onDismiss = { confirmRemove = false }
+            )
+        }
         AlertDialog(
             onDismissRequest = { editing = null },
             title = { Text(row.name) },
@@ -163,12 +177,7 @@ fun BudgetsScreen(
             },
             dismissButton = {
                 Column {
-                    TextButton(
-                        onClick = {
-                            onRemove(row.categoryId)
-                            editing = null
-                        }
-                    ) {
+                    TextButton(onClick = { confirmRemove = true }) {
                         Text(
                             text = stringResource(R.string.budgets_remove),
                             color = MaterialTheme.colorScheme.error
