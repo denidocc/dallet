@@ -474,8 +474,8 @@ private fun NewDebtDialog(
     var person by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
-    var accountId by remember { mutableStateOf(accounts.firstOrNull()?.id) }
-    var keepBalance by remember { mutableStateOf(accounts.isEmpty()) }
+    var accountId by remember(accounts) { mutableStateOf(accounts.firstOrNull()?.id) }
+    var keepBalance by remember(accounts) { mutableStateOf(accounts.isEmpty()) }
     val lent = direction == DebtDirection.LENT
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -551,8 +551,8 @@ private fun RepayDialog(
     onDismiss: () -> Unit
 ) {
     var amount by remember { mutableStateOf(initialAmount) }
-    var accountId by remember { mutableStateOf(accounts.firstOrNull()?.id) }
-    var keepBalance by remember { mutableStateOf(accounts.isEmpty()) }
+    var accountId by remember(accounts) { mutableStateOf(accounts.firstOrNull()?.id) }
+    var keepBalance by remember(accounts) { mutableStateOf(accounts.isEmpty()) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {

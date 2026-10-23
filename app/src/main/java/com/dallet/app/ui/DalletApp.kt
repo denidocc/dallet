@@ -534,6 +534,8 @@ private fun DalletAppContent(
         ) {
             composable(DalletDestination.Home.route) {
                 LaunchedEffect(Unit) {
+                    // Goals and debts move money between accounts, so balances must be re-read.
+                    viewModel.refreshHome(showLoading = false)
                     goalsViewModel.refreshList()
                     debtsViewModel.refreshList()
                     shoppingViewModel.refreshHub()

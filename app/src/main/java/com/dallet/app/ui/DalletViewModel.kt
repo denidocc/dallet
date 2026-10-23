@@ -1338,9 +1338,10 @@ class DalletViewModel(
         }
     }
 
-    fun refreshHome() {
+    /** [showLoading] false re-reads the data in place, for returning to a screen that already shows it. */
+    fun refreshHome(showLoading: Boolean = true) {
         viewModelScope.launch {
-            _home.update { it.copy(loading = true, errorMessage = null) }
+            _home.update { it.copy(loading = if (showLoading) true else it.loading, errorMessage = null) }
             try {
                 _currency.value = ledger.mainCurrency()
                 _rates.value = ledger.rates()

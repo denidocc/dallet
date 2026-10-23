@@ -450,7 +450,7 @@ private fun DepositDialog(
 ) {
     var mode by remember { mutableStateOf(DepositMode.FROM_ACCOUNT) }
     var amount by remember { mutableStateOf("") }
-    var accountId by remember { mutableStateOf(accounts.firstOrNull()?.id) }
+    var accountId by remember(accounts) { mutableStateOf(accounts.firstOrNull()?.id) }
     var categoryId by remember { mutableStateOf(categories.firstOrNull()?.id) }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -519,7 +519,7 @@ private fun WithdrawDialog(
     onDismiss: () -> Unit
 ) {
     var amount by remember { mutableStateOf("") }
-    var accountId by remember { mutableStateOf(accounts.firstOrNull()?.id) }
+    var accountId by remember(accounts) { mutableStateOf(accounts.firstOrNull()?.id) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.goals_withdraw)) },
