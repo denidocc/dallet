@@ -6,7 +6,7 @@
 
 **Бесплатно. Без рекламы. Без подписок. Без регистрации. Без сбора данных. Без доступа в интернет.**
 
-Текущая версия: **0.7.0** (`versionCode` 38). Что изменилось в каждом релизе: [Releases](https://github.com/denidocc/dallet/releases).
+Текущая версия: **0.7.1** (`versionCode` 39). Что изменилось в каждом релизе: [Releases](https://github.com/denidocc/dallet/releases).
 
 ## Что умеет
 

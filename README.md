@@ -6,7 +6,7 @@ Offline personal finance tracker for Android: accounts, categorized transactions
 
 **Free. No ads. No subscriptions. No accounts. No data collection. No internet permission.**
 
-Current version: **0.7.0** (`versionCode` 38). What changed in each release: [Releases](https://github.com/denidocc/dallet/releases).
+Current version: **0.7.1** (`versionCode` 39). What changed in each release: [Releases](https://github.com/denidocc/dallet/releases).
 
 ## Features
 
