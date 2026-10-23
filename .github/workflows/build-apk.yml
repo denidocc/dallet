@@ -89,11 +89,14 @@ jobs:
           fi
           DEST="dist/Dallet-${VERSION_NAME}.apk"
           AAB_DEST="dist/Dallet-${VERSION_NAME}.aab"
+          MAP_DEST="dist/Dallet-${VERSION_NAME}-mapping.txt"
           cp "$SRC" "$DEST"
           cp "$AAB_SRC" "$AAB_DEST"
+          cp app/build/outputs/mapping/release/mapping.txt "$MAP_DEST"
           echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
           echo "apk_path=$DEST" >> "$GITHUB_OUTPUT"
           echo "aab_path=$AAB_DEST" >> "$GITHUB_OUTPUT"
+          echo "map_path=$MAP_DEST" >> "$GITHUB_OUTPUT"
           ls -la dist/
 
       - name: Upload APK
@@ -110,6 +113,13 @@ jobs:
           path: ${{ steps.apk.outputs.aab_path }}
           if-no-files-found: error
 
+      - name: Upload R8 mapping (to read crash reports)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Dallet-${{ steps.apk.outputs.version_name }}-mapping
+          path: ${{ steps.apk.outputs.map_path }}
+          if-no-files-found: error
+
       - name: Create GitHub Release (on git tag v*)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
@@ -117,4 +127,5 @@ jobs:
           files: |
             ${{ steps.apk.outputs.apk_path }}
             ${{ steps.apk.outputs.aab_path }}
+            ${{ steps.apk.outputs.map_path }}
           generate_release_notes: true
