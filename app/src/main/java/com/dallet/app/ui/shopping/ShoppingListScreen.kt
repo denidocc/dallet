@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
@@ -142,13 +143,15 @@ fun ShoppingListScreen(
             .fillMaxSize()
             .imePadding()
     ) {
+        // The back arrow floats over the top-right corner. This strip keeps it clear, so scrolled
+        // cards pass under the strip instead of under the arrow.
+        Spacer(modifier = Modifier.height(52.dp))
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
-            // The back arrow floats over the top-right corner, so the first card starts below it.
-            contentPadding = PaddingValues(top = 52.dp, bottom = 12.dp)
+            contentPadding = PaddingValues(bottom = 12.dp)
         ) {
             item {
                 SurfaceCard {

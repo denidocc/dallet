@@ -751,6 +751,7 @@ private fun compactAmount(label: String): String {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MiniSummaryCard(
     label: String,
@@ -760,7 +761,9 @@ private fun MiniSummaryCard(
     modifier: Modifier = Modifier
 ) {
     val shape = RoundedCornerShape(12.dp)
-    Row(
+    // Label left, amount right; when both do not fit (large font), the amount moves to its own line
+    // instead of being cut off.
+    FlowRow(
         modifier = modifier
             .clip(shape)
             .background(MaterialTheme.colorScheme.surface)
@@ -771,17 +774,22 @@ private fun MiniSummaryCard(
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        verticalArrangement = Arrangement.Center
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .align(Alignment.CenterVertically)
+                .padding(end = 8.dp)
         )
         Text(
             text = value,
             style = MaterialTheme.typography.titleSmall,
-            maxLines = 1
+            maxLines = 1,
+            softWrap = false,
+            modifier = Modifier.align(Alignment.CenterVertically)
         )
     }
 }
