@@ -9,6 +9,7 @@ import com.dallet.app.R
 import com.dallet.app.ledger.DebtDirection
 import com.dallet.app.ledger.DebtEntryKind
 import com.dallet.app.ledger.DebtOverpayException
+import com.dallet.app.ledger.DebtWrittenOffException
 import com.dallet.app.ledger.Ledger
 import com.dallet.app.ledger.Money
 import com.dallet.app.ui.SelectableOption
