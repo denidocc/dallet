@@ -59,6 +59,8 @@ data class DebtDetailUi(
     val remainingLabel: String = "0.00",
     val totalLabel: String = "0.00",
     val remainingInput: String = "",
+    val issueInput: String = "",
+    val issueAccountId: Long? = null,
     val percent: Int = 0,
     val settled: Boolean = false,
     val entries: List<DebtEntryUi> = emptyList(),
@@ -201,7 +203,9 @@ class DebtsViewModel(
             return
         }
         val accountNames = ledger.accountBalances().associate { it.account.id to it.account.name }
-        val entries = ledger.debtEntries(debtId).map { entry ->
+        val rawEntries = ledger.debtEntries(debtId)
+        val issueEntry = rawEntries.firstOrNull { it.kind == DebtEntryKind.ISSUE }
+        val entries = rawEntries.map { entry ->
             DebtEntryUi(
                 id = entry.id,
                 dateLabel = entry.date.format(DISPLAY_DATE),
@@ -220,6 +224,8 @@ class DebtsViewModel(
             remainingLabel = Money.formatManat(summary.remainingMinor),
             totalLabel = Money.formatManat(summary.issuedMinor),
             remainingInput = Money.formatManat(summary.remainingMinor),
+            issueInput = Money.formatManat(summary.issuedMinor),
+            issueAccountId = issueEntry?.accountId,
             percent = summary.percent,
             settled = summary.settled,
             entries = entries,
@@ -229,18 +235,42 @@ class DebtsViewModel(
         )
     }
 
-    fun updateDebt(person: String, note: String) {
+    fun updateDebt(person: String, note: String, amountInput: String, accountId: Long?) {
         val debtId = _detail.value.debtId
         viewModelScope.launch {
-            if (person.isBlank()) {
+            val amount = parseAmount(amountInput)
+            if (person.isBlank() || amount == null || amount <= 0L) {
                 showMessage(strings.get(R.string.err_debt_input), isError = true)
                 return@launch
             }
-            try {
-                ledger.updateDebt(debtId, person, note)
-                loadDetail(debtId)
-            } catch (error: Exception) {
-                showMessage(strings.get(R.string.err_generic), isError = true)
+            val perform: suspend () -> Unit = {
+                try {
+                    ledger.updateDebt(debtId, person, note, amount, accountId)
+                    loadDetail(debtId)
+                    refreshList()
+                } catch (error: DebtOverpayException) {
+                    showMessage(strings.get(R.string.err_debt_below_paid), isError = true)
+                } catch (error: DebtWrittenOffException) {
+                    showMessage(strings.get(R.string.err_debt_written_off), isError = true)
+                } catch (error: Exception) {
+                    showMessage(strings.get(R.string.err_generic), isError = true)
+                }
+            }
+            // Lending takes money out of the account, borrowing put it there: changing the issue
+            // can leave an account below zero, so ask first.
+            val state = _detail.value
+            val oldAmount = Money.parseManat(state.issueInput)
+            val sameAccount = accountId == state.issueAccountId
+            val prompt = if (state.direction == DebtDirection.LENT) {
+                overdraftOf(accountId, if (sameAccount) amount - oldAmount else amount)
+            } else {
+                overdraftOf(state.issueAccountId, if (sameAccount) oldAmount - amount else oldAmount)
+            }
+            if (prompt == null) {
+                perform()
+            } else {
+                pendingDetail = perform
+                _detail.update { it.copy(overdraft = prompt) }
             }
         }
     }

@@ -188,7 +188,7 @@ fun DebtsScreen(
 
 class DebtDetailActions(
     val onRepay: (String, Long?) -> Unit,
-    val onUpdate: (String, String) -> Unit,
+    val onUpdate: (String, String, String, Long?) -> Unit,
     val onWriteOff: () -> Unit,
     val onDelete: () -> Unit,
     val onUndoPayment: (Long) -> Unit,
@@ -353,11 +353,15 @@ fun DebtDetailScreen(state: DebtDetailUi, actions: DebtDetailActions) {
     }
     if (showEdit) {
         EditDebtDialog(
+            lent = lent,
             initialPerson = state.person,
             initialNote = state.note,
-            onSave = { person, note ->
+            initialAmount = state.issueInput,
+            initialAccountId = state.issueAccountId,
+            accounts = state.accounts,
+            onSave = { person, note, amount, accountId ->
                 showEdit = false
-                actions.onUpdate(person, note)
+                actions.onUpdate(person, note, amount, accountId)
             },
             onDismiss = { showEdit = false }
         )
@@ -598,23 +602,47 @@ private fun RepayDialog(
 
 @Composable
 private fun EditDebtDialog(
+    lent: Boolean,
     initialPerson: String,
     initialNote: String,
-    onSave: (String, String) -> Unit,
+    initialAmount: String,
+    initialAccountId: Long?,
+    accounts: List<SelectableOption>,
+    onSave: (String, String, String, Long?) -> Unit,
     onDismiss: () -> Unit
 ) {
     var person by remember { mutableStateOf(initialPerson) }
     var note by remember { mutableStateOf(initialNote) }
+    var amount by remember { mutableStateOf(initialAmount) }
+    var accountId by remember(accounts) { mutableStateOf(initialAccountId ?: accounts.firstOrNull()?.id) }
+    var keepBalance by remember(accounts) { mutableStateOf(initialAccountId == null) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.debts_edit)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(
                     value = person,
                     onValueChange = { person = it },
                     label = { Text(stringResource(R.string.debts_person)) },
                     singleLine = true
+                )
+                OutlinedTextField(
+                    value = amount,
+                    onValueChange = { amount = it },
+                    label = { Text(stringResource(R.string.add_amount_label)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                )
+                AccountChoice(
+                    label = stringResource(
+                        if (lent) R.string.debts_account_lent else R.string.debts_account_borrowed
+                    ),
+                    accounts = accounts,
+                    accountId = accountId,
+                    onAccountChange = { accountId = it },
+                    keepBalance = keepBalance,
+                    onKeepBalanceChange = { keepBalance = it }
                 )
                 OutlinedTextField(
                     value = note,
@@ -625,7 +653,10 @@ private fun EditDebtDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSave(person, note) }, enabled = person.isNotBlank()) {
+            TextButton(
+                onClick = { onSave(person, note, amount, if (keepBalance) null else accountId) },
+                enabled = person.isNotBlank() && amount.isNotBlank()
+            ) {
                 Text(stringResource(R.string.goals_save))
             }
         },

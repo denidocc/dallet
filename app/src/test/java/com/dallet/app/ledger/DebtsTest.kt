@@ -325,4 +325,59 @@ class DebtsTest {
         assertThat(report.owedToMeByPerson.single().name).isEqualTo("Али")
         assertThat(report.goalProgress.single().savedMinor).isEqualTo(12_000L)
     }
+
+    @Test
+    fun editingTheAmountAndAccountMovesTheBalances() = runTest {
+        val ledger = ledgerWithAccounts()
+        val cash = cashId(ledger)
+        val card = ledger.accountBalances().last().account.id
+        val id = ledger.createDebt("Али", DebtDirection.LENT, 20_000L, cash, day, null)
+
+        ledger.updateDebt(id, "Али Б", "заметка", 30_000L, card)
+
+        assertThat(balanceOf(ledger, cash)).isEqualTo(100_000L)
+        assertThat(balanceOf(ledger, card)).isEqualTo(20_000L)
+        val summary = ledger.debtSummary(id)!!
+        assertThat(summary.debt.person).isEqualTo("Али Б")
+        assertThat(summary.issuedMinor).isEqualTo(30_000L)
+    }
+
+    @Test
+    fun editingCanDropTheAccountAndKeepBalancesAlone() = runTest {
+        val ledger = ledgerWithAccounts()
+        val cash = cashId(ledger)
+        val id = ledger.createDebt("Али", DebtDirection.LENT, 20_000L, cash, day, null)
+
+        ledger.updateDebt(id, "Али", null, 20_000L, null)
+
+        assertThat(balanceOf(ledger, cash)).isEqualTo(100_000L)
+    }
+
+    @Test
+    fun theAmountCannotDropBelowWhatWasRepaid() = runTest {
+        val ledger = ledgerWithAccounts()
+        val cash = cashId(ledger)
+        val id = ledger.createDebt("Али", DebtDirection.LENT, 20_000L, cash, day, null)
+        ledger.repayDebt(id, 8_000L, cash, day)
+
+        assertThrows(DebtOverpayException::class.java) {
+            runBlocking { ledger.updateDebt(id, "Али", null, 7_000L, cash) }
+        }
+        ledger.updateDebt(id, "Али", null, 8_000L, cash)
+        assertThat(ledger.debtSummary(id)!!.settled).isTrue()
+    }
+
+    @Test
+    fun theAmountIsFixedAfterAWriteOff() = runTest {
+        val ledger = ledgerWithAccounts()
+        val cash = cashId(ledger)
+        val id = ledger.createDebt("Али", DebtDirection.LENT, 20_000L, cash, day, null)
+        ledger.writeOffDebt(id, day, "Списанные долги", "Прощённые долги")
+
+        assertThrows(DebtWrittenOffException::class.java) {
+            runBlocking { ledger.updateDebt(id, "Али", null, 25_000L, cash) }
+        }
+        ledger.updateDebt(id, "Али Б", null, 20_000L, cash)
+        assertThat(ledger.debtSummary(id)!!.debt.person).isEqualTo("Али Б")
+    }
 }

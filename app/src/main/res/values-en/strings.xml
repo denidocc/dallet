@@ -532,6 +532,8 @@
     <string name="debts_keep_balance">Do not change the account balance</string>
     <string name="err_debt_input">Check the name and the amount</string>
     <string name="err_debt_overpay">The amount is larger than what is left</string>
+    <string name="err_debt_below_paid">The amount cannot be less than what was already repaid</string>
+    <string name="err_debt_written_off">The rest was written off, so the debt amount cannot be changed</string>
     <string name="msg_debt_repaid">Payment recorded</string>
     <string name="faq_q11">How do I keep track of debts?</string>
     <string name="faq_a11">In More, then Debts, record who owes you or whom you owe. Pick an account: when you lend, the money leaves it, when you borrow, it arrives there. For an old debt turn on Do not change the account balance. Record payments with I paid back or They paid me back, in parts if needed.</string>
@@ -632,5 +634,17 @@
     <string name="faq_q16">Are goals and debts in the report?</string>
     <string name="faq_a16">Yes. The PDF and CSV report (Analytics → export report) lists goals with their progress and unsettled debts with what is left after the totals. They are shown as of today and do not depend on the chosen period.</string>
     <string name="faq_q17">Why does the app ask before deleting?</string>
+    <string name="faq_q18">How do I check an account balance against my card or bank?</string>
+    <string name="faq_a18">Add an expense or an income and tap "Check against account" under the amount field. Type what the account really holds: Dallet compares it with the balance in the app and puts the difference into the amount. If the card holds less, it becomes an expense; if more, choose Income.</string>
     <string name="faq_a17">So that a stray tap cannot wipe data. Every deletion (an operation, account, category, budget, regular operation, shopping item) first shows a “Delete?” dialog. A deleted item can only be restored from a backup.</string>
+    <string name="reconcile_button">Check against account</string>
+    <string name="reconcile_title">Check against account</string>
+    <string name="reconcile_in_app">In the app: %1$s %2$s</string>
+    <string name="reconcile_actual">What the account really holds</string>
+    <string name="reconcile_diff_expense">Expense: %1$s %2$s</string>
+    <string name="reconcile_diff_income">Income: %1$s %2$s</string>
+    <string name="reconcile_equal">The balance matches, no difference</string>
+    <string name="reconcile_wrong_expense">The account holds more than the app says. This looks like an income.</string>
+    <string name="reconcile_wrong_income">The account holds less than the app says. This looks like an expense.</string>
+    <string name="reconcile_apply">Use this amount</string>
 </resources>

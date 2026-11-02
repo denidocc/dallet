@@ -1105,6 +1105,28 @@ class Ledger(
         debtRepository.updateDebt(debt.copy(person = name, note = note?.trim().orEmpty()))
     }
 
+    /**
+     * Edits a debt as a whole. The amount and the account belong to the issue, so changing them
+     * moves the account balance; [accountId] null leaves the balances alone. The amount cannot
+     * drop below what was already paid, and it is fixed once the rest was written off.
+     */
+    suspend fun updateDebt(debtId: Long, person: String, note: String?, amountMinor: Long, accountId: Long?) {
+        val debt = debtRepository.debt(debtId) ?: error("debt not found")
+        val name = person.trim()
+        require(name.isNotEmpty()) { "person required" }
+        require(amountMinor > 0) { "amount must be positive" }
+        requireAccountOrNull(accountId)
+        val entries = debtEntries(debtId)
+        val issue = entries.firstOrNull { it.kind == DebtEntryKind.ISSUE } ?: error("issue not found")
+        val settled = entries.filter { it.kind != DebtEntryKind.ISSUE }.sumOf { it.amountMinor }
+        if (amountMinor != issue.amountMinor && entries.any { it.kind == DebtEntryKind.WRITE_OFF }) {
+            throw DebtWrittenOffException()
+        }
+        if (amountMinor < settled) throw DebtOverpayException()
+        debtRepository.updateDebt(debt.copy(person = name, note = note?.trim().orEmpty()))
+        debtRepository.updateEntry(issue.copy(amountMinor = amountMinor, accountId = accountId))
+    }
+
     /** Records a payment toward the debt; at most what is still owed. */
     suspend fun repayDebt(debtId: Long, amountMinor: Long, accountId: Long?, date: LocalDate): Long {
         require(amountMinor > 0) { "amount must be positive" }

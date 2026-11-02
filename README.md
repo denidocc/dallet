@@ -6,11 +6,12 @@ Offline personal finance tracker for Android: accounts, categorized transactions
 
 **Free. No ads. No subscriptions. No accounts. No data collection. No internet permission.**
 
-Current version: **0.7.4** (`versionCode` 42). What changed in each release: [Releases](https://github.com/denidocc/dallet/releases).
+Current version: **0.8.0** (`versionCode` 43). What changed in each release: [Releases](https://github.com/denidocc/dallet/releases).
 
 ## Features
 
 - Paged onboarding with a welcome page, language choice and a progress bar: main currency (TMT, USD, EUR, RUB, TRY, CNY, KZT), account templates and starting balances
+- Add expense or income: a "Check against account" helper works the amount out from the real balance
 - Home: total balance, monthly income and expenses, a "Due" block (recurring transactions), budgets near their limit, accounts in a row, blocks for Shopping, Goals, Debts and Regular operations (three items each opening straight into the item, plus an "All …" button), latest expenses with category icons
 - "+": choose "One-off transaction" (Expense, Income, Transfer with date and time) or "Shopping list"
 - History: all transactions, edit and delete; transactions have a time (creation time by default)
@@ -18,7 +19,7 @@ Current version: **0.7.4** (`versionCode` 42). What changed in each release: [Re
 - Shopping (More → Shopping): lists with a name and comment, quantity, unit and price; suggestions from the product catalog; prices are saved when an item is checked; "Close purchase" creates a single expense; archive; product catalog with price history and chart
 - More → Accounts and Categories (color + a grid of graphic icons); categories have editable subcategories (one level), counted into the parent in analytics and budgets
 - More → Goals: savings goals with progress; deposit from an account or "as income"; withdraw, archive; warning when a deposit would take an account below zero
-- More → Debts: money lent and borrowed, with the account the money went through, partial repayments and "Write off"; Analytics tabs for goals and debts
+- More → Debts: money lent and borrowed, with the account the money went through, partial repayments and "Write off", every field can be edited afterwards; Analytics tabs for goals and debts
 - More is grouped (Money, Lists, Data, App, Help) and sorted alphabetically inside each group
 - More → FAQ and a feedback form (opens your mail app)
 - Every deletion asks for confirmation

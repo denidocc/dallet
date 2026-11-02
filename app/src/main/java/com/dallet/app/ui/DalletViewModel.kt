@@ -362,6 +362,8 @@ data class SelectableOption(
 data class AddExpenseUiState(
     val kind: AddOperationKind = AddOperationKind.EXPENSE,
     val accounts: List<SelectableOption> = emptyList(),
+    /** Balance of every account in minor units, for the reconcile helper of the amount field. */
+    val balances: Map<Long, Long> = emptyMap(),
     val categories: List<SelectableOption> = emptyList(),
     val selectedAccountId: Long? = null,
     val selectedFromAccountId: Long? = null,
@@ -2229,9 +2231,8 @@ class DalletViewModel(
     ) {
         try {
             val previous = _addExpense.value
-            val accounts = ledger.accountBalances().map {
-                SelectableOption(it.account.id, it.account.name)
-            }
+            val balanceList = ledger.accountBalances()
+            val accounts = balanceList.map { SelectableOption(it.account.id, it.account.name) }
             val categoryKind = when (kind) {
                 AddOperationKind.EXPENSE -> CategoryKind.EXPENSE
                 AddOperationKind.INCOME -> CategoryKind.INCOME
@@ -2243,6 +2244,7 @@ class DalletViewModel(
             _addExpense.value = AddExpenseUiState(
                 kind = kind,
                 accounts = accounts,
+                balances = balanceList.associate { it.account.id to it.balanceMinor },
                 categories = categories,
                 selectedAccountId = accounts.firstOrNull()?.id,
                 selectedFromAccountId = accounts.firstOrNull()?.id,

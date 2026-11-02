@@ -97,20 +97,20 @@ fun AmountCard(
     rates: List<ExchangeRate>,
     enabled: Boolean = true,
     supporting: String? = null,
-    canConvert: Boolean = true
+    canConvert: Boolean = true,
+    /** Balance of the chosen account; with it the card offers to work the amount out from the real balance. */
+    reconcileBalanceMinor: Long? = null,
+    reconcileIsExpense: Boolean = true
 ) {
     var showConvert by remember { mutableStateOf(false) }
+    var showReconcile by remember { mutableStateOf(false) }
     SurfaceCard {
-        Text(
-            text = stringResource(R.string.add_amount_label),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
         OutlinedTextField(
             value = value,
             onValueChange = onChange,
             modifier = Modifier.fillMaxWidth(),
             enabled = enabled,
+            label = { Text(stringResource(R.string.add_amount_label)) },
             singleLine = true,
             textStyle = MaterialTheme.typography.headlineMedium,
             suffix = {
@@ -134,13 +134,31 @@ fun AmountCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        if (canConvert && enabled) {
+        if (enabled && (canConvert || reconcileBalanceMinor != null)) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = { showConvert = true }) {
-                    Text(stringResource(R.string.rates_convert))
+                if (canConvert) {
+                    TextButton(onClick = { showConvert = true }) {
+                        Text(stringResource(R.string.rates_convert))
+                    }
+                }
+                if (reconcileBalanceMinor != null) {
+                    TextButton(onClick = { showReconcile = true }) {
+                        Text(stringResource(R.string.reconcile_button))
+                    }
                 }
             }
         }
+    }
+    if (showReconcile && reconcileBalanceMinor != null) {
+        ReconcileDialog(
+            balanceMinor = reconcileBalanceMinor,
+            isExpense = reconcileIsExpense,
+            onApply = {
+                onChange(it)
+                showReconcile = false
+            },
+            onDismiss = { showReconcile = false }
+        )
     }
     if (showConvert) {
         ConvertDialog(

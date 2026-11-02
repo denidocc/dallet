@@ -532,6 +532,8 @@
     <string name="debts_keep_balance">Не менять баланс счёта</string>
     <string name="err_debt_input">Проверьте имя и сумму</string>
     <string name="err_debt_overpay">Сумма больше остатка долга</string>
+    <string name="err_debt_below_paid">Сумма не может быть меньше уже возвращённой</string>
+    <string name="err_debt_written_off">Остаток списан, сумму долга менять нельзя</string>
     <string name="msg_debt_repaid">Платёж записан</string>
     <string name="faq_q11">Как вести долги?</string>
     <string name="faq_a11">В «Ещё → Долги» запишите, кто и сколько вам должен или кому должны вы. Выберите счёт: при выдаче деньги спишутся с него, при получении придут на него. Для старого долга включите «Не менять баланс счёта». Возвраты записывайте кнопкой «Мне вернули» или «Я вернул», в том числе частями.</string>
@@ -632,5 +634,17 @@
     <string name="faq_q16">Есть ли в отчёте цели и долги?</string>
     <string name="faq_a16">Да. В PDF и CSV (Аналитика → экспорт отчёта) после итогов добавлены цели с прогрессом и незакрытые долги с остатком. Они показаны на сегодняшний день и от выбранного периода не зависят.</string>
     <string name="faq_q17">Зачем при удалении спрашивают подтверждение?</string>
+    <string name="faq_q18">Как сверить баланс счёта с картой или банком?</string>
+    <string name="faq_a18">Добавьте расход или доход и нажмите «Сверка со счётом» под полем суммы. Введите, сколько на счёте на самом деле: Dallet сравнит это с остатком в приложении и подставит разницу в поле суммы. Если на карте меньше, получится расход, если больше, выберите «Доход».</string>
     <string name="faq_a17">Чтобы случайное нажатие не стёрло данные. Любое удаление (операции, счёта, категории, бюджета, регулярной операции, товара) сначала показывает окно «Удалить?». Восстановить удалённое можно только из резервной копии.</string>
+    <string name="reconcile_button">Сверка со счётом</string>
+    <string name="reconcile_title">Сверка со счётом</string>
+    <string name="reconcile_in_app">В приложении на счёте: %1$s %2$s</string>
+    <string name="reconcile_actual">Сколько на счёте на самом деле</string>
+    <string name="reconcile_diff_expense">Расход: %1$s %2$s</string>
+    <string name="reconcile_diff_income">Доход: %1$s %2$s</string>
+    <string name="reconcile_equal">Остаток совпадает, разницы нет</string>
+    <string name="reconcile_wrong_expense">На счёте больше, чем в приложении. Это похоже на доход.</string>
+    <string name="reconcile_wrong_income">На счёте меньше, чем в приложении. Это похоже на расход.</string>
+    <string name="reconcile_apply">Подставить сумму</string>
 </resources>

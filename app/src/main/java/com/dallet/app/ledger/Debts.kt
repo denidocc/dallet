@@ -75,6 +75,8 @@ data class DebtSummary(
 
 class DebtOverpayException : Exception("Repayment is larger than what is left")
 
+class DebtWrittenOffException : Exception("The rest of the debt was written off, its amount is fixed")
+
 interface DebtRepository {
     suspend fun getAll(): DebtData
     suspend fun replaceAll(data: DebtData)

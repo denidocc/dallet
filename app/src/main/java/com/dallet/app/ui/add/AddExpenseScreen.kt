@@ -68,7 +68,10 @@ fun AddExpenseScreen(
             value = state.amountInput,
             onChange = onAmountChange,
             rates = rates,
-            canConvert = state.kind != AddOperationKind.TRANSFER
+            canConvert = state.kind != AddOperationKind.TRANSFER,
+            reconcileBalanceMinor = if (state.kind == AddOperationKind.TRANSFER) null
+            else state.selectedAccountId?.let { state.balances[it] },
+            reconcileIsExpense = state.kind == AddOperationKind.EXPENSE
         )
 
         when (state.kind) {
